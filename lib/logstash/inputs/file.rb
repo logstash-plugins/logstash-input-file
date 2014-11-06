@@ -31,11 +31,11 @@ class LogStash::Inputs::File < LogStash::Inputs::Base
 
   # Exclusions (matched against the filename, not full path). Globs
   # are valid here, too. For example, if you have
-  #
+  # [source,ruby]
   #     path => "/var/log/*"
   #
   # You might want to exclude gzipped files:
-  #
+  # [source,ruby]
   #     exclude => "*.gz"
   config :exclude, :validate => :array
 
@@ -49,7 +49,7 @@ class LogStash::Inputs::File < LogStash::Inputs::Base
 
   # Where to write the sincedb database (keeps track of the current
   # position of monitored log files). The default will write
-  # sincedb files to some path matching "$HOME/.sincedb*"
+  # sincedb files to some path matching `$HOME/.sincedb*`
   config :sincedb_path, :validate => :string
 
   # How often (in seconds) to write a since database with the current position of
