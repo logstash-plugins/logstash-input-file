@@ -1,13 +1,13 @@
 Gem::Specification.new do |s|
 
   s.name            = 'logstash-input-file'
-  s.version         = '0.1.1'
+  s.version         = '0.1.2'
   s.licenses        = ['Apache License (2.0)']
   s.summary         = "Stream events from files."
-  s.description     = "Stream events from files."
+  s.description     = "This gem is a logstash plugin required to be installed on top of the Logstash core pipeline using $LS_HOME/bin/plugin install gemname. This gem is not a stand-alone program"
   s.authors         = ["Elasticsearch"]
   s.email           = 'richard.pijnenburg@elasticsearch.com'
-  s.homepage        = "http://logstash.net/"
+  s.homepage        = "http://www.elasticsearch.org/guide/en/logstash/current/index.html"
   s.require_paths = ["lib"]
 
   # Files
@@ -17,7 +17,7 @@ Gem::Specification.new do |s|
   s.test_files = s.files.grep(%r{^(test|spec|features)/})
 
   # Special flag to let us know this is actually a logstash plugin
-  s.metadata = { "logstash_plugin" => "true", "group" => "input" }
+  s.metadata = { "logstash_plugin" => "true", "logstash_group" => "input" }
 
   # Gem dependencies
   s.add_runtime_dependency 'logstash', '>= 1.4.0', '< 2.0.0'
@@ -26,5 +26,6 @@ Gem::Specification.new do |s|
   s.add_runtime_dependency 'addressable'
   s.add_runtime_dependency 'filewatch', ['0.5.1']
 
+  s.add_development_dependency 'logstash-devutils'
 end
 
