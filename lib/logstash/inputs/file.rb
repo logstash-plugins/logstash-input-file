@@ -15,7 +15,6 @@ require "socket" # for Socket.gethostname
 # is detected and handled by this input.
 class LogStash::Inputs::File < LogStash::Inputs::Base
   config_name "file"
-  milestone 2
 
   # TODO(sissel): This should switch to use the `line` codec by default
   # once file following
