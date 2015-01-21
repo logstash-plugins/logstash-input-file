@@ -71,6 +71,7 @@ class LogStash::Inputs::File < LogStash::Inputs::Base
     require "filewatch/tail"
     require "digest/md5"
     @logger.info("Registering file input", :path => @path)
+    @host = Socket.gethostname.force_encoding(Encoding::UTF_8)
 
     @tail_config = {
       :exclude => @exclude,
@@ -127,14 +128,14 @@ class LogStash::Inputs::File < LogStash::Inputs::Base
     @tail = FileWatch::Tail.new(@tail_config)
     @tail.logger = @logger
     @path.each { |path| @tail.tail(path) }
-    hostname = Socket.gethostname
 
     @tail.subscribe do |path, line|
       @logger.debug? && @logger.debug("Received line", :path => path, :text => line)
       @codec.decode(line) do |event|
+        event["[@metadata][path]"] = path
+        event["host"] = @host if !event.include?("host")
+        event["path"] = path if !event.include?("path")
         decorate(event)
-        event["host"] = hostname if !event.include?("host")
-        event["path"] = path
         queue << event
       end
     end
