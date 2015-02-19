@@ -26,6 +26,7 @@ Gem::Specification.new do |s|
   s.add_runtime_dependency 'addressable'
   s.add_runtime_dependency 'filewatch', ['0.6.1']
 
+  s.add_development_dependency 'stud', ['~> 0.0.19']
   s.add_development_dependency 'logstash-devutils'
 end
 

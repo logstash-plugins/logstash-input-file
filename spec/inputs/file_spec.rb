@@ -2,25 +2,29 @@
 
 require "logstash/devutils/rspec/spec_helper"
 require "tempfile"
+require "stud/temporary"
 
 describe "inputs/file" do
-  
+
+  delimiter = (LogStash::Environment.windows? ? "\r\n" : "\n")
 
   describe "starts at the end of an existing file" do
-    tmp_file = Tempfile.new('logstash-spec-input-file')
+    tmpfile_path = Stud::Temporary.pathname
+    sincedb_path = Stud::Temporary.pathname
 
     config <<-CONFIG
       input {
         file {
           type => "blah"
-          path => "#{tmp_file.path}"
-          sincedb_path => "/dev/null"
+          path => "#{tmpfile_path}"
+          sincedb_path => "#{sincedb_path}"
+          delimiter => "#{delimiter}"
         }
       }
     CONFIG
 
     input do |pipeline, queue|
-      File.open(tmp_file, "w") do |fd|
+      File.open(tmpfile_path, "w") do |fd|
         fd.puts("ignore me 1")
         fd.puts("ignore me 2")
       end
@@ -38,7 +42,7 @@ describe "inputs/file" do
       loop do
         insist { retries } < 20 # 2 secs should be plenty?
 
-        File.open(tmp_file, "a") do |fd|
+        File.open(tmpfile_path, "a") do |fd|
           fd.puts("hello")
           fd.puts("world")
         end
@@ -57,21 +61,23 @@ describe "inputs/file" do
   end
 
   describe "can start at the beginning of an existing file" do
-    tmp_file = Tempfile.new('logstash-spec-input-file')
+    tmpfile_path = Stud::Temporary.pathname
+    sincedb_path = Stud::Temporary.pathname
 
     config <<-CONFIG
       input {
         file {
           type => "blah"
-          path => "#{tmp_file.path}"
+          path => "#{tmpfile_path}"
           start_position => "beginning"
-          sincedb_path => "/dev/null"
+          sincedb_path => "#{sincedb_path}"
+          delimiter => "#{delimiter}"
         }
       }
     CONFIG
 
     input do |pipeline, queue|
-      File.open(tmp_file, "a") do |fd|
+      File.open(tmpfile_path, "a") do |fd|
         fd.puts("hello")
         fd.puts("world")
       end
@@ -86,22 +92,23 @@ describe "inputs/file" do
   end
 
   describe "restarts at the sincedb value" do
-    tmp_file = Tempfile.new('logstash-spec-input-file')
-    tmp_sincedb = Tempfile.new('logstash-spec-input-file-sincedb')
+    tmpfile_path = Stud::Temporary.pathname
+    sincedb_path = Stud::Temporary.pathname
 
     config <<-CONFIG
       input {
         file {
           type => "blah"
-          path => "#{tmp_file.path}"
-          start_position => "beginning"
-          sincedb_path => "#{tmp_sincedb.path}"
+          path => "#{tmpfile_path}"
+	  start_position => "beginning"
+          sincedb_path => "#{sincedb_path}"
+          delimiter => "#{delimiter}"
         }
       }
     CONFIG
 
     input do |pipeline, queue|
-      File.open(tmp_file, "w") do |fd|
+      File.open(tmpfile_path, "w") do |fd|
         fd.puts("hello")
         fd.puts("world")
       end
@@ -113,7 +120,7 @@ describe "inputs/file" do
       pipeline.shutdown
       t.join
 
-      File.open(tmp_file, "a") do |fd|
+      File.open(tmpfile_path, "a") do |fd|
         fd.puts("foo")
         fd.puts("bar")
         fd.puts("baz")

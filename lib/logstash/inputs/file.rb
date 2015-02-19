@@ -65,6 +65,9 @@ class LogStash::Inputs::File < LogStash::Inputs::Base
   # has no effect.
   config :start_position, :validate => [ "beginning", "end"], :default => "end"
 
+  # set the new line delimiter, defaults to "\n"
+  config :delimiter, :validate => :string, :default => "\n"
+
   public
   def register
     require "addressable/uri"
@@ -77,6 +80,7 @@ class LogStash::Inputs::File < LogStash::Inputs::Base
       :stat_interval => @stat_interval,
       :discover_interval => @discover_interval,
       :sincedb_write_interval => @sincedb_write_interval,
+      :delimiter => @delimiter,
       :logger => @logger,
     }
 
