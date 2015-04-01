@@ -99,7 +99,7 @@ describe "inputs/file" do
         file {
           type => "blah"
           path => "#{tmpfile_path}"
-	        start_position => "beginning"
+          start_position => "beginning"
           sincedb_path => "#{sincedb_path}"
           delimiter => "#{delimiter}"
         }
