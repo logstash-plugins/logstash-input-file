@@ -147,7 +147,10 @@ class LogStash::Inputs::File < LogStash::Inputs::Base
 
   public
   def teardown
-    @tail.sincedb_write
-    @tail.quit
+    if @tail
+      @tail.sincedb_write
+      @tail.quit
+      @tail = nil
+    end
   end # def teardown
 end # class LogStash::Inputs::File
