@@ -38,12 +38,12 @@ class LogStash::Inputs::File < LogStash::Inputs::Base
   #     exclude => "*.gz"
   config :exclude, :validate => :array
 
-  # How often we stat files to see if they have been modified. Increasing
-  # this interval will decrease the number of system calls we make, but
-  # increase the time to detect new log lines.
+  # How often (in seconds) we stat files to see if they have been modified.
+  # Increasing this interval will decrease the number of system calls we make,
+  # but increase the time to detect new log lines.
   config :stat_interval, :validate => :number, :default => 1
 
-  # How often we expand globs to discover new files to watch.
+  # How often (in seconds) we expand globs to discover new files to watch.
   config :discover_interval, :validate => :number, :default => 15
 
   # Where to write the sincedb database (keeps track of the current
