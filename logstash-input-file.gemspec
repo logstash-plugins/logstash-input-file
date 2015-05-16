@@ -28,5 +28,6 @@ Gem::Specification.new do |s|
 
   s.add_development_dependency 'stud', ['~> 0.0.19']
   s.add_development_dependency 'logstash-devutils'
+  s.add_development_dependency 'logstash-codec-json'
 end
 
