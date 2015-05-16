@@ -132,4 +132,37 @@ describe "inputs/file" do
     insist { events[1]["message"] } == "bar"
     insist { events[2]["message"] } == "baz"
   end
+
+  it "should not overwrite existing path and host fields" do
+    tmpfile_path = Stud::Temporary.pathname
+    sincedb_path = Stud::Temporary.pathname
+
+    conf = <<-CONFIG
+      input {
+        file {
+          type => "blah"
+          path => "#{tmpfile_path}"
+          start_position => "beginning"
+          sincedb_path => "#{sincedb_path}"
+          delimiter => "#{delimiter}"
+          codec => "json"
+        }
+      }
+    CONFIG
+
+    File.open(tmpfile_path, "w") do |fd|
+      fd.puts('{"path": "my_path", "host": "my_host"}')
+      fd.puts('{"my_field": "my_val"}')
+    end
+
+    events = input(conf) do |pipeline, queue|
+      2.times.collect { queue.pop }
+    end
+
+    insist { events[0]["path"] } == "my_path"
+    insist { events[0]["host"] } == "my_host"
+
+    insist { events[1]["path"] } == "#{tmpfile_path}"
+    insist { events[1]["host"] } == "#{Socket.gethostname.force_encoding(Encoding::UTF_8)}"
+  end
 end
