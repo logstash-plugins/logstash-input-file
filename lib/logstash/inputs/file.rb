@@ -25,7 +25,7 @@ class LogStash::Inputs::File < LogStash::Inputs::Base
   # Paths must be absolute and cannot be relative.
   #
   # You may also configure multiple paths. See an example
-  # on the [Logstash configuration page](configuration#array).
+  # on the <<array,Logstash configuration page>>.
   config :path, :validate => :array, :required => true
 
   # Exclusions (matched against the filename, not full path). Globs
