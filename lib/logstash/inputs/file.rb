@@ -65,6 +65,12 @@ class LogStash::Inputs::File < LogStash::Inputs::Base
   # has no effect.
   config :start_position, :validate => [ "beginning", "end"], :default => "end"
 
+  # In cases where files are rsynced to the consuming server, inodes will change when 
+  # updated files overwrite original ones, resulting in inode changes.  In order to 
+  # avoid having the sincedb.member check from failing in this scenario, we'll 
+  # construct the inode key using the path which will be 'stable'
+  config :follow_only_path, :validate => :boolean, :default => false
+
   # set the new line delimiter, defaults to "\n"
   config :delimiter, :validate => :string, :default => "\n"
 
@@ -121,6 +127,7 @@ class LogStash::Inputs::File < LogStash::Inputs::Base
     end
 
     @tail_config[:sincedb_path] = @sincedb_path
+    @tail_config[:follow_only_path] = @follow_only_path
 
     if @start_position == "beginning"
       @tail_config[:start_new_files_at] = :beginning
