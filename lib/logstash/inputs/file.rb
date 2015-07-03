@@ -46,9 +46,10 @@ class LogStash::Inputs::File < LogStash::Inputs::Base
   # How often (in seconds) we expand globs to discover new files to watch.
   config :discover_interval, :validate => :number, :default => 15
 
-  # Where to write the sincedb database (keeps track of the current
-  # position of monitored log files). The default will write
-  # sincedb files to some path matching `$HOME/.sincedb*`
+  # Path of the sincedb database file (keeps track of the current
+  # position of monitored log files) that will be written to disk.
+  # The default will write sincedb files to some path matching `$HOME/.sincedb*`
+  # NOTE: it must be a file path and not a directory path
   config :sincedb_path, :validate => :string
 
   # How often (in seconds) to write a since database with the current position of
@@ -118,6 +119,10 @@ class LogStash::Inputs::File < LogStash::Inputs::Base
 
       @logger.info("No sincedb_path set, generating one based on the file path",
                    :sincedb_path => @sincedb_path, :path => @path)
+    end
+
+    if File.directory?(@sincedb_path)
+      raise ArgumentError.new("sincedb_path must be a file path, not a directory. Received: \"#{@sincedb_path}\"")
     end
 
     @tail_config[:sincedb_path] = @sincedb_path
