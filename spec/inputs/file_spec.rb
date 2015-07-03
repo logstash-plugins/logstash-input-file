@@ -3,6 +3,7 @@
 require "logstash/devutils/rspec/spec_helper"
 require "tempfile"
 require "stud/temporary"
+require "logstash/inputs/file"
 
 describe "inputs/file" do
 
@@ -164,5 +165,15 @@ describe "inputs/file" do
 
     insist { events[1]["path"] } == "#{tmpfile_path}"
     insist { events[1]["host"] } == "#{Socket.gethostname.force_encoding(Encoding::UTF_8)}"
+  end
+
+  context "sincedb_path is an existing directory" do
+    it "should raise exception" do
+      tmpfile_path = Stud::Temporary.pathname
+      Stud::Temporary.directory do |sincedb_path|
+        plugin = LogStash::Inputs::File.new("path" => tmpfile_path, "sincedb_path" => sincedb_path)
+        expect { plugin.register }.to raise_error(ArgumentError)
+      end
+    end
   end
 end
