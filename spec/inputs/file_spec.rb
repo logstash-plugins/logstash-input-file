@@ -167,13 +167,17 @@ describe "inputs/file" do
     insist { events[1]["host"] } == "#{Socket.gethostname.force_encoding(Encoding::UTF_8)}"
   end
 
-  context "sincedb_path is an existing directory" do
+  context "when sincedb_path is an existing directory" do
+    let(:tmpfile_path) { Stud::Temporary.pathname }
+    let(:sincedb_path) { Stud::Temporary.directory }
+    subject { LogStash::Inputs::File.new("path" => tmpfile_path, "sincedb_path" => sincedb_path) }
+
+    after :each do
+      FileUtils.rm_rf(sincedb_path)
+    end
+
     it "should raise exception" do
-      tmpfile_path = Stud::Temporary.pathname
-      Stud::Temporary.directory do |sincedb_path|
-        plugin = LogStash::Inputs::File.new("path" => tmpfile_path, "sincedb_path" => sincedb_path)
-        expect { plugin.register }.to raise_error(ArgumentError)
-      end
+      expect { subject.register }.to raise_error(ArgumentError)
     end
   end
 end
