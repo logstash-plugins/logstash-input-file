@@ -122,7 +122,7 @@ class LogStash::Inputs::File < LogStash::Inputs::Base
     end
 
     if File.directory?(@sincedb_path)
-      raise ArgumentError.new("sincedb_path must be a file path, not a directory. Received: \"#{@sincedb_path}\"")
+      raise ArgumentError.new("The \"sincedb_path\" argument must point to a file, received a directory: \"#{@sincedb_path}\"")
     end
 
     @tail_config[:sincedb_path] = @sincedb_path
