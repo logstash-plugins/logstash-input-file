@@ -69,15 +69,15 @@ class LogStash::Inputs::File < LogStash::Inputs::Base
   default :codec, "plain"
 
   # The path(s) to the file(s) to use as an input.
-  # You can use globs here, such as `/var/log/*.log`
+  # You can use filename patterns here, such as `/var/log/*.log`.
   # Paths must be absolute and cannot be relative.
   #
   # You may also configure multiple paths. See an example
   # on the <<array,Logstash configuration page>>.
   config :path, :validate => :array, :required => true
 
-  # Exclusions (matched against the filename, not full path). Globs
-  # are valid here, too. For example, if you have
+  # Exclusions (matched against the filename, not full path). Filename
+  # patterns are valid here, too. For example, if you have
   # [source,ruby]
   #     path => "/var/log/*"
   #
@@ -91,7 +91,8 @@ class LogStash::Inputs::File < LogStash::Inputs::Base
   # but increase the time to detect new log lines.
   config :stat_interval, :validate => :number, :default => 1
 
-  # How often (in seconds) we expand globs to discover new files to watch.
+  # How often (in seconds) we expand the filename patterns in the
+  # `path` option to discover new files to watch.
   config :discover_interval, :validate => :number, :default => 15
 
   # Path of the sincedb database file (keeps track of the current
