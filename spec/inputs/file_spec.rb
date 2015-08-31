@@ -5,9 +5,18 @@ require "tempfile"
 require "stud/temporary"
 require "logstash/inputs/file"
 
-describe "inputs/file" do
+describe LogStash::Inputs::File do
 
   delimiter = (LogStash::Environment.windows? ? "\r\n" : "\n")
+
+  it_behaves_like "an interruptible input plugin" do
+    let(:config) do
+      {
+        "path" => Stud::Temporary.pathname,
+        "sincedb_path" => Stud::Temporary.pathname
+      }
+    end
+  end
 
   it "should starts at the end of an existing file" do
     tmpfile_path = Stud::Temporary.pathname
