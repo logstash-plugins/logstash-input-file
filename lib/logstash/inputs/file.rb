@@ -199,15 +199,10 @@ class LogStash::Inputs::File < LogStash::Inputs::Base
         queue << event
       end
     end
-    finished
   end # def run
 
   public
-  def teardown
-    if @tail
-      @tail.sincedb_write
-      @tail.quit
-      @tail = nil
-    end
-  end # def teardown
+  def stop
+    @tail.quit if @tail # _sincedb_write is called implicitly
+  end
 end # class LogStash::Inputs::File
