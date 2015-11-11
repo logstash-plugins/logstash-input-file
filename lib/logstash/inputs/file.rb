@@ -1,6 +1,7 @@
 # encoding: utf-8
-require "logstash/inputs/base"
 require "logstash/namespace"
+require "logstash/inputs/base"
+require "logstash/codecs/identity_map_codec"
 
 require "pathname"
 require "socket" # for Socket.gethostname
@@ -181,27 +182,39 @@ class LogStash::Inputs::File < LogStash::Inputs::Base
     if @start_position == "beginning"
       @tail_config[:start_new_files_at] = :beginning
     end
+
+    @codec = LogStash::Codecs::IdentityMapCodec.new(@codec)
   end # def register
 
-  public
   def run(queue)
     @tail = FileWatch::Tail.new(@tail_config)
     @tail.logger = @logger
     @path.each { |path| @tail.tail(path) }
-
     @tail.subscribe do |path, line|
-      @logger.debug? && @logger.debug("Received line", :path => path, :text => line)
-      @codec.decode(line) do |event|
-        event["[@metadata][path]"] = path
-        event["host"] = @host if !event.include?("host")
-        event["path"] = path if !event.include?("path")
-        decorate(event)
-        queue << event
+      log_line_received(path, line)
+      @codec.decode(line, path) do |event|
+        # path is the identity
+        # Note: this block is cached in the
+        # identity_map_codec for use when
+        # buffered lines are flushed.
+        queue << add_path_meta(event, path)
       end
     end
   end # def run
 
-  public
+  def log_line_received(path, line)
+    return if !@logger.debug?
+    @logger.debug("Received line", :path => path, :text => line)
+  end
+
+  def add_path_meta(event, path)
+    event["[@metadata][path]"] = path
+    event["host"] = @host if !event.include?("host")
+    event["path"] = path if !event.include?("path")
+    decorate(event)
+    event
+  end
+
   def stop
     @tail.quit if @tail # _sincedb_write is called implicitly
   end
