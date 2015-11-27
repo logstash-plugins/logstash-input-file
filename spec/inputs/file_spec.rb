@@ -5,6 +5,8 @@ require "tempfile"
 require "stud/temporary"
 require "logstash/inputs/file"
 
+Thread.abort_on_exception = true
+
 FILE_DELIMITER = LogStash::Environment.windows? ? "\r\n" : "\n"
 
 describe LogStash::Inputs::File do
@@ -187,6 +189,47 @@ describe LogStash::Inputs::File do
 
     it "should raise exception" do
       expect { subject.register }.to raise_error(ArgumentError)
+    end
+  end
+
+  context "when #run is called multiple times" do
+    let(:tmpdir_path)  { Stud::Temporary.directory }
+    let(:sincedb_path) { Stud::Temporary.pathname }
+    let(:file_path)    { "#{tmpdir_path}/a.log" }
+    let(:buffer)       { [] }
+    let(:lsof)         { [] }
+    let(:stop_proc) do
+      lambda do |input, arr|
+        Thread.new(input, arr) do |i, a|
+          sleep 0.5
+          a << `lsof -p #{Process.pid} | grep "a.log"`
+          i.stop
+        end
+      end
+    end
+
+    subject { LogStash::Inputs::File.new("path" => tmpdir_path + "/*.log", "start_position" => "beginning", "sincedb_path" => sincedb_path) }
+
+    after :each do
+      FileUtils.rm_rf(tmpdir_path)
+      FileUtils.rm_rf(sincedb_path)
+    end
+    before do
+      File.open(file_path, "w") do |fd|
+        fd.puts('foo')
+        fd.puts('bar')
+      end
+    end
+    it "should only have one set of files open" do
+      subject.register
+      lsof_before = `lsof -p #{Process.pid} | grep #{file_path}`
+      expect(lsof_before).to eq("")
+      stop_proc.call(subject, lsof)
+      subject.run(buffer)
+      expect(lsof.first).not_to eq("")
+      stop_proc.call(subject, lsof)
+      subject.run(buffer)
+      expect(lsof.last).to eq(lsof.first)
     end
   end
 
