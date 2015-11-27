@@ -186,10 +186,15 @@ class LogStash::Inputs::File < LogStash::Inputs::Base
     @codec = LogStash::Codecs::IdentityMapCodec.new(@codec)
   end # def register
 
-  def run(queue)
+  def begin_tailing
+    stop # if the pipeline restarts this input.
     @tail = FileWatch::Tail.new(@tail_config)
     @tail.logger = @logger
     @path.each { |path| @tail.tail(path) }
+  end
+
+  def run(queue)
+    begin_tailing
     @tail.subscribe do |path, line|
       log_line_received(path, line)
       @codec.decode(line, path) do |event|
