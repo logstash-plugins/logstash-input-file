@@ -5,11 +5,18 @@ require "tempfile"
 require "stud/temporary"
 require "logstash/inputs/file"
 
-Thread.abort_on_exception = true
-
 FILE_DELIMITER = LogStash::Environment.windows? ? "\r\n" : "\n"
 
 describe LogStash::Inputs::File do
+
+  before(:all) do
+    @abort_on_exception = Thread.abort_on_exception
+    Thread.abort_on_exception = true
+  end
+
+  after(:all) do
+    Thread.abort_on_exception = @abort_on_exception
+  end
 
   it_behaves_like "an interruptible input plugin" do
     let(:config) do
@@ -192,7 +199,7 @@ describe LogStash::Inputs::File do
     end
   end
 
-  context "when #run is called multiple times" do
+  context "when #run is called multiple times", :unix => true do
     let(:tmpdir_path)  { Stud::Temporary.directory }
     let(:sincedb_path) { Stud::Temporary.pathname }
     let(:file_path)    { "#{tmpdir_path}/a.log" }
