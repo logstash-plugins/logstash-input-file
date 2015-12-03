@@ -221,6 +221,9 @@ class LogStash::Inputs::File < LogStash::Inputs::Base
   end
 
   def stop
-    @tail.quit if @tail # _sincedb_write is called implicitly
+    # in filewatch >= 0.6.7, quit will closes and forget all files
+    # but it will write their last read positions to since_db
+    # beforehand
+    @tail.quit if @tail
   end
 end # class LogStash::Inputs::File
