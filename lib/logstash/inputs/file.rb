@@ -184,7 +184,7 @@ class LogStash::Inputs::File < LogStash::Inputs::Base
   end # def register
 
   def begin_tailing
-    stop # if the pipeline restarts this input.
+    teardown   # if the pipeline restarts this input.
     @tail = FileWatch::Tail.new(@tail_config)
     @tail.logger = @logger
     @path.each { |path| @tail.tail(path) }
@@ -207,10 +207,9 @@ class LogStash::Inputs::File < LogStash::Inputs::Base
 
   public
   def teardown
-    if @tail
-      @tail.sincedb_write
-      @tail.quit
-      @tail = nil
-    end
+    # in filewatch >= 0.6.7, quit will close and forget all files
+    # but it will write their last read positions to since_db
+    # beforehand
+    @tail.quit if @tail
   end # def teardown
 end # class LogStash::Inputs::File
