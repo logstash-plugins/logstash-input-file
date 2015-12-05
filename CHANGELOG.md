@@ -1,3 +1,9 @@
+## 2.1.0
+ - Implement new config options: ignore_older and close_older.  When close_older is set, any buffered data will be flushed.
+ - Fixes [#81](https://github.com/logstash-plugins/logstash-input-file/issues/81)
+ - Fixes [#81](https://github.com/logstash-plugins/logstash-input-file/issues/89)
+ - Fixes [#81](https://github.com/logstash-plugins/logstash-input-file/issues/90)
+
 ## 2.0.3
  - Implement Stream Identity mapping of codecs: distinct codecs will collect input per stream identity (filename)
 
