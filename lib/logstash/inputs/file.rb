@@ -65,10 +65,6 @@ require "socket" # for Socket.gethostname
 class LogStash::Inputs::File < LogStash::Inputs::Base
   config_name "file"
 
-  # TODO(sissel): This should switch to use the `line` codec by default
-  # once file following
-  default :codec, "plain"
-
   # The path(s) to the file(s) to use as an input.
   # You can use filename patterns here, such as `/var/log/*.log`.
   # Paths must be absolute and cannot be relative.
