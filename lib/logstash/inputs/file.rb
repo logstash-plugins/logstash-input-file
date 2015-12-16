@@ -67,6 +67,8 @@ class LogStash::Inputs::File < LogStash::Inputs::Base
 
   # The path(s) to the file(s) to use as an input.
   # You can use filename patterns here, such as `/var/log/*.log`.
+  # If you use a pattern like `/var/log/**/*.log`, a recursive search
+  # of `/var/log` will be done for all `*.log` files.
   # Paths must be absolute and cannot be relative.
   #
   # You may also configure multiple paths. See an example
