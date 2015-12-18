@@ -100,6 +100,16 @@ class LogStash::Inputs::File < LogStash::Inputs::Base
   # NOTE: it must be a file path and not a directory path
   config :sincedb_path, :validate => :string
 
+  # Directory path of where the sincedb file will be written. sincedb_path
+  # overrides this value so they should not be used together. This has
+  # the same effect of setting $HOME or $SINCEDB_DIR environment variables.
+  config :sincedb_dir, :validate => :string
+
+  # Prefix for the sincedb file name. By default the sincedb file is named
+  # .sincedb*. This allows you to customize the filename but keep the hash
+  # that is appended to it.
+  config :sincedb_file_prefix, :validate => :string
+
   # How often (in seconds) to write a since database with the current position of
   # monitored log files.
   config :sincedb_write_interval, :validate => :number, :default => 15
@@ -143,21 +153,27 @@ class LogStash::Inputs::File < LogStash::Inputs::Base
     end
 
     if @sincedb_path.nil?
-      if ENV["SINCEDB_DIR"].nil? && ENV["HOME"].nil?
-        @logger.error("No SINCEDB_DIR or HOME environment variable set, I don't know where " \
-                      "to keep track of the files I'm watching. Either set " \
-                      "HOME or SINCEDB_DIR in your environment, or set sincedb_path in " \
-                      "in your Logstash config for the file input with " \
-                      "path '#{@path.inspect}'")
-        raise # TODO(sissel): HOW DO I FAIL PROPERLY YO
+      if @sincedb_dir.nil?
+        if ENV["SINCEDB_DIR"].nil? && ENV["HOME"].nil?
+          @logger.error("No SINCEDB_DIR or HOME environment variable set, I don't know where " \
+                        "to keep track of the files I'm watching. Either set " \
+                        "HOME or SINCEDB_DIR in your environment, or set sincedb_path in " \
+                        "in your Logstash config for the file input with " \
+                        "path '#{@path.inspect}'")
+          raise # TODO(sissel): HOW DO I FAIL PROPERLY YO
+        end
       end
 
-      #pick SINCEDB_DIR if available, otherwise use HOME
-      sincedb_dir = ENV["SINCEDB_DIR"] || ENV["HOME"]
+      #pick sincedb_path if set, then SINCEDB_DIR if available, otherwise use HOME
+      sincedb_dir = @sincedb_dir || ENV["SINCEDB_DIR"] || ENV["HOME"]
 
       # Join by ',' to make it easy for folks to know their own sincedb
       # generated path (vs, say, inspecting the @path array)
-      @sincedb_path = File.join(sincedb_dir, ".sincedb_" + Digest::MD5.hexdigest(@path.join(",")))
+      path_hex = Digest::MD5.hexdigest(@path.join(","))
+
+      sincedb_file = @sincedb_file_prefix + path_hex || ".sincedb_" + path_hex
+
+      @sincedb_path = File.join(sincedb_dir, sincedb_file)
 
       # Migrate any old .sincedb to the new file (this is for version <=1.1.1 compatibility)
       old_sincedb = File.join(sincedb_dir, ".sincedb")
