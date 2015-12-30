@@ -147,7 +147,7 @@ describe LogStash::Inputs::File do
     let(:mlconf)       { Hash.new }
     let(:events)       { Array.new }
     let(:mlcodec)      { LogStash::Codecs::Multiline.new(mlconf) }
-    let(:codec)        { CodecTracer.new }
+    let(:codec)        { FileInput::CodecTracer.new }
     let(:tmpfile_path) { Stud::Temporary.pathname }
     let(:sincedb_path) { Stud::Temporary.pathname }
     let(:tmpdir_path)  { Stud::Temporary.directory }
