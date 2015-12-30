@@ -1,3 +1,6 @@
+## 2.1.2
+ - Isolate test helper class in their own namespace
+
 ## 2.1.1
  - Correct LS core dependency version
 
