@@ -1,3 +1,6 @@
+## 2.1.3
+ - Use ruby-filewatch 0.7.1, re-enable close after file is modified again
+
 ## 2.1.2
  - Isolate test helper class in their own namespace
 
