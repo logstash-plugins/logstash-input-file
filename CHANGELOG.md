@@ -1,3 +1,6 @@
+## 2.1.4
+ - Add configurable path for sincedb file and custom file name prefix
+
 ## 2.1.3
  - Use ruby-filewatch 0.7.1, re-enable close after file is modified again
 
