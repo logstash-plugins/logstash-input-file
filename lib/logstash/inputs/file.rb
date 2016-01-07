@@ -35,8 +35,8 @@ require "socket" # for Socket.gethostname
 # patterns with any frequency it might make sense to explicitly choose
 # a sincedb path with the `sincedb_path` option.
 #
-# A singe `sincedb_path` must be used for each input. Using the same
-# path will cause issues. The information of for each input must be
+# A different `sincedb_path` must be used for each input. Using the same
+# path will cause issues. The read checkpoints for each input must be
 # stored in a different path so the information does not override.
 #
 # Sincedb files are text files with four columns:
