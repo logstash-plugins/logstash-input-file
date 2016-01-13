@@ -124,7 +124,7 @@ class LogStash::Inputs::File < LogStash::Inputs::Base
   # Prefix for the sincedb file name. By default the sincedb file is named
   # .sincedb*. This allows you to customize the filename but keep the hash
   # that is appended to it.
-  config :sincedb_file_prefix, :validate => :string
+  config :sincedb_file_prefix, :validate => :string, :default => ".sincedb_"
 
   # How often (in seconds) to write a since database with the current position of
   # monitored log files.
@@ -199,7 +199,7 @@ class LogStash::Inputs::File < LogStash::Inputs::Base
       # generated path (vs, say, inspecting the @path array)
       path_hex = Digest::MD5.hexdigest(@path.join(","))
 
-      sincedb_file = @sincedb_file_prefix + path_hex || ".sincedb_" + path_hex
+      sincedb_file = @sincedb_file_prefix +  path_hex
 
       @sincedb_path = File.join(sincedb_dir, sincedb_file)
 
