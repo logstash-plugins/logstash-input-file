@@ -1,3 +1,9 @@
+## 2.2.0
+ - Use ruby-filewatch 0.8.0, major rework of filewatch. See [Pull Request 74](https://github.com/jordansissel/ruby-filewatch/pull/74)
+ - add max_open_files config option, defaults to 4095, the input will process much more than this but have this number of files open at any time - files are closed based on the close_older setting, thereby making others openable.
+ - Changes the close_older logic to measure the time since the file was last read internlly rather than using the file stat modified time.
+ - Use logstash-codec-multiline 2.0.7, fixes a bug with auto_flush deadlocking when multiple file inputs are defined in the LS config.
+
 ## 2.1.3
  - Use ruby-filewatch 0.7.1, re-enable close after file is modified again
 

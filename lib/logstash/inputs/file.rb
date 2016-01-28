@@ -145,10 +145,23 @@ class LogStash::Inputs::File < LogStash::Inputs::Base
   # longer ignored and any new data is read. The default is 24 hours.
   config :ignore_older, :validate => :number, :default => 24 * 60 * 60
 
-  # If this option is specified, the file input closes any files that remain
-  # unmodified for longer than the specified timespan in seconds.
+  # If this option is specified, the file input closes any files that were last
+  # read the specified timespan in seconds ago.
+  # This has different implications depending on if a file is being tailed or
+  # read. If tailing, and there is a large time gap in incoming data the file
+  # can be closed (allowing other files to be opened) but will be queued for
+  # reopening when new data is detected. If reading, the file will be closed
+  # after closed_older seconds from when the last bytes were read.
   # The default is 1 hour
   config :close_older, :validate => :number, :default => 1 * 60 * 60
+
+  # What is the maximum number of file_handles that this input consumes
+  # at any one time. Use close_older to close some files if you need to
+  # process more files than this number. This should not be set to the
+  # maximum the OS can do because file handles are needed for other
+  # LS plugins and OS processes.
+  # The default of 4095 is set in filewatch.
+  config :max_open_files, :validate => :number
 
   public
   def register
@@ -165,7 +178,8 @@ class LogStash::Inputs::File < LogStash::Inputs::Base
       :sincedb_write_interval => @sincedb_write_interval,
       :delimiter => @delimiter,
       :ignore_older => @ignore_older,
-      :close_older => @close_older
+      :close_older => @close_older,
+      :max_open_files => @max_open_files
     }
 
     @path.each do |path|
