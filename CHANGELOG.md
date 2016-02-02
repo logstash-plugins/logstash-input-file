@@ -1,3 +1,6 @@
+## 2.2.1
+ - Fix spec failures on CI Linux builds (not seen on local OSX and Linux)
+
 ## 2.2.0
  - Use ruby-filewatch 0.8.0, major rework of filewatch. See [Pull Request 74](https://github.com/jordansissel/ruby-filewatch/pull/74)
  - add max_open_files config option, defaults to 4095, the input will process much more than this but have this number of files open at any time - files are closed based on the close_older setting, thereby making others openable.

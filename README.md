@@ -1,7 +1,9 @@
 # Logstash Plugin
+Travis Build
+[![Travis Build Status](https://travis-ci.org/logstash-plugins/logstash-input-file.svg)](https://travis-ci.org/logstash-plugins/logstash-input-file)
 
-[![Build
-Status](http://build-eu-00.elastic.co/view/LS%20Plugins/view/LS%20Inputs/job/logstash-plugin-input-file-unit/badge/icon)](http://build-eu-00.elastic.co/view/LS%20Plugins/view/LS%20Inputs/job/logstash-plugin-input-file-unit/)
+Jenkins Build
+[![Build Status](http://build-eu-00.elastic.co/view/LS%20Plugins/view/LS%20Inputs/job/logstash-plugin-input-file-unit/badge/icon)](http://build-eu-00.elastic.co/view/LS%20Plugins/view/LS%20Inputs/job/logstash-plugin-input-file-unit/)
 
 This is a plugin for [Logstash](https://github.com/elastic/logstash).
 
