@@ -1,7 +1,7 @@
 Gem::Specification.new do |s|
 
   s.name            = 'logstash-input-file'
-  s.version         = '2.2.0'
+  s.version         = '2.2.1'
   s.licenses        = ['Apache License (2.0)']
   s.summary         = "Stream events from files."
   s.description     = "This gem is a logstash plugin required to be installed on top of the Logstash core pipeline using $LS_HOME/bin/plugin install gemname. This gem is not a stand-alone program"
@@ -28,7 +28,8 @@ Gem::Specification.new do |s|
   s.add_runtime_dependency 'logstash-codec-multiline', ['~> 2.0.7']
 
   s.add_development_dependency 'stud', ['~> 0.0.19']
-  s.add_development_dependency 'logstash-devutils'
+  s.add_development_dependency 'logstash-devutils', ['~> 0.0.18']
   s.add_development_dependency 'logstash-codec-json'
+  s.add_development_dependency 'rspec-sequencing'
 end
 

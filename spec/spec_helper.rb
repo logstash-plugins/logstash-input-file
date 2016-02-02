@@ -1,8 +1,14 @@
 # encoding: utf-8
 
 require "logstash/devutils/rspec/spec_helper"
+require "rspec_sequencing"
 
 module FileInput
+  def self.make_file_older(path, seconds)
+    time = Time.now.to_f - seconds
+    File.utime(time, time, path)
+  end
+  
   class TracerBase
     def initialize() @tracer = []; end
 
