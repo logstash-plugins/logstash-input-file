@@ -27,13 +27,15 @@ require "socket" # for Socket.gethostname
 # left off without missing the lines that were added to the file while
 # Logstash was stopped.
 #
-# By default, the sincedb file is placed in the home directory of the
-# user running Logstash with a filename based on the filename patterns
-# being watched (i.e. the `path` option). Thus, changing the filename
-# patterns will result in a new sincedb file being used and any
-# existing current position state will be lost. If you change your
-# patterns with any frequency it might make sense to explicitly choose
-# a sincedb path with the `sincedb_path` option.
+# By default, the sincedb file is placed in the directory listed in the
+# SINCEDB_DIR environment variable. If that variable is unset, the HOME
+# variable (i.e. the home directory of the user running Logstash) will
+# be used instead. The exact name of the actual file will be based on
+# the filename patterns being watched (i.e. the `path` option).
+# Thus, changing the filename patterns will result in a new sincedb file
+# being used and any existing current position state will be lost.
+# If you change your patterns with any frequency it might make sense to
+# explicitly choose a sincedb path with the `sincedb_path` option.
 #
 # A different `sincedb_path` must be used for each input. Using the same
 # path will cause issues. The read checkpoints for each input must be
