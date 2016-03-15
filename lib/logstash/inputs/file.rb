@@ -77,7 +77,7 @@ class LogStash::Codecs::Base
     end
   end
   if !method_defined?(:auto_flush)
-    def auto_flush
+    def auto_flush(*)
     end
   end
 end
@@ -139,14 +139,14 @@ class LogStash::Inputs::File < LogStash::Inputs::Base
   # set the new line delimiter, defaults to "\n"
   config :delimiter, :validate => :string, :default => "\n"
 
-  # If this option is specified, when the file input discovers a file that
-  # was last modified before the specified timespan in seconds, the file is
-  # ignored. After it's discovery, if an ignored file is modified it is no
+  # When the file input discovers a file that was last modified
+  # before the specified timespan in seconds, the file is ignored.
+  # After it's discovery, if an ignored file is modified it is no
   # longer ignored and any new data is read. The default is 24 hours.
   config :ignore_older, :validate => :number, :default => 24 * 60 * 60
 
-  # If this option is specified, the file input closes any files that were last
-  # read the specified timespan in seconds ago.
+  # The file input closes any files that were last read the specified
+  # timespan in seconds ago.
   # This has different implications depending on if a file is being tailed or
   # read. If tailing, and there is a large time gap in incoming data the file
   # can be closed (allowing other files to be opened) but will be queued for
@@ -269,6 +269,10 @@ class LogStash::Inputs::File < LogStash::Inputs::Base
     end
   end
 
+  class FlushableListener < ListenerTail
+    attr_writer :path
+  end
+
   def listener_for(path)
     # path is the identity
     ListenerTail.new(path, self)
@@ -288,6 +292,7 @@ class LogStash::Inputs::File < LogStash::Inputs::Base
     begin_tailing
     @queue = queue
     @tail.subscribe(self)
+    exit_flush
   end # def run
 
   def post_process_this(event)
@@ -308,6 +313,24 @@ class LogStash::Inputs::File < LogStash::Inputs::Base
     if @tail
       @codec.close
       @tail.quit
+    end
+  end
+
+  private
+
+  def exit_flush
+    listener = FlushableListener.new("none", self)
+    if @codec.identity_count.zero?
+      # using the base codec without identity/path info
+      @codec.base_codec.flush do |event|
+        begin
+          listener.process_event(event)
+        rescue => e
+          @logger.error("File Input: flush on exit downstream error", :exception => e)
+        end
+      end
+    else
+      @codec.flush_mapped(listener)
     end
   end
 end # class LogStash::Inputs::File

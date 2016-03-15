@@ -1,3 +1,10 @@
+## 2.2.2
+ - Fix for: Filewatch library complains if HOME or SINCEDB_PATH variables are unset.
+   - [Issue #101](https://github.com/logstash-plugins/logstash-input-file/issues/101)
+   - [PR, filewatch 78](https://github.com/jordansissel/ruby-filewatch/pull/78) introduces the fix
+   - [Issue, filewatch 76](https://github.com/jordansissel/ruby-filewatch/issues/76)
+ - Improve documentation on ignore_older and close_older options [#104](https://github.com/logstash-plugins/logstash-input-file/issues/104) Documentation
+
 ## 2.2.1
  - Fix spec failures on CI Linux builds (not seen on local OSX and Linux)
 
