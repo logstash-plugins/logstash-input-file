@@ -47,8 +47,11 @@ module FileInput
     def accept(listener)
       @tracer.push [:accept, true]
     end
-    def auto_flush()
+    def auto_flush(*)
       @tracer.push [:auto_flush, true]
+    end
+    def flush(*)
+      @tracer.push [:flush, true]
     end
     def close
       @tracer.push [:close, true]

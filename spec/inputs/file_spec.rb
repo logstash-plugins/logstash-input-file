@@ -181,15 +181,11 @@ describe LogStash::Inputs::File do
             expect(events.size).to eq(0)
             File.open(tmpfile_path, "a") { |fd| fd.puts("hello"); fd.puts("world") }
           end
-          .then_after(0.1, "only one event is created, the last line is buffered") do
-            expect(events.size).to eq(1)
-          end
-          .then_after(0.1, "quit") do
+          .then_after(0.25, "quit") do
             subject.stop
           end
+
         subject.run(events)
-        # stop flushes the second event
-        expect(events.size).to eq(2)
 
         event1 = events[0]
         expect(event1).not_to be_nil
