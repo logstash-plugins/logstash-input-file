@@ -1,3 +1,5 @@
+# 2.2.3
+  - New dependency requirements for logstash-core for the 5.0 release
 ## 2.2.2
  - Fix for: Filewatch library complains if HOME or SINCEDB_PATH variables are unset.
    - [Issue #101](https://github.com/logstash-plugins/logstash-input-file/issues/101)
