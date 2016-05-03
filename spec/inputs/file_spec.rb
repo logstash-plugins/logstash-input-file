@@ -45,8 +45,8 @@ describe LogStash::Inputs::File do
         2.times.collect { queue.pop }
       end
 
-      insist { events[0]["message"] } == "hello"
-      insist { events[1]["message"] } == "world"
+      insist { events[0].get("message") } == "hello"
+      insist { events[1].get("message") } == "world"
     end
 
     it "should restarts at the sincedb value" do
@@ -74,8 +74,8 @@ describe LogStash::Inputs::File do
         2.times.collect { queue.pop }
       end
 
-      insist { events[0]["message"] } == "hello3"
-      insist { events[1]["message"] } == "world3"
+      insist { events[0].get("message") } == "hello3"
+      insist { events[1].get("message") } == "world3"
 
       File.open(tmpfile_path, "a") do |fd|
         fd.puts("foo")
@@ -88,9 +88,9 @@ describe LogStash::Inputs::File do
         3.times.collect { queue.pop }
       end
 
-      insist { events[0]["message"] } == "foo"
-      insist { events[1]["message"] } == "bar"
-      insist { events[2]["message"] } == "baz"
+      insist { events[0].get("message") } == "foo"
+      insist { events[1].get("message") } == "bar"
+      insist { events[2].get("message") } == "baz"
     end
 
     it "should not overwrite existing path and host fields" do
@@ -120,11 +120,11 @@ describe LogStash::Inputs::File do
         2.times.collect { queue.pop }
       end
 
-      insist { events[0]["path"] } == "my_path"
-      insist { events[0]["host"] } == "my_host"
+      insist { events[0].get("path") } == "my_path"
+      insist { events[0].get("host") } == "my_host"
 
-      insist { events[1]["path"] } == "#{tmpfile_path}"
-      insist { events[1]["host"] } == "#{Socket.gethostname.force_encoding(Encoding::UTF_8)}"
+      insist { events[1].get("path") } == "#{tmpfile_path}"
+      insist { events[1].get("host") } == "#{Socket.gethostname.force_encoding(Encoding::UTF_8)}"
     end
 
     context "when sincedb_path is an existing directory" do
@@ -189,15 +189,15 @@ describe LogStash::Inputs::File do
 
         event1 = events[0]
         expect(event1).not_to be_nil
-        expect(event1["path"]).to eq tmpfile_path
-        expect(event1["@metadata"]["path"]).to eq tmpfile_path
-        expect(event1["message"]).to eq "hello"
+        expect(event1.get("path")).to eq tmpfile_path
+        expect(event1.get("[@metadata][path]")).to eq tmpfile_path
+        expect(event1.get("message")).to eq "hello"
 
         event2 = events[1]
         expect(event2).not_to be_nil
-        expect(event2["path"]).to eq tmpfile_path
-        expect(event2["@metadata"]["path"]).to eq tmpfile_path
-        expect(event2["message"]).to eq "world"
+        expect(event2.get("path")).to eq tmpfile_path
+        expect(event2.get("[@metadata][path]")).to eq tmpfile_path
+        expect(event2.get("message")).to eq "world"
       end
     end
 
@@ -312,18 +312,18 @@ describe LogStash::Inputs::File do
           .then_after(0.2 , "stop flushes both events") do
             expect(events.size).to eq(2)
             e1, e2 = events
-            e1_message = e1["message"]
-            e2_message = e2["message"]
+            e1_message = e1.get("message")
+            e2_message = e2.get("message")
 
             # can't assume File A will be read first
             if e1_message.start_with?('line1.1-of-z')
-              expect(e1["path"]).to match(/z.log/)
-              expect(e2["path"]).to match(/A.log/)
+              expect(e1.get("path")).to match(/z.log/)
+              expect(e2.get("path")).to match(/A.log/)
               expect(e1_message).to eq("line1.1-of-z#{FILE_DELIMITER}  line1.2-of-z#{FILE_DELIMITER}  line1.3-of-z")
               expect(e2_message).to eq("line1.1-of-a#{FILE_DELIMITER}  line1.2-of-a#{FILE_DELIMITER}  line1.3-of-a")
             else
-              expect(e1["path"]).to match(/A.log/)
-              expect(e2["path"]).to match(/z.log/)
+              expect(e1.get("path")).to match(/A.log/)
+              expect(e2.get("path")).to match(/z.log/)
               expect(e1_message).to eq("line1.1-of-a#{FILE_DELIMITER}  line1.2-of-a#{FILE_DELIMITER}  line1.3-of-a")
               expect(e2_message).to eq("line1.1-of-z#{FILE_DELIMITER}  line1.2-of-z#{FILE_DELIMITER}  line1.3-of-z")
             end
@@ -347,7 +347,7 @@ describe LogStash::Inputs::File do
             end
             .then_after(0.75, "wait for auto_flush") do
               e1 = events.first
-              e1_message = e1["message"]
+              e1_message = e1.get("message")
               expect(e1["path"]).to match(/a.log/)
               expect(e1_message).to eq("line1.1-of-a#{FILE_DELIMITER}  line1.2-of-a#{FILE_DELIMITER}  line1.3-of-a")
             end
@@ -443,11 +443,11 @@ describe LogStash::Inputs::File do
               e1, e2 = events
               if Dir.glob("#{tmpdir_path}/*.log").first =~ %r{a\.log}
                 #linux and OSX have different retrieval order
-                expect(e1["message"]).to eq("line1-of-a")
-                expect(e2["message"]).to eq("line2-of-a")
+                expect(e1.get("message")).to eq("line1-of-a")
+                expect(e2.get("message")).to eq("line2-of-a")
               else
-                expect(e1["message"]).to eq("line1-of-z")
-                expect(e2["message"]).to eq("line2-of-z")
+                expect(e1.get("message")).to eq("line1-of-z")
+                expect(e2.get("message")).to eq("line2-of-z")
               end
             end
           subject.run(events)
@@ -484,10 +484,10 @@ describe LogStash::Inputs::File do
               else
                 e3, e4, e1, e2 = events
               end
-              expect(e1["message"]).to eq("line1-of-a")
-              expect(e2["message"]).to eq("line2-of-a")
-              expect(e3["message"]).to eq("line1-of-z")
-              expect(e4["message"]).to eq("line2-of-z")
+              expect(e1.get("message")).to eq("line1-of-a")
+              expect(e2.get("message")).to eq("line2-of-a")
+              expect(e3.get("message")).to eq("line1-of-z")
+              expect(e4.get("message")).to eq("line2-of-z")
             end
             .then_after(0.1, "stop") do
               subject.stop
@@ -497,7 +497,6 @@ describe LogStash::Inputs::File do
           actions.value
         end
       end
-
     end
   end
 end

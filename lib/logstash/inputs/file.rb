@@ -251,8 +251,8 @@ class LogStash::Inputs::File < LogStash::Inputs::Base
     end
 
     def process_event(event)
-      event["[@metadata][path]"] = path
-      event["path"] = path if !event.include?("path")
+      event.set("[@metadata][path]", path)
+      event.set("path", path) if !event.include?("path")
       input.post_process_this(event)
     end
 
@@ -296,7 +296,7 @@ class LogStash::Inputs::File < LogStash::Inputs::Base
   end # def run
 
   def post_process_this(event)
-    event["host"] = @host if !event.include?("host")
+    event.set("host", @host) if !event.include?("host")
     decorate(event)
     @queue << event
   end
