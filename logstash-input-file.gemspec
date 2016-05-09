@@ -25,7 +25,7 @@ Gem::Specification.new do |s|
   s.add_runtime_dependency 'logstash-codec-plain'
   s.add_runtime_dependency 'addressable'
   s.add_runtime_dependency 'filewatch', ['>= 0.8.1', '~> 0.8']
-  s.add_runtime_dependency 'logstash-codec-multiline', ['~> 2.0.7']
+  s.add_runtime_dependency 'logstash-codec-multiline', ['~> 3.0']
 
   s.add_development_dependency 'stud', ['~> 0.0.19']
   s.add_development_dependency 'logstash-devutils', ['~> 0.0.18']
