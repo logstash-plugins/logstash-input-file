@@ -5,6 +5,7 @@ require "logstash/codecs/identity_map_codec"
 
 require "pathname"
 require "socket" # for Socket.gethostname
+require "fileutils"
 
 # Stream events from files, normally by tailing them in a manner
 # similar to `tail -0F` but optionally reading them from the
@@ -170,6 +171,7 @@ class LogStash::Inputs::File < LogStash::Inputs::Base
     require "digest/md5"
     @logger.info("Registering file input", :path => @path)
     @host = Socket.gethostname.force_encoding(Encoding::UTF_8)
+    @settings = defined?(LogStash::SETTINGS) ? LogStash::SETTINGS : nil
 
     @tail_config = {
       :exclude => @exclude,
@@ -189,6 +191,15 @@ class LogStash::Inputs::File < LogStash::Inputs::Base
     end
 
     if @sincedb_path.nil?
+      if @settings
+        datapath = File.join(@settings.get_value("path.data"), "plugins", "inputs", "file")
+        # Ensure that the filepath exists before writing, since it's deeply nested.
+        FileUtils::mkdir_p datapath
+        @sincedb_path = File.join(datapath, ".sincedb_" + Digest::MD5.hexdigest(@path.join(",")))
+
+    # This section is going to be deprecated eventually, as path.data will be
+    # the default, not an environment variable (SINCEDB_DIR or HOME)
+    if @sincedb_path.nil? # If it is _still_ nil...
       if ENV["SINCEDB_DIR"].nil? && ENV["HOME"].nil?
         @logger.error("No SINCEDB_DIR or HOME environment variable set, I don't know where " \
                       "to keep track of the files I'm watching. Either set " \

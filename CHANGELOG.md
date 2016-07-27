@@ -1,6 +1,7 @@
+## 3.1.0
+  - Use native `--path.data` for Logstash 5.0 for sincedb files.
 ## 3.0.3
   - Relax constraint on logstash-core-plugin-api to >= 1.60 <= 2.99
-
 ## 3.0.2
   - relax constrains of `logstash-devutils` see https://github.com/elastic/logstash-devutils/issues/48
 ## 3.0.1
