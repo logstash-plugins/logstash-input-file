@@ -196,6 +196,8 @@ class LogStash::Inputs::File < LogStash::Inputs::Base
         # Ensure that the filepath exists before writing, since it's deeply nested.
         FileUtils::mkdir_p datapath
         @sincedb_path = File.join(datapath, ".sincedb_" + Digest::MD5.hexdigest(@path.join(",")))
+      end
+    end
 
     # This section is going to be deprecated eventually, as path.data will be
     # the default, not an environment variable (SINCEDB_DIR or HOME)
