@@ -171,7 +171,9 @@ class LogStash::Inputs::File < LogStash::Inputs::Base
     require "digest/md5"
     @logger.info("Registering file input", :path => @path)
     @host = Socket.gethostname.force_encoding(Encoding::UTF_8)
-    @settings = defined?(LogStash::SETTINGS) ? LogStash::SETTINGS : nil
+    # This check is Logstash 5 specific.  If the class does not exist, and it
+    # won't in older versions of Logstash, then we need to set it to nil.
+    settings = defined?(LogStash::SETTINGS) ? LogStash::SETTINGS : nil
 
     @tail_config = {
       :exclude => @exclude,
@@ -191,8 +193,8 @@ class LogStash::Inputs::File < LogStash::Inputs::Base
     end
 
     if @sincedb_path.nil?
-      if @settings
-        datapath = File.join(@settings.get_value("path.data"), "plugins", "inputs", "file")
+      if settings
+        datapath = File.join(settings.get_value("path.data"), "plugins", "inputs", "file")
         # Ensure that the filepath exists before writing, since it's deeply nested.
         FileUtils::mkdir_p datapath
         @sincedb_path = File.join(datapath, ".sincedb_" + Digest::MD5.hexdigest(@path.join(",")))
