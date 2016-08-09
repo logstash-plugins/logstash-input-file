@@ -122,9 +122,11 @@ describe LogStash::Inputs::File do
 
       insist { events[0].get("path") } == "my_path"
       insist { events[0].get("host") } == "my_host"
+      insist { events[0].get("[@metadata][host]") } == "#{Socket.gethostname.force_encoding(Encoding::UTF_8)}"
 
       insist { events[1].get("path") } == "#{tmpfile_path}"
       insist { events[1].get("host") } == "#{Socket.gethostname.force_encoding(Encoding::UTF_8)}"
+      insist { events[1].get("[@metadata][host]") } == "#{Socket.gethostname.force_encoding(Encoding::UTF_8)}"
     end
 
     context "when sincedb_path is an existing directory" do
