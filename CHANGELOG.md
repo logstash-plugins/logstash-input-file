@@ -1,3 +1,5 @@
+## 3.1.1
+  - Add host to @metadata
 ## 3.1.0
   - Use native `--path.data` for Logstash 5.0 for sincedb files.
 ## 3.0.3

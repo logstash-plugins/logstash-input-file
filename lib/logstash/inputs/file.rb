@@ -314,6 +314,7 @@ class LogStash::Inputs::File < LogStash::Inputs::Base
   end # def run
 
   def post_process_this(event)
+    event.set("[@metadata][host]", @host)
     event.set("host", @host) if !event.include?("host")
     decorate(event)
     @queue << event
