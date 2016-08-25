@@ -10,9 +10,12 @@ require "socket" # for Socket.gethostname
 # similar to `tail -0F` but optionally reading them from the
 # beginning.
 #
-# By default, each event is assumed to be one line. If you would like
-# to join multiple log lines into one event, you'll want to use the
-# multiline codec or filter.
+# By default, each event is assumed to be one line and a line is
+# taken to be the text before a newline character.
+# Normally, logging will add a newline to the end of each line written.
+
+# If you would like to join multiple log lines into one event,
+# you'll want to use the multiline codec or filter.
 #
 # The plugin aims to track changing files and emit new content as it's
 # appended to each file. It's not well-suited for reading a file from
