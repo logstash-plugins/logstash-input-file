@@ -172,7 +172,7 @@ class LogStash::Inputs::File < LogStash::Inputs::Base
     require "addressable/uri"
     require "filewatch/tail"
     require "digest/md5"
-    @logger.info("Registering file input", :path => @path)
+    @logger.trace("Registering file input", :path => @path)
     @host = Socket.gethostname.force_encoding(Encoding::UTF_8)
     # This check is Logstash 5 specific.  If the class does not exist, and it
     # won't in older versions of Logstash, then we need to set it to nil.
@@ -226,7 +226,7 @@ class LogStash::Inputs::File < LogStash::Inputs::Base
       # Migrate any old .sincedb to the new file (this is for version <=1.1.1 compatibility)
       old_sincedb = File.join(sincedb_dir, ".sincedb")
       if File.exists?(old_sincedb)
-        @logger.info("Renaming old ~/.sincedb to new one", :old => old_sincedb,
+        @logger.debug("Renaming old ~/.sincedb to new one", :old => old_sincedb,
                      :new => @sincedb_path)
         File.rename(old_sincedb, @sincedb_path)
       end
