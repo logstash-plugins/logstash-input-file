@@ -1,3 +1,5 @@
+## 3.1.2
+  - Adjust a few log call levels
 ## 3.1.1
   - Add host to @metadata
 ## 3.1.0
