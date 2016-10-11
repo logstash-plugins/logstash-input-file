@@ -1,21 +1,30 @@
 ## 3.1.2
   - Adjust a few log call levels
+
 ## 3.1.1
   - Add host to @metadata
+
 ## 3.1.0
-  - Use native `--path.data` for Logstash 5.0 for sincedb files.
+  - Breaking: Use native `--path.data` for Logstash 5.0 for sincedb files.
+
 ## 3.0.3
   - Relax constraint on logstash-core-plugin-api to >= 1.60 <= 2.99
+
 ## 3.0.2
   - relax constrains of `logstash-devutils` see https://github.com/elastic/logstash-devutils/issues/48
+
 ## 3.0.1
   - Republish all the gems under jruby.
+
 ## 3.0.0
   - Update the plugin to the version 2.0 of the plugin api, this change is required for Logstash 5.0 compatibility. See https://github.com/elastic/logstash/issues/5141
+
 # 2.2.5
   - Depend on logstash-core-plugin-api instead of logstash-core, removing the need to mass update plugins on major releases of logstash
+
 # 2.2.3
   - New dependency requirements for logstash-core for the 5.0 release
+
 ## 2.2.2
  - Fix for: Filewatch library complains if HOME or SINCEDB_PATH variables are unset.
    - [Issue #101](https://github.com/logstash-plugins/logstash-input-file/issues/101)
