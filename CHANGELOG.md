@@ -1,3 +1,9 @@
+## 4.0.0
+  - Breaking: `ignore_older` settings is disabled by default. Previously if the file was older than 
+    24 hours (the default for ignore_older), it would be ignored. This confused new users a lot, specially 
+    when they were reading new files with Logstash (with `start_position => beginning`). This setting also 
+    makes it consistent with Filebeat.
+
 ## 3.1.2
   - Adjust a few log call levels
 

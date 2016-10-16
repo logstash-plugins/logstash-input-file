@@ -129,6 +129,41 @@ describe LogStash::Inputs::File do
       insist { events[1].get("[@metadata][host]") } == "#{Socket.gethostname.force_encoding(Encoding::UTF_8)}"
     end
 
+    it "should read old files" do
+      tmpfile_path = Stud::Temporary.pathname
+
+      conf = <<-CONFIG
+        input {
+          file {
+            type => "blah"
+            path => "#{tmpfile_path}"
+            start_position => "beginning"
+            codec => "json"
+          }
+        }
+      CONFIG
+
+      File.open(tmpfile_path, "w") do |fd|
+        fd.puts('{"path": "my_path", "host": "my_host"}')
+        fd.puts('{"my_field": "my_val"}')
+        fd.fsync
+      end
+      # arbitrary old file (2 days)
+      FileInput.make_file_older(tmpfile_path, 48 * 60 * 60)
+
+      events = input(conf) do |pipeline, queue|
+        2.times.collect { queue.pop }
+      end
+
+      insist { events[0].get("path") } == "my_path"
+      insist { events[0].get("host") } == "my_host"
+      insist { events[0].get("[@metadata][host]") } == "#{Socket.gethostname.force_encoding(Encoding::UTF_8)}"
+
+      insist { events[1].get("path") } == "#{tmpfile_path}"
+      insist { events[1].get("host") } == "#{Socket.gethostname.force_encoding(Encoding::UTF_8)}"
+      insist { events[1].get("[@metadata][host]") } == "#{Socket.gethostname.force_encoding(Encoding::UTF_8)}"
+    end
+
     context "when sincedb_path is an existing directory" do
       let(:tmpfile_path) { Stud::Temporary.pathname }
       let(:sincedb_path) { Stud::Temporary.directory }
