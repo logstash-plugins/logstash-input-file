@@ -147,7 +147,7 @@ class LogStash::Inputs::File < LogStash::Inputs::Base
   # before the specified timespan in seconds, the file is ignored.
   # After it's discovery, if an ignored file is modified it is no
   # longer ignored and any new data is read. By default, this option is
-  # disabled.
+  # disabled. Note this unit is in seconds.
   config :ignore_older, :validate => :number
 
   # The file input closes any files that were last read the specified
