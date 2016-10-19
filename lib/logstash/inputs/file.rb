@@ -120,7 +120,7 @@ class LogStash::Inputs::File < LogStash::Inputs::Base
 
   # Path of the sincedb database file (keeps track of the current
   # position of monitored log files) that will be written to disk.
-  # The default will write sincedb files to some path matching `$HOME/.sincedb*`
+  # The default will write sincedb files to `<path.data>/plugins/inputs/file`
   # NOTE: it must be a file path and not a directory path
   config :sincedb_path, :validate => :string
 
