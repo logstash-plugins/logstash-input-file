@@ -23,6 +23,12 @@ require "fileutils"
 # beginning to end and storing all of it in a single event (not even
 # with the multiline codec or filter).
 #
+# ==== Reading from remote network volumes
+#
+# Currently, File input does not support reading files from remote network volumes like NFS and Samba.
+# Our recommendation is to use an external process/tool to copy those remote files to a local file system and then 
+# use Logstash to read from it.
+#
 # ==== Tracking of current position in watched files
 #
 # The plugin keeps track of the current position in each file by
