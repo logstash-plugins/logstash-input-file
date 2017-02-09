@@ -25,9 +25,9 @@ require "fileutils"
 #
 # ==== Reading from remote network volumes
 #
-# Currently, File input does not support reading files from remote network volumes like NFS and Samba.
-# Our recommendation is to use an external process/tool to copy those remote files to a local file system and then 
-# use Logstash to read from it.
+# The file input is not tested on remote filesystems such as NFS, Samba, s3fs-fuse, etc. These 
+# remote filesystems typically have behaviors that are very different from local filesystems and 
+# are therefore unlikely to work correctly when used with the file input.
 #
 # ==== Tracking of current position in watched files
 #
