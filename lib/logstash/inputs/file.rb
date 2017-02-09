@@ -23,6 +23,12 @@ require "fileutils"
 # beginning to end and storing all of it in a single event (not even
 # with the multiline codec or filter).
 #
+# ==== Reading from remote network volumes
+#
+# The file input is not tested on remote filesystems such as NFS, Samba, s3fs-fuse, etc. These 
+# remote filesystems typically have behaviors that are very different from local filesystems and 
+# are therefore unlikely to work correctly when used with the file input.
+#
 # ==== Tracking of current position in watched files
 #
 # The plugin keeps track of the current position in each file by
