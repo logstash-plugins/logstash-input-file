@@ -1,3 +1,7 @@
+## 4.0.1
+  - Docs: Fix the description with the logstash documentation generator
+  - Fix an issue with the rspec suite not finding log4j
+
 ## 4.0.0
   - Breaking: `ignore_older` settings is disabled by default. Previously if the file was older than 
     24 hours (the default for ignore_older), it would be ignored. This confused new users a lot, specially 
