@@ -6,6 +6,7 @@ require "logstash/codecs/identity_map_codec"
 require "pathname"
 require "socket" # for Socket.gethostname
 require "fileutils"
+require_relative "file/patch"
 
 # Stream events from files, normally by tailing them in a manner
 # similar to `tail -0F` but optionally reading them from the
@@ -76,21 +77,6 @@ require "fileutils"
 # to the rotation and its reopening under the new name (an interval
 # determined by the `stat_interval` and `discover_interval` options)
 # will not get picked up.
-
-class LogStash::Codecs::Base
-  # TODO - move this to core
-  if !method_defined?(:accept)
-    def accept(listener)
-      decode(listener.data) do |event|
-        listener.process_event(event)
-      end
-    end
-  end
-  if !method_defined?(:auto_flush)
-    def auto_flush(*)
-    end
-  end
-end
 
 class LogStash::Inputs::File < LogStash::Inputs::Base
   config_name "file"

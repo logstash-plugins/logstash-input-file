@@ -1,7 +1,6 @@
 # encoding: utf-8
-
-require "logstash/inputs/file"
 require_relative "../spec_helper"
+require "logstash/inputs/file"
 require "tempfile"
 require "stud/temporary"
 require "logstash/codecs/multiline"
