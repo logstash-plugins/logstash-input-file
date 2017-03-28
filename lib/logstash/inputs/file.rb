@@ -182,6 +182,9 @@ class LogStash::Inputs::File < LogStash::Inputs::Base
       :max_open_files => @max_open_files
     }
 
+    # TODO: workaround for https://github.com/elastic/logstash/issues/1645
+    @tail_config[:delimiter] = @tail_config[:delimiter].gsub(/\\r/, "\r").gsub(/\\n/, "\n")
+
     @path.each do |path|
       if Pathname.new(path).relative?
         raise ArgumentError.new("File paths must be absolute, relative path specified: #{path}")
