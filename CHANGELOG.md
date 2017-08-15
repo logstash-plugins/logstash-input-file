@@ -1,3 +1,6 @@
+## 4.0.3
+  - Fix some documentation issues
+
 ## 4.0.1
   - Docs: Fix the description with the logstash documentation generator
   - Fix an issue with the rspec suite not finding log4j
