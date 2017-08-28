@@ -49,8 +49,8 @@ possible to stop and restart Logstash and have it pick up where it
 left off without missing the lines that were added to the file while
 Logstash was stopped.
 
-By default, the sincedb file is placed in the home directory of the
-user running Logstash with a filename based on the filename patterns
+By default, the sincedb file is placed within the `<path.data>/plugins/inputs/file` directory 
+with a filename based on the filename patterns
 being watched (i.e. the `path` option). Thus, changing the filename
 patterns will result in a new sincedb file being used and any
 existing current position state will be lost. If you change your
