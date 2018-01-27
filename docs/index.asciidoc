@@ -201,7 +201,8 @@ of `/var/log` will be done for all `*.log` files.
 Paths must be absolute and cannot be relative.
 
 You may also configure multiple paths. See an example
-on the <<array,Logstash configuration page>>.
+on the {logstash-ref}/configuration-file-structure.html#array[Logstash configuration page].
+
 
 [id="plugins-{type}s-{plugin}-sincedb_path"]
 ===== `sincedb_path` 
