@@ -1,0 +1,82 @@
+/*
+ * Licensed to Elasticsearch under one or more contributor
+ * license agreements. See the NOTICE file distributed with
+ * this work for additional information regarding copyright
+ * ownership. Elasticsearch licenses this file to you under
+ * the Apache License, Version 2.0 (the "License"); you may
+ * not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
+apply plugin: "java"
+apply plugin: "distribution"
+apply plugin: "idea"
+
+group = 'org.logstash.filewatch'
+version "1.0.0"
+
+//import java.nio.file.Files
+//import static java.nio.file.StandardCopyOption.REPLACE_EXISTING
+
+buildscript {
+    repositories {
+        mavenCentral()
+        jcenter()
+    }
+
+    dependencies {
+        classpath group: 'org.jruby', name: 'jruby-complete', version: "9.1.13.0"
+    }
+}
+
+repositories {
+    mavenCentral()
+}
+
+project.sourceCompatibility = 1.8
+
+dependencies {
+    compileOnly group: 'org.jruby', name: 'jruby-complete', version: "9.1.13.0"
+}
+
+task sourcesJar(type: Jar, dependsOn: classes) {
+    from sourceSets.main.allSource
+    classifier 'sources'
+    extension 'jar'
+}
+
+task javadocJar(type: Jar, dependsOn: javadoc) {
+    from javadoc.destinationDir
+    classifier 'javadoc'
+    extension 'jar'
+}
+
+task copyGemjar(type: Copy, dependsOn: sourcesJar) {
+    from project.jar
+    into project.file('lib/jars/')
+}
+
+task cleanGemjar {
+    delete fileTree(project.file('lib/jars/')) {
+        include '*.jar'
+    }
+}
+
+clean.dependsOn(cleanGemjar)
+jar.finalizedBy(copyGemjar)
+
+
+// See http://www.gradle.org/docs/current/userguide/gradle_wrapper.html
+task wrapper(type: Wrapper) {
+    description = 'Install Gradle wrapper'
+    gradleVersion = '4.5.1'
+}

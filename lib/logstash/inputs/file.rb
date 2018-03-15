@@ -6,7 +6,11 @@ require "logstash/codecs/identity_map_codec"
 require "pathname"
 require "socket" # for Socket.gethostname
 require "fileutils"
+
 require_relative "file/patch"
+require_relative "file_listener"
+require_relative "delete_completed_file_handler"
+require_relative "log_completed_file_handler"
 
 # Stream events from files, normally by tailing them in a manner
 # similar to `tail -0F` but optionally reading them from the
@@ -77,8 +81,8 @@ require_relative "file/patch"
 # to the rotation and its reopening under the new name (an interval
 # determined by the `stat_interval` and `discover_interval` options)
 # will not get picked up.
-
-class LogStash::Inputs::File < LogStash::Inputs::Base
+module LogStash module Inputs
+class File < LogStash::Inputs::Base
   config_name "file"
 
   # The path(s) to the file(s) to use as an input.
@@ -160,10 +164,52 @@ class LogStash::Inputs::File < LogStash::Inputs::Base
   # The default of 4095 is set in filewatch.
   config :max_open_files, :validate => :number
 
+  # What mode do you want the file input to operate in.
+  # Tail a few files or read many content-complete files
+  # The default is tail
+  # If "read" is specified then the following other settings are ignored
+  #   `start_position` (files are always read from the beginning)
+  #   `delimiter` (files are assumed to use \n or \r (or both) as line endings)
+  #   `close_older` (files are automatically 'closed' when EOF is reached)
+  # If "read" is specified then the following settings are heeded
+  #   `ignore_older` (older files are not processed)
+  # "read" mode now supports gzip file processing
+  config :mode, :validate => [ "tail", "read"], :default => "tail"
+
+  # When in 'read' mode, what action should be carried out when a file is done with.
+  # If 'delete' is specified then the file will be deleted.
+  # If 'log' is specified then the full path of the file is logged to the file specified
+  # in the `file_completed_log_path` setting.
+  config :file_completed_action, :validate => ["delete", "log"], :default => "delete"
+
+  # Which file should the completely read file paths be appended to.
+  # Only specify this path to a file when `file_completed_action` is 'log'.
+  config :file_completed_log_path, :validate => :string
+
+  # The sincedb entry now has a last active timestamp associated with it.
+  # If no changes are detected in tracked files in the last N days their sincedb
+  # tracking record will expire and not be persisted.
+  # This option protects against the well known inode recycling problem. (add reference)
+  config :sincedb_clean_after, :validate => :number,  :default => 14 # days
+
+  # This option sets up a form of striped read. Some lines from each active file will
+  # appear be processed in parallel.
+  # Given that the sort order of discovered files is OS dependent, it is not possible to control
+  # the file processing order. Each read iteration will process a 32KB chunk,
+  # e.g. 32 read iterations will process 1MB from each active file.
+  # See the option `max_open_files` for more info, but note in "read" mode, close_older is
+  # not required as files are closed at EOF
+  # The default set internally is very large (the maximum positive Ruby integer)
+  config :read_iterations, :validate => :number,  :default => (2**(0.size * 8 - 2) - 1)
+
+  # Specify the size in bytes of each chunk read in each read iteration
+  # See `read_iterations` to see why and when to change this from the default.
+  # The default set internally is 32768 (32KB)
+  config :file_chunk_size, :validate => :number,  :default => 32768
+
   public
   def register
     require "addressable/uri"
-    require "filewatch/tail"
     require "digest/md5"
     @logger.trace("Registering file input", :path => @path)
     @host = Socket.gethostname.force_encoding(Encoding::UTF_8)
@@ -171,7 +217,7 @@ class LogStash::Inputs::File < LogStash::Inputs::Base
     # won't in older versions of Logstash, then we need to set it to nil.
     settings = defined?(LogStash::SETTINGS) ? LogStash::SETTINGS : nil
 
-    @tail_config = {
+    @filewatch_config = {
       :exclude => @exclude,
       :stat_interval => @stat_interval,
       :discover_interval => @discover_interval,
@@ -179,7 +225,10 @@ class LogStash::Inputs::File < LogStash::Inputs::Base
       :delimiter => @delimiter,
       :ignore_older => @ignore_older,
       :close_older => @close_older,
-      :max_open_files => @max_open_files
+      :max_open_files => @max_open_files,
+      :sincedb_clean_after => @sincedb_clean_after,
+      :read_iterations => @read_iterations,
+      :file_chunk_size => @file_chunk_size
     }
 
     @path.each do |path|
@@ -190,11 +239,13 @@ class LogStash::Inputs::File < LogStash::Inputs::Base
 
     if @sincedb_path.nil?
       if settings
-        datapath = File.join(settings.get_value("path.data"), "plugins", "inputs", "file")
+        datapath = Pathname.new(settings.get_value("path.data")).join("plugins", "inputs", "file")
         # Ensure that the filepath exists before writing, since it's deeply nested.
-        FileUtils::mkdir_p datapath
-        @sincedb_path = File.join(datapath, ".sincedb_" + Digest::MD5.hexdigest(@path.join(",")))
+        datapath.mkpath
+        @sincedb_path = datapath.join(".sincedb_" + Digest::MD5.hexdigest(@path.join(",")))
       end
+    else
+      @sincedb_path = Pathname.new(@sincedb_path)
     end
 
     # This section is going to be deprecated eventually, as path.data will be
@@ -210,111 +261,104 @@ class LogStash::Inputs::File < LogStash::Inputs::Base
       end
 
       #pick SINCEDB_DIR if available, otherwise use HOME
-      sincedb_dir = ENV["SINCEDB_DIR"] || ENV["HOME"]
+      sincedb_dir = Pathname.new(ENV["SINCEDB_DIR"] || ENV["HOME"])
 
       # Join by ',' to make it easy for folks to know their own sincedb
       # generated path (vs, say, inspecting the @path array)
-      @sincedb_path = File.join(sincedb_dir, ".sincedb_" + Digest::MD5.hexdigest(@path.join(",")))
+      @sincedb_path = sincedb_dir.join(".sincedb_" + Digest::MD5.hexdigest(@path.join(",")))
 
       # Migrate any old .sincedb to the new file (this is for version <=1.1.1 compatibility)
-      old_sincedb = File.join(sincedb_dir, ".sincedb")
-      if File.exists?(old_sincedb)
-        @logger.debug("Renaming old ~/.sincedb to new one", :old => old_sincedb,
-                     :new => @sincedb_path)
-        File.rename(old_sincedb, @sincedb_path)
+      old_sincedb = sincedb_dir.join(".sincedb")
+      if old_sincedb.exists?
+        @logger.debug("Renaming old ~/.sincedb to new one", :old => old_sincedb.to_s,
+                     :new => @sincedb_path.to_s)
+        old_sincedb.rename(@sincedb_path)
       end
 
       @logger.info("No sincedb_path set, generating one based on the file path",
-                   :sincedb_path => @sincedb_path, :path => @path)
+                   :sincedb_path => @sincedb_path.to_s, :path => @path)
     end
 
-    if File.directory?(@sincedb_path)
+    if @sincedb_path.directory?
       raise ArgumentError.new("The \"sincedb_path\" argument must point to a file, received a directory: \"#{@sincedb_path}\"")
     end
 
-    @tail_config[:sincedb_path] = @sincedb_path
+    @filewatch_config[:sincedb_path] = @sincedb_path
 
-    if @start_position == "beginning"
-      @tail_config[:start_new_files_at] = :beginning
+    @filewatch_config[:start_new_files_at] = @start_position.to_sym
+
+    if @file_completed_action == 'log'
+      if @file_completed_log_path.nil?
+        raise ArgumentError.new('The "file_completed_log_path" setting must be provided when the "file_completed_action" is set to "log"')
+      else
+        @file_completed_log_path = Pathname.new(@file_completed_log_path)
+        unless @file_completed_log_path.exist?
+          begin
+            FileUtils.touch(@file_completed_log_path)
+          rescue
+            raise ArgumentError.new("The \"file_completed_log_path\" file can't be created: #{@file_completed_log_path}")
+          end
+        end
+      end
     end
 
+    if tail_mode?
+      require "filewatch/observing_tail"
+      @watcher_class = FileWatch::ObservingTail
+    else
+      require "filewatch/observing_read"
+      @watcher_class = FileWatch::ObservingRead
+      if @file_completed_action == 'delete'
+        @completed_file_handler = DeleteCompletedFileHandler.new
+      elsif @file_completed_action == 'log'
+        @completed_file_handler = LogCompletedFileHandler.new(@file_completed_log_path)
+      else
+        # nothing
+      end
+    end
     @codec = LogStash::Codecs::IdentityMapCodec.new(@codec)
   end # def register
 
-  class ListenerTail
-    # use attr_reader to define noop methods
-    attr_reader :input, :path, :data
-    attr_reader :deleted, :created, :error, :eof
-
-    # construct with upstream state
-    def initialize(path, input)
-      @path, @input = path, input
-    end
-
-    def timed_out
-      input.codec.evict(path)
-    end
-
-    def accept(data)
-      # and push transient data filled dup listener downstream
-      input.log_line_received(path, data)
-      input.codec.accept(dup_adding_state(data))
-    end
-
-    def process_event(event)
-      event.set("[@metadata][path]", path)
-      event.set("path", path) if !event.include?("path")
-      input.post_process_this(event)
-    end
-
-    def add_state(data)
-      @data = data
-      self
-    end
-
-    private
-
-    # duplicate and add state for downstream
-    def dup_adding_state(line)
-      self.class.new(path, input).add_state(line)
-    end
-  end
-
-  class FlushableListener < ListenerTail
-    attr_writer :path
-  end
-
   def listener_for(path)
     # path is the identity
-    ListenerTail.new(path, self)
+    FileListener.new(path, self)
   end
 
-  def begin_tailing
+  def start_processing
     # if the pipeline restarts this input,
     # make sure previous files are closed
     stop
-    # use observer listener api
-    @tail = FileWatch::Tail.new_observing(@tail_config)
-    @tail.logger = @logger
-    @path.each { |path| @tail.tail(path) }
+    @watcher = @watcher_class.new(@filewatch_config)
+    @path.each { |path| @watcher.watch_this(path) }
   end
 
   def run(queue)
-    begin_tailing
+    start_processing
     @queue = queue
-    @tail.subscribe(self)
+    @watcher.subscribe(self) # halts here until quit is called
     exit_flush
   end # def run
 
   def post_process_this(event)
     event.set("[@metadata][host]", @host)
-    event.set("host", @host) if !event.include?("host")
+    event.set("host", @host) unless event.include?("host")
     decorate(event)
     @queue << event
   end
 
+  def handle_deletable_path(path)
+    return if tail_mode?
+    return if @completed_file_handler.nil?
+    @completed_file_handler.handle(path)
+    # event = LogStash::Event.new
+    # event.set("[@metadata][path]", path)
+    # event.set("path", path)
+    # event.tag("file_input_read_mode_path_deletable")
+    # @queue << event
+  end
+
   def log_line_received(path, line)
-    return if !@logger.debug?
+    return unless @logger.debug?
     @logger.debug("Received line", :path => path, :text => line)
   end
 
@@ -322,13 +366,21 @@ class LogStash::Inputs::File < LogStash::Inputs::Base
     # in filewatch >= 0.6.7, quit will closes and forget all files
     # but it will write their last read positions to since_db
     # beforehand
-    if @tail
+    if @watcher
       @codec.close
-      @tail.quit
+      @watcher.quit
     end
   end
 
   private
+
+  def tail_mode?
+    @mode == "tail"
+  end
+
+  def read_mode?
+    !tail_mode?
+  end
 
   def exit_flush
     listener = FlushableListener.new("none", self)
@@ -345,4 +397,4 @@ class LogStash::Inputs::File < LogStash::Inputs::Base
       @codec.flush_mapped(listener)
     end
   end
-end # class LogStash::Inputs::File
+end end end# class LogStash::Inputs::File
