@@ -19,7 +19,6 @@ module FileWatch module TailHandlers
     end
 
     def update_existing_specifically(watched_file, sincedb_value)
-      # STDERR.puts "-------------------------------- >> Unignore update_existing_specifically, sincedb_value.position is '#{sincedb_value.position}'"
       # when this watched_file was ignored it had it bytes_read set to eof
       # now the file has changed (watched_file.size_changed?)
       # it has been put into the watched state so when it becomes active

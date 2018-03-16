@@ -12,7 +12,6 @@ module FileWatch module TailHandlers
     def update_existing_specifically(watched_file, sincedb_value)
       # we have a match but size is smaller
       # set all to zero
-      # STDERR.puts "-------------------------------- >> Shrink update_existing_specifically, sincedb_value.position is '#{sincedb_value.position}'"
       logger.debug("update_existing_specifically: #{watched_file.path}: was truncated seeking to beginning")
       watched_file.update_bytes_read(0) if watched_file.bytes_read != 0
       sincedb_value.update_position(0)

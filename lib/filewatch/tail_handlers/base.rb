@@ -16,7 +16,6 @@ module FileWatch module TailHandlers
       unless watched_file.has_listener?
         watched_file.set_listener(@observer)
       end
-      # STDERR.puts "-------------------------------- >> #{self.class.name} handle - state history is #{watched_file.full_state_history.inspect}"
       handle_specifically(watched_file)
     end
 
@@ -77,7 +76,6 @@ module FileWatch module TailHandlers
       end
       if watched_file.file_open?
         watched_file.listener.opened
-        # STDERR.puts "-------------------------------- >> handle - opened file"
         true
       else
         false

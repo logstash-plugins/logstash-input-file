@@ -16,7 +16,6 @@ module FileWatch module ReadHandlers
       unless watched_file.has_listener?
         watched_file.set_listener(@observer)
       end
-      # STDERR.puts "-------------------------------- >> #{self.class.name} handle - state history is #{watched_file.full_state_history.inspect}"
       handle_specifically(watched_file)
     end
 

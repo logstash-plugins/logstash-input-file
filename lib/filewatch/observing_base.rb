@@ -42,6 +42,7 @@ module FileWatch
     end
 
     def sincedb_write(reason=nil)
+      # can be invoked from the file input
       @sincedb_collection.write(reason)
     end
 

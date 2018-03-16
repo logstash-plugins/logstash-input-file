@@ -13,10 +13,10 @@ module FileWatch
     end
 
     def subscribe(observer = NullObserver.new)
-      # observer here is more than likely the file input
+      # observer here is the file input
       dispatcher = TailHandlers::Dispatch.new(sincedb_collection, observer)
       watch.subscribe(dispatcher)
       sincedb_collection.write("subscribe complete - shutting down")
-    end # def subscribe
+    end
   end
-end # module FileWatch
+end

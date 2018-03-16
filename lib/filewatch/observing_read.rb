@@ -13,7 +13,7 @@ module FileWatch
     end
 
     def subscribe(observer = NullObserver.new)
-      # observer here is more than likely the file input
+      # observer here is the file input
       dispatcher = ReadHandlers::Dispatch.new(sincedb_collection, observer)
       watch.subscribe(dispatcher)
       sincedb_collection.write("shutting down")
