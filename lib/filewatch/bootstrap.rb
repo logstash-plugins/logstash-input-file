@@ -9,10 +9,6 @@ module FileWatch
   HOST_OS_WINDOWS = (RbConfig::CONFIG['host_os'] =~ /mswin|mingw|cygwin/) != nil
   # the number of bytes read from a file during the read phase
   FILE_READ_SIZE = 32768
-  # each sincedb record will expire unless it is seen again
-  # this is the number of days a record needs
-  # to be stale before it is considered gone
-  SDB_EXPIRES_DAYS = 10
   # the largest fixnum in ruby
   # this is used in the read loop e.g.
   # @opts[:read_iterations].times do
