@@ -8,7 +8,8 @@ module FileWatch
     attr_accessor :lastwarn_max_files
     attr_reader :discoverer, :watched_files_collection
 
-    def initialize(discoverer, watched_files_collection)
+    def initialize(discoverer, watched_files_collection, settings)
+      @settings = settings
       # watch and iterate_on_state can be called from different threads.
       @lock = Mutex.new
       # we need to be threadsafe about the quit mutation
@@ -43,7 +44,7 @@ module FileWatch
 
     def subscribe(dispatcher)
       glob = 0
-      interval = OPTS.discover_interval
+      interval = @settings.discover_interval
       reset_quit
       until quit?
         iterate_on_state(dispatcher)
@@ -54,7 +55,7 @@ module FileWatch
           glob = 0
         end
         break if quit?
-        sleep(OPTS.stat_interval)
+        sleep(@settings.stat_interval)
       end
       @watched_files_collection.close_all
     end # def subscribe

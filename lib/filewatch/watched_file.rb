@@ -22,17 +22,14 @@ module FileWatch
       end
     end
 
-    def self.new_initial(path, stat)
-      new(path, stat, true).from_discover
-    end
-
     attr_reader :bytes_read, :state, :file, :buffer, :state_history
     attr_reader :path, :filestat, :accessed_at, :modified_at, :pathname
     attr_reader :sdb_key_v1, :last_stat_size, :listener
     attr_accessor :last_open_warning_at
 
     # this class represents a file that has been discovered
-    def initialize(pathname, stat, initial)
+    def initialize(pathname, stat, settings)
+      @settings = settings
       @pathname = Pathname.new(pathname) # given arg pathname might be a string or a Pathname object
       @path = @pathname.to_path
       @bytes_read = 0
@@ -40,7 +37,7 @@ module FileWatch
       @sdb_key_v1 = InodeStruct.new(*self.class.inode(path, stat))
       # initial as true means we have not associated this watched_file with a previous sincedb value yet.
       # and we should read from the beginning if necessary
-      @initial = initial
+      @initial = true
       @state_history = []
       @state = :watched
       set_stat(stat) # can change @last_stat_size
@@ -65,21 +62,12 @@ module FileWatch
       @sdb_key_v1
     end
 
-    def from_discover
-      @discovered = true
-      self
-    end
-
     def initial_completed
       @initial = false
     end
 
     def set_accessed_at
       @accessed_at = Time.now.to_f
-    end
-
-    def discovered?
-      @discovered
     end
 
     def initial?
@@ -104,7 +92,7 @@ module FileWatch
 
     def file_add_opened(rubyfile)
       @file = rubyfile
-      @buffer = BufferedTokenizer.new(OPTS.delimiter) if @buffer.nil?
+      @buffer = BufferedTokenizer.new(@settings.delimiter) if @buffer.nil?
     end
 
     def file_close
@@ -198,11 +186,11 @@ module FileWatch
     end
 
     def expiry_close_enabled?
-      !OPTS.close_older.nil?
+      !@settings.close_older.nil?
     end
 
     def expiry_ignore_enabled?
-      !OPTS.ignore_older.nil?
+      !@settings.ignore_older.nil?
     end
 
     def shrunk?
@@ -239,12 +227,12 @@ module FileWatch
       # (Time.now - stat.mtime) <- in jruby, this does int and float
       # conversions before the subtraction and returns a float.
       # so use all floats upfront
-      (Time.now.to_f - @modified_at) > OPTS.ignore_older
+      (Time.now.to_f - @modified_at) > @settings.ignore_older
     end
 
     def file_can_close?
       return false unless expiry_close_enabled?
-      (Time.now.to_f - @accessed_at) > OPTS.close_older
+      (Time.now.to_f - @accessed_at) > @settings.close_older
     end
 
     def to_s

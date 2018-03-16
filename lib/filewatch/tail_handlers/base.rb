@@ -6,7 +6,8 @@ module FileWatch module TailHandlers
     include LogStash::Util::Loggable
     attr_reader :sincedb_collection
 
-    def initialize(sincedb_collection, observer)
+    def initialize(sincedb_collection, observer, settings)
+      @settings = settings
       @sincedb_collection = sincedb_collection
       @observer = observer
     end
@@ -33,13 +34,13 @@ module FileWatch module TailHandlers
       changed = false
       FIXNUM_MAX.times do
         begin
-          data = watched_file.file_read(OPTS.file_chunk_size)
+          data = watched_file.file_read(@settings.file_chunk_size)
           lines = watched_file.buffer_extract(data)
           logger.warn("read_to_eof: no delimiter found in current chunk") if lines.empty?
           changed = true
           lines.each do |line|
             watched_file.listener.accept(line)
-            sincedb_collection.increment(watched_file.sincedb_key, line.bytesize + OPTS.delimiter_byte_size)
+            sincedb_collection.increment(watched_file.sincedb_key, line.bytesize + @settings.delimiter_byte_size)
           end
         rescue EOFError
           # it only makes sense to signal EOF in "read" mode not "tail"
@@ -106,7 +107,7 @@ module FileWatch module TailHandlers
     end
 
     def get_new_value_specifically(watched_file)
-      position = OPTS.start_new_files_at == :beginning ? 0 : watched_file.last_stat_size
+      position = @settings.start_new_files_at == :beginning ? 0 : watched_file.last_stat_size
       value = SincedbValue.new(position)
       value.set_watched_file(watched_file)
       watched_file.update_bytes_read(position)

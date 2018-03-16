@@ -8,9 +8,9 @@ module FileWatch
       it 'theirs sincedb_keys should equate' do
         hash_db = Hash.new
 
-        wf1 = WatchedFile.new_initial(pathname, pathname.stat)
+        wf1 = WatchedFile.new(pathname, pathname.stat, Settings.new)
         hash_db[wf1.sincedb_key] = 42
-        wf2 = WatchedFile.new_initial(pathname, pathname.stat)
+        wf2 = WatchedFile.new(pathname, pathname.stat, Settings.new)
         expect(wf1.sincedb_key).to eq(wf2.sincedb_key)
         expect(wf1.sincedb_key).to eql(wf2.sincedb_key)
         expect(wf1.sincedb_key.hash).to eq(wf2.sincedb_key.hash)

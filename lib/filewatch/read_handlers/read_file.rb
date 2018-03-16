@@ -12,14 +12,14 @@ module FileWatch module ReadHandlers
         watched_file.reset_buffer
         watched_file.file_seek(watched_file.bytes_read)
         changed = false
-        OPTS.read_iterations.times do
+        @settings.read_iterations.times do
           begin
-            lines = watched_file.buffer_extract(watched_file.file_read(OPTS.file_chunk_size))
+            lines = watched_file.buffer_extract(watched_file.file_read(@settings.file_chunk_size))
             logger.warn("read_to_eof: no delimiter found in current chunk") if lines.empty?
             changed = true
             lines.each do |line|
               watched_file.listener.accept(line)
-              sincedb_collection.increment(watched_file.sincedb_key, line.bytesize + OPTS.delimiter_byte_size)
+              sincedb_collection.increment(watched_file.sincedb_key, line.bytesize + @settings.delimiter_byte_size)
             end
           rescue EOFError
             # flush the buffer now in case there is no final delimiter

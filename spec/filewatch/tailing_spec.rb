@@ -20,14 +20,14 @@ module FileWatch
     let(:directory) { Stud::Temporary.directory }
     let(:watch_dir) { ::File.join(directory, "*.log") }
     let(:file_path) { ::File.join(directory, "1.log") }
-    let(:results)   { [] }
+    let(:max)   { 4095 }
     let(:stat_interval) { 0.1 }
     let(:discover_interval) { 4 }
     let(:start_new_files_at) { :beginning }
     let(:sincedb_path) { ::File.join(directory, "tailing.sdb") }
     let(:opts) do
       {
-        :stat_interval => stat_interval, :start_new_files_at => start_new_files_at,
+        :stat_interval => stat_interval, :start_new_files_at => start_new_files_at, :max_active => max,
         :delimiter => "\n", :discover_interval => discover_interval, :sincedb_path => sincedb_path
       }
     end
@@ -52,23 +52,18 @@ module FileWatch
       end
 
       before do
-        ENV["FILEWATCH_MAX_OPEN_FILES"] = max.to_s
         ENV["FILEWATCH_MAX_FILES_WARN_INTERVAL"] = "0"
         File.open(file_path, "wb")  { |file| file.write("line1\nline2\n") }
         File.open(file_path2, "wb") { |file| file.write("lineA\nlineB\n") }
       end
 
-      after do
-        ENV.delete("FILEWATCH_MAX_OPEN_FILES")
-        ENV.delete("FILEWATCH_MAX_FILES_WARN_INTERVAL")
-      end
+      context "when max_active is 1" do
 
-      context "when using ENV" do
         it "without close_older set, opens only 1 file" do
           actions.activate
           tailing.watch_this(watch_dir)
           tailing.subscribe(observer)
-          expect(OPTS.max_active).to eq(max)
+          expect(tailing.settings.max_active).to eq(max)
           file1_calls = observer.listener_for(file_path).calls
           file2_calls = observer.listener_for(file_path2).calls
           # file glob order is OS dependent
@@ -90,7 +85,7 @@ module FileWatch
           actions.activate
           tailing.watch_this(watch_dir)
           tailing.subscribe(observer)
-          expect(OPTS.max_active).to eq(1)
+          expect(tailing.settings.max_active).to eq(1)
           filelistener_1 = observer.listener_for(file_path)
           filelistener_2 = observer.listener_for(file_path2)
           expect(filelistener_2.calls).to eq([:open, :accept, :accept, :timed_out])
@@ -145,7 +140,7 @@ module FileWatch
       # so when a stat is taken on the file an error is raised
       let(:quit_after) { 0.1 }
       let(:stat)  { double("stat", :size => 100, :ctime => Time.now, :mtime => Time.now, :ino => 234567, :dev_major => 3, :dev_minor => 2) }
-      let(:watched_file) { WatchedFile.new_initial(file_path, stat) }
+      let(:watched_file) { WatchedFile.new(file_path, stat, tailing.settings) }
 
       before do
         tailing.watch.watched_files_collection.add(watched_file)
@@ -383,14 +378,14 @@ module FileWatch
           .then("start watching before file age reaches ignore_older") do
             tailing.watch_this(watch_dir)
           end
-          .then_after(1.6, "quit after allowing time to close the file") do
+          .then_after(1.75, "quit after allowing time to close the file") do
             tailing.quit
           end
       end
 
       it "reads lines normally" do
         tailing.subscribe(observer)
-        expect(observer.listener_for(file_path).calls).to eq([:open, :accept, :accept])
+        expect(observer.listener_for(file_path).calls).to eq([:open, :accept, :accept, :timed_out])
         expect(observer.listener_for(file_path).lines).to eq(["line1", "line2"])
       end
     end

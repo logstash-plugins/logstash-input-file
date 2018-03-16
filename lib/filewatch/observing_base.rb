@@ -3,7 +3,7 @@ require_relative 'bootstrap' unless defined?(FileWatch)
 
 module FileWatch
   module ObservingBase
-    attr_reader :watch, :sincedb_collection
+    attr_reader :watch, :sincedb_collection, :settings
 
     def initialize(opts={})
       options = {
@@ -22,19 +22,18 @@ module FileWatch
       unless options.include?(:sincedb_path)
         raise NoSinceDBPathGiven.new("No HOME or SINCEDB_PATH set in environment. I need one of these set so I can keep track of the files I am following.")
       end
-
-      OPTS.add_settings(options)
+      @settings = Settings.from_options(options)
       build_watch_and_dependencies
     end
 
     def build_watch_and_dependencies
       logger.info("START, creating Discoverer, Watch with file and sincedb collections")
       watched_files_collection = WatchedFilesCollection.new
-      @sincedb_collection = SincedbCollection.new
+      @sincedb_collection = SincedbCollection.new(@settings)
       @sincedb_collection.open
-      discoverer = Discoverer.new(watched_files_collection, @sincedb_collection)
-      @watch = Watch.new(discoverer, watched_files_collection)
-      @watch.add_processor build_specific_processor
+      discoverer = Discoverer.new(watched_files_collection, @sincedb_collection, @settings)
+      @watch = Watch.new(discoverer, watched_files_collection, @settings)
+      @watch.add_processor build_specific_processor(@settings)
     end
 
     def watch_this(path)

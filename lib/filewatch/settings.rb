@@ -8,30 +8,48 @@ module FileWatch
     attr_reader :exclude, :start_new_files_at, :read_iterations, :file_chunk_size
     attr_reader :sincedb_path, :sincedb_write_interval, :sincedb_expiry_duration
 
-    def initialize
-      @opts = {}
+    def self.from_options(opts)
+      new.add_options(opts)
     end
 
-    def add_settings(opts)
-      @opts = opts
-      @max_active = 4095
-      @max_warn_msg = "Reached open files limit: 4095, set by the 'max_open_files' option or default"
-      self.max_open_files = opts.fetch(:max_active, ENV["FILEWATCH_MAX_OPEN_FILES"].to_i)
+    def self.days_to_seconds(days)
+      (24 * 3600) * days.to_f
+    end
+
+    def initialize
+      defaults = {
+        :delimiter => "\n",
+        :file_chunk_size => FILE_READ_SIZE,
+        :max_active => 4095,
+        :read_iterations => FIXNUM_MAX,
+        :sincedb_clean_after => 14,
+        :exclude => [],
+        :stat_interval => 1,
+        :discover_interval => 5,
+      }
+      @opts = {}
       @lastwarn_max_files = 0
-      @delimiter = opts.fetch(:delimiter, "\n")
-      @file_chunk_size = opts.fetch(:file_chunk_size, FILE_READ_SIZE)
+      add_options(defaults)
+    end
+
+    def add_options(opts)
+      @opts.update(opts)
+      self.max_open_files = @opts[:max_active]
+      @delimiter = @opts[:delimiter]
       @delimiter_byte_size = @delimiter.bytesize
-      @close_older = opts[:close_older]
-      @ignore_older = opts[:ignore_older]
-      @sincedb_write_interval = opts[:sincedb_write_interval]
-      @stat_interval = opts[:stat_interval]
-      @discover_interval = opts[:discover_interval]
-      @exclude = opts[:exclude]
-      @start_new_files_at = opts[:start_new_files_at]
-      @read_iterations = opts.fetch(:read_iterations, FIXNUM_MAX)
-      @sincedb_path = opts[:sincedb_path]
-      @sincedb_write_interval = opts[:sincedb_write_interval]
-      @sincedb_expiry_duration = opts.fetch(:sincedb_clean_after, 14).to_f * (24 * 3600)
+      @file_chunk_size = @opts[:file_chunk_size]
+      @close_older = @opts[:close_older]
+      @ignore_older = @opts[:ignore_older]
+      @sincedb_write_interval = @opts[:sincedb_write_interval]
+      @stat_interval = @opts[:stat_interval]
+      @discover_interval = @opts[:discover_interval]
+      @exclude = Array(@opts[:exclude])
+      @start_new_files_at = @opts[:start_new_files_at]
+      @read_iterations = @opts[:read_iterations]
+      @sincedb_path = @opts[:sincedb_path]
+      @sincedb_write_interval = @opts[:sincedb_write_interval]
+      @sincedb_expiry_duration =  self.class.days_to_seconds(@opts.fetch(:sincedb_clean_after, 14))
+      self
     end
 
     def max_open_files=(value)

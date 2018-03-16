@@ -9,9 +9,9 @@ require_relative "read_zip_file"
 
 module FileWatch module ReadHandlers
   class Dispatch
-    def initialize(sincedb_collection, observer)
-      @read_file = ReadFile.new(sincedb_collection, observer)
-      @read_zip_file = ReadZipFile.new(sincedb_collection, observer)
+    def initialize(sincedb_collection, observer, settings)
+      @read_file = ReadFile.new(sincedb_collection, observer, settings)
+      @read_zip_file = ReadZipFile.new(sincedb_collection, observer, settings)
     end
 
     def read_file(watched_file)

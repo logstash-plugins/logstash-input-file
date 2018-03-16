@@ -51,7 +51,6 @@ module FileWatch
   MAX_FILES_WARN_INTERVAL = ENV.fetch("FILEWATCH_MAX_FILES_WARN_INTERVAL", 20).to_i
 
   require_relative "settings"
-  OPTS = Settings.new
   require_relative "buftok"
   require_relative "sincedb_value"
   require_relative "sincedb_record_serializer"
@@ -65,7 +64,7 @@ module FileWatch
   require_relative "read_handlers/base"
 
   # TODO [guy] make this a config option, perhaps.
-  CurrentSerializer = SincedbRecordSerializer
+  CurrentSerializerClass = SincedbRecordSerializer
 
   # these classes are used if the caller does not
   # supply their own observer and listener

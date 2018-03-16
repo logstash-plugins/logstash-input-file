@@ -18,14 +18,14 @@ require_relative "unignore"
 #
 module FileWatch module TailHandlers
   class Dispatch
-    def initialize(sincedb_collection, observer)
-      @create = Create.new(sincedb_collection, observer)
-      @create_initial = CreateInitial.new(sincedb_collection, observer)
-      @grow = Grow.new(sincedb_collection, observer)
-      @shrink = Shrink.new(sincedb_collection, observer)
-      @delete = Delete.new(sincedb_collection, observer)
-      @timeout = Timeout.new(sincedb_collection, observer)
-      @unignore = Unignore.new(sincedb_collection, observer)
+    def initialize(sincedb_collection, observer, settings)
+      @create = Create.new(sincedb_collection, observer, settings)
+      @create_initial = CreateInitial.new(sincedb_collection, observer, settings)
+      @grow = Grow.new(sincedb_collection, observer, settings)
+      @shrink = Shrink.new(sincedb_collection, observer, settings)
+      @delete = Delete.new(sincedb_collection, observer, settings)
+      @timeout = Timeout.new(sincedb_collection, observer, settings)
+      @unignore = Unignore.new(sincedb_collection, observer, settings)
     end
 
     def create(watched_file)

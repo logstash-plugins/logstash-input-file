@@ -6,7 +6,8 @@ module FileWatch module ReadHandlers
 
     attr_reader :sincedb_collection
 
-    def initialize(sincedb_collection, observer)
+    def initialize(sincedb_collection, observer, settings)
+      @settings = settings
       @sincedb_collection = sincedb_collection
       @observer = observer
     end

@@ -11,18 +11,19 @@ module FileWatch
     attr_reader :path
     attr_writer :serializer
 
-    def initialize
+    def initialize(settings)
+      @settings = settings
       @sincedb_last_write = 0
       @sincedb = {}
-      @serializer = CurrentSerializer
-      @path = Pathname.new(OPTS.sincedb_path)
+      @serializer = CurrentSerializerClass.new(@settings.sincedb_expiry_duration)
+      @path = Pathname.new(@settings.sincedb_path)
       FileUtils.touch(@path.to_path)
     end
 
     def request_disk_flush
       now = Time.now.to_i
       delta = now - @sincedb_last_write
-      if delta >= OPTS.sincedb_write_interval
+      if delta >= @settings.sincedb_write_interval
         logger.debug("writing sincedb (delta since last write = #{delta})")
         sincedb_write(now)
       end
@@ -172,8 +173,7 @@ module FileWatch
     end
 
     def set_key_value(key, value)
-
-      if @time_sdb_opened < value.last_changed_at_expires
+      if @time_sdb_opened < value.last_changed_at_expires(@settings.sincedb_expiry_duration)
         logger.debug("open: setting #{key.inspect} to #{value.inspect}")
         set(key, value)
       else

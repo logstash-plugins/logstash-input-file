@@ -7,7 +7,8 @@ module FileWatch module TailHandlers
 
     attr_reader :watch, :deletable_filepaths
 
-    def initialize
+    def initialize(settings)
+      @settings = settings
       @deletable_filepaths = []
     end
 
@@ -73,7 +74,7 @@ module FileWatch module TailHandlers
       #   those that were active before but are watched now were closed under constraint
 
       # how much of the max active window is available
-      to_take = OPTS.max_active - watched_files.count{|wf| wf.active?}
+      to_take = @settings.max_active - watched_files.count{|wf| wf.active?}
       if to_take > 0
         watched_files.select {|wf| wf.watched?}.take(to_take).each do |watched_file|
           path = watched_file.path
@@ -96,8 +97,8 @@ module FileWatch module TailHandlers
       else
         now = Time.now.to_i
         if (now - watch.lastwarn_max_files) > MAX_FILES_WARN_INTERVAL
-          waiting = watched_files.size - OPTS.max_active
-          logger.warn(OPTS.max_warn_msg + ", files yet to open: #{waiting}")
+          waiting = watched_files.size - @settings.max_active
+          logger.warn(@settings.max_warn_msg + ", files yet to open: #{waiting}")
           watch.lastwarn_max_files = now
         end
       end

@@ -9,12 +9,13 @@ module FileWatch
     # associated with a sincedb entry if one can be found
     include LogStash::Util::Loggable
 
-    def initialize(watched_files_collection, sincedb_collection)
+    def initialize(watched_files_collection, sincedb_collection, settings)
       @watching = []
       @exclude = []
       @watched_files_collection = watched_files_collection
       @sincedb_collection = sincedb_collection
-      exclude OPTS.exclude
+      @settings = settings
+      @settings.exclude.each { |p| @exclude << p }
     end
 
     def add_path(path)
@@ -31,10 +32,6 @@ module FileWatch
     end
 
     private
-
-    def exclude(paths)
-      paths.to_a.each { |p| @exclude << p }
-    end
 
     def can_exclude?(watched_file, new_discovery)
       skip = false
@@ -66,14 +63,14 @@ module FileWatch
         if watched_file.nil?
           logger.debug("Discoverer discover_files: #{path}: new: #{file} (exclude is #{@exclude.inspect})")
           new_discovery = true
-          watched_file = WatchedFile.new_initial(pathname, pathname.stat)
+          watched_file = WatchedFile.new(pathname, pathname.stat, @settings)
         end
         # if it already unwatched or its excluded then we can skip
         next if watched_file.unwatched? || can_exclude?(watched_file, new_discovery)
 
         if new_discovery
           if watched_file.file_ignorable?
-            logger.debug("Discoverer discover_files: #{file}: skipping because it was last modified more than #{OPTS.ignore_older} seconds ago")
+            logger.debug("Discoverer discover_files: #{file}: skipping because it was last modified more than #{@settings.ignore_older} seconds ago")
             # on discovery ignorable watched_files are put into the ignored state and that
             # updates the size from the internal stat
             # so the existing contents are not read.

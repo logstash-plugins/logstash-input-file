@@ -18,8 +18,8 @@ module FileWatch
       self
     end
 
-    def last_changed_at_expires
-      @last_changed_at + OPTS.sincedb_expiry_duration
+    def last_changed_at_expires(duration)
+      @last_changed_at + duration
     end
 
     def position

@@ -10,7 +10,7 @@ module FileWatch module TailHandlers
 
     def update_existing_specifically(watched_file, sincedb_value)
       position = watched_file.last_stat_size
-      if OPTS.start_new_files_at == :beginning
+      if @settings.start_new_files_at == :beginning
         position = 0
       end
       logger.debug("update_existing_specifically - #{watched_file.path}: seeking to #{position}")

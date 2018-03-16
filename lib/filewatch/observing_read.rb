@@ -8,13 +8,13 @@ module FileWatch
     include LogStash::Util::Loggable
     include ObservingBase
 
-    def build_specific_processor
-      ReadHandlers::Processor.new
+    def build_specific_processor(settings)
+      ReadHandlers::Processor.new(settings)
     end
 
     def subscribe(observer = NullObserver.new)
       # observer here is the file input
-      dispatcher = ReadHandlers::Dispatch.new(sincedb_collection, observer)
+      dispatcher = ReadHandlers::Dispatch.new(sincedb_collection, observer, @settings)
       watch.subscribe(dispatcher)
       sincedb_collection.write("shutting down")
     end

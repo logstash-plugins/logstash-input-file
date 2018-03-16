@@ -2,12 +2,18 @@
 require_relative 'bootstrap' unless defined?(FileWatch)
 
 module FileWatch
-  module SincedbRecordSerializer
-    extend self
+  class SincedbRecordSerializer
+    def initialize(sincedb_value_expiry)
+      @sincedb_value_expiry = sincedb_value_expiry
+    end
+
+    def update_sincedb_value_expiry_from_days(days)
+      @sincedb_value_expiry = Settings.days_to_seconds(days)
+    end
 
     def serialize(db, io, as_of = Time.now.to_f)
       db.each do |key, value|
-        next if as_of > value.last_changed_at_expires
+        next if as_of > value.last_changed_at_expires(@sincedb_value_expiry)
         io.write(serialize_record(key, value))
       end
     end
