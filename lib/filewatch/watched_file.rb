@@ -22,7 +22,7 @@ module FileWatch
       end
     end
 
-    attr_reader :bytes_read, :state, :file, :buffer, :state_history
+    attr_reader :bytes_read, :state, :file, :buffer, :recent_states
     attr_reader :path, :filestat, :accessed_at, :modified_at, :pathname
     attr_reader :sdb_key_v1, :last_stat_size, :listener
     attr_accessor :last_open_warning_at
@@ -38,7 +38,7 @@ module FileWatch
       # initial as true means we have not associated this watched_file with a previous sincedb value yet.
       # and we should read from the beginning if necessary
       @initial = true
-      @state_history = []
+      @recent_states = [] # keep last 8 states, managed in set_state
       @state = :watched
       set_stat(stat) # can change @last_stat_size
       @listener = NullListener.new(@path)
@@ -206,16 +206,13 @@ module FileWatch
     end
 
     def set_state(value)
-      @state_history << @state
+      @recent_states.shift if @recent_states.size == 8
+      @recent_states << @state
       @state = value
     end
 
-    def state_history_any?(*previous)
-      (@state_history & previous).any?
-    end
-
-    def full_state_history
-      @state_history + Array(@state)
+    def recent_state_history
+      @recent_states + Array(@state)
     end
 
     def file_closable?

@@ -96,7 +96,7 @@ module FileWatch
       sincedb_value.clear_watched_file
       if logger.debug?
         logger.debug("associate: matched but allocated to another - #{sincedb_value}")
-        logger.debug("associate: matched but allocated to another - old watched_file history - #{old_watched_file.full_state_history.join(', ')}")
+        logger.debug("associate: matched but allocated to another - old watched_file history - #{old_watched_file.recent_state_history.join(', ')}")
         logger.debug("associate: matched but allocated to another - DELETING value at key `#{old_watched_file.sincedb_key}`")
       end
       delete(old_watched_file.sincedb_key)

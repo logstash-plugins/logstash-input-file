@@ -79,7 +79,7 @@ module FileWatch
       end
 
       context "when close_older is set" do
-        let(:wait_before_quit) { 0.4 }
+        let(:wait_before_quit) { 0.8 }
         let(:opts) { super.merge(:close_older => 0.2, :max_active => 1, :stat_interval => 0.1) }
         it "opens both files" do
           actions.activate
@@ -90,7 +90,7 @@ module FileWatch
           filelistener_2 = observer.listener_for(file_path2)
           expect(filelistener_2.calls).to eq([:open, :accept, :accept, :timed_out])
           expect(filelistener_2.lines).to eq(["lineA", "lineB"])
-          expect(filelistener_1.calls).to eq([:open, :accept, :accept])
+          expect(filelistener_1.calls).to eq([:open, :accept, :accept, :timed_out])
           expect(filelistener_1.lines).to eq(["line1", "line2"])
         end
       end
