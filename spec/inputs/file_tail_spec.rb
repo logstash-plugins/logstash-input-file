@@ -10,7 +10,7 @@ require "tempfile"
 require "stud/temporary"
 require "logstash/codecs/multiline"
 
-FILE_DELIMITER = LogStash::Environment.windows? ? "\r\n" : "\n"
+TEST_FILE_DELIMITER = LogStash::Environment.windows? ? "\r\n" : "\n"
 
 describe LogStash::Inputs::File do
   describe "'tail' mode testing with input(conf) do |pipeline, queue|" do
@@ -34,7 +34,7 @@ describe LogStash::Inputs::File do
             path => "#{tmpfile_path}"
             start_position => "beginning"
             sincedb_path => "#{sincedb_path}"
-            delimiter => "#{FILE_DELIMITER}"
+            delimiter => "#{TEST_FILE_DELIMITER}"
           }
         }
       CONFIG
@@ -64,7 +64,7 @@ describe LogStash::Inputs::File do
             path => "#{tmpfile_path}"
             start_position => "beginning"
             sincedb_path => "#{sincedb_path}"
-            delimiter => "#{FILE_DELIMITER}"
+            delimiter => "#{TEST_FILE_DELIMITER}"
           }
         }
       CONFIG
@@ -108,7 +108,7 @@ describe LogStash::Inputs::File do
             path => "#{tmpfile_path}"
             start_position => "beginning"
             sincedb_path => "#{sincedb_path}"
-            delimiter => "#{FILE_DELIMITER}"
+            delimiter => "#{TEST_FILE_DELIMITER}"
             codec => "json"
           }
         }
@@ -212,7 +212,7 @@ describe LogStash::Inputs::File do
               "sincedb_path" => sincedb_path,
               "stat_interval" => 0.1,
               "codec" => mlcodec,
-              "delimiter" => FILE_DELIMITER)
+              "delimiter" => TEST_FILE_DELIMITER)
       end
 
       it "reads the appended data only" do
@@ -255,7 +255,7 @@ describe LogStash::Inputs::File do
               "stat_interval" => 0.02,
               "codec" => codec,
               "close_older" => 0.5,
-              "delimiter" => FILE_DELIMITER)
+              "delimiter" => TEST_FILE_DELIMITER)
 
         subject.register
       end
@@ -299,7 +299,7 @@ describe LogStash::Inputs::File do
               "stat_interval" => 0.02,
               "codec" => codec,
               "ignore_older" => 1,
-              "delimiter" => FILE_DELIMITER)
+              "delimiter" => TEST_FILE_DELIMITER)
 
         subject.register
         Thread.new { subject.run(events) }
@@ -325,7 +325,7 @@ describe LogStash::Inputs::File do
               "sincedb_path" => sincedb_path,
               "stat_interval" => 0.05,
               "codec" => mlcodec,
-              "delimiter" => FILE_DELIMITER)
+              "delimiter" => TEST_FILE_DELIMITER)
 
         subject.register
       end
@@ -360,13 +360,13 @@ describe LogStash::Inputs::File do
             if e1_message.start_with?('line1.1-of-z')
               expect(e1.get("path")).to match(/z.log/)
               expect(e2.get("path")).to match(/A.log/)
-              expect(e1_message).to eq("line1.1-of-z#{FILE_DELIMITER}  line1.2-of-z#{FILE_DELIMITER}  line1.3-of-z")
-              expect(e2_message).to eq("line1.1-of-a#{FILE_DELIMITER}  line1.2-of-a#{FILE_DELIMITER}  line1.3-of-a")
+              expect(e1_message).to eq("line1.1-of-z#{TEST_FILE_DELIMITER}  line1.2-of-z#{TEST_FILE_DELIMITER}  line1.3-of-z")
+              expect(e2_message).to eq("line1.1-of-a#{TEST_FILE_DELIMITER}  line1.2-of-a#{TEST_FILE_DELIMITER}  line1.3-of-a")
             else
               expect(e1.get("path")).to match(/A.log/)
               expect(e2.get("path")).to match(/z.log/)
-              expect(e1_message).to eq("line1.1-of-a#{FILE_DELIMITER}  line1.2-of-a#{FILE_DELIMITER}  line1.3-of-a")
-              expect(e2_message).to eq("line1.1-of-z#{FILE_DELIMITER}  line1.2-of-z#{FILE_DELIMITER}  line1.3-of-z")
+              expect(e1_message).to eq("line1.1-of-a#{TEST_FILE_DELIMITER}  line1.2-of-a#{TEST_FILE_DELIMITER}  line1.3-of-a")
+              expect(e2_message).to eq("line1.1-of-z#{TEST_FILE_DELIMITER}  line1.2-of-z#{TEST_FILE_DELIMITER}  line1.3-of-z")
             end
           end
         subject.run(events)
@@ -390,7 +390,7 @@ describe LogStash::Inputs::File do
               e1 = events.first
               e1_message = e1.get("message")
               expect(e1["path"]).to match(/a.log/)
-              expect(e1_message).to eq("line1.1-of-a#{FILE_DELIMITER}  line1.2-of-a#{FILE_DELIMITER}  line1.3-of-a")
+              expect(e1_message).to eq("line1.1-of-a#{TEST_FILE_DELIMITER}  line1.2-of-a#{TEST_FILE_DELIMITER}  line1.3-of-a")
             end
             .then("stop") do
               subject.stop
@@ -477,7 +477,7 @@ describe LogStash::Inputs::File do
                 "stat_interval" => 0.1,
                 "max_open_files" => 1,
                 "start_position" => "beginning",
-                "delimiter" => FILE_DELIMITER)
+                "delimiter" => TEST_FILE_DELIMITER)
           subject.register
         end
         it "collects line events from only one file" do
@@ -516,7 +516,7 @@ describe LogStash::Inputs::File do
                 "max_open_files" => 1,
                 "close_older" => 0.5,
                 "start_position" => "beginning",
-                "delimiter" => FILE_DELIMITER)
+                "delimiter" => TEST_FILE_DELIMITER)
           subject.register
         end
 
