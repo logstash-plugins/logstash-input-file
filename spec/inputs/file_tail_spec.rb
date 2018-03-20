@@ -3,9 +3,6 @@
 require "helpers/spec_helper"
 require "logstash/inputs/file"
 
-LogStash::Logging::Logger::configure_logging("WARN")
-# LogStash::Logging::Logger::configure_logging("DEBUG")
-
 require "tempfile"
 require "stud/temporary"
 require "logstash/codecs/multiline"
