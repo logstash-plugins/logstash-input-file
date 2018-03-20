@@ -41,8 +41,7 @@ describe LogStash::Inputs::File do
         2.times.collect { queue.pop }
       end
 
-      expect(events[0].get("message")).to eq("hello")
-      expect(events[1].get("message")).to eq("world")
+      expect(events.map{|e| e.get("message")}).to contain_exactly("hello", "world")
       expect(File.exist?(tmpfile_path)).to be_falsey
     end
   end

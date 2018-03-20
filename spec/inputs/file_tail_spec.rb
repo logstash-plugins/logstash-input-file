@@ -45,9 +45,7 @@ describe LogStash::Inputs::File do
       events = input(conf) do |pipeline, queue|
         2.times.collect { queue.pop }
       end
-
-      expect(events[0].get("message")).to eq "hello"
-      expect(events[1].get("message")).to eq "world"
+      expect(events.map{|e| e.get("message")}).to contain_exactly("hello", "world")
     end
 
     it "should restart at the sincedb value" do
@@ -75,7 +73,7 @@ describe LogStash::Inputs::File do
         2.times.collect { queue.pop }
       end
 
-      expect(events.map{|e| e.get("message")}).to eq %w(hello3 world3)
+      expect(events.map{|e| e.get("message")}).to contain_exactly("hello3", "world3")
 
       File.open(tmpfile_path, "a") do |fd|
         fd.puts("foo")
@@ -87,7 +85,8 @@ describe LogStash::Inputs::File do
       events = input(conf) do |pipeline, queue|
         3.times.collect { queue.pop }
       end
-      expect(events.map{|e| e.get("message")}).to eq %w(foo bar baz)
+      messages = events.map{|e| e.get("message")}
+      expect(messages).to contain_exactly("foo", "bar", "baz")
     end
 
     it "should not overwrite existing path and host fields" do
@@ -117,13 +116,15 @@ describe LogStash::Inputs::File do
         2.times.collect { queue.pop }
       end
 
-      expect(events[0].get("path")).to eq "my_path"
-      expect(events[0].get("host")).to eq "my_host"
-      expect(events[0].get("[@metadata][host]")).to eq "#{Socket.gethostname.force_encoding(Encoding::UTF_8)}"
+      existing_path_index, added_path_index  = "my_val" == events[0].get("my_field") ? [1,0] : [0,1]
 
-      expect(events[1].get("path")).to eq "#{tmpfile_path}"
-      expect(events[1].get("host")).to eq "#{Socket.gethostname.force_encoding(Encoding::UTF_8)}"
-      expect(events[1].get("[@metadata][host]")).to eq "#{Socket.gethostname.force_encoding(Encoding::UTF_8)}"
+      expect(events[existing_path_index].get("path")).to eq "my_path"
+      expect(events[existing_path_index].get("host")).to eq "my_host"
+      expect(events[existing_path_index].get("[@metadata][host]")).to eq "#{Socket.gethostname.force_encoding(Encoding::UTF_8)}"
+
+      expect(events[added_path_index].get("path")).to eq "#{tmpfile_path}"
+      expect(events[added_path_index].get("host")).to eq "#{Socket.gethostname.force_encoding(Encoding::UTF_8)}"
+      expect(events[added_path_index].get("[@metadata][host]")).to eq "#{Socket.gethostname.force_encoding(Encoding::UTF_8)}"
     end
 
     it "should read old files" do
@@ -151,14 +152,14 @@ describe LogStash::Inputs::File do
       events = input(conf) do |pipeline, queue|
         2.times.collect { queue.pop }
       end
+      existing_path_index, added_path_index  = "my_val" == events[0].get("my_field") ? [1,0] : [0,1]
+      expect(events[existing_path_index].get("path")).to eq "my_path"
+      expect(events[existing_path_index].get("host")).to eq "my_host"
+      expect(events[existing_path_index].get("[@metadata][host]")).to eq "#{Socket.gethostname.force_encoding(Encoding::UTF_8)}"
 
-      expect(events[0].get("path")).to eq "my_path"
-      expect(events[0].get("host")).to eq "my_host"
-      expect(events[0].get("[@metadata][host]")).to eq "#{Socket.gethostname.force_encoding(Encoding::UTF_8)}"
-
-      expect(events[1].get("path")).to eq "#{tmpfile_path}"
-      expect(events[1].get("host")).to eq "#{Socket.gethostname.force_encoding(Encoding::UTF_8)}"
-      expect(events[1].get("[@metadata][host]")).to eq "#{Socket.gethostname.force_encoding(Encoding::UTF_8)}"
+      expect(events[added_path_index].get("path")).to eq "#{tmpfile_path}"
+      expect(events[added_path_index].get("host")).to eq "#{Socket.gethostname.force_encoding(Encoding::UTF_8)}"
+      expect(events[added_path_index].get("[@metadata][host]")).to eq "#{Socket.gethostname.force_encoding(Encoding::UTF_8)}"
     end
 
     context "when sincedb_path is an existing directory" do
