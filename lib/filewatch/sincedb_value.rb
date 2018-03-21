@@ -75,6 +75,14 @@ module FileWatch
 
     def unset_watched_file
       # cache the position
+      # we don't cache the path here because we know we are done with this file.
+      # either due via the `delete` handling
+      # or when read mode is done with a file.
+      # in the case of `delete` if the file was renamed then @watched_file is the
+      # watched_file of the previous path and the new path will be discovered and
+      # it should have the same inode as before.
+      # The key from the new watched_file should then locate this entry and we
+      # can resume from the cached position
       return if @watched_file.nil?
       wf = @watched_file
       @watched_file = nil

@@ -57,7 +57,7 @@ module FileWatch
       sincedb_value = find(watched_file)
       if sincedb_value.nil?
         # sincedb has no record of this inode
-        # due to the window handling of many files
+        # and due to the window handling of many files
         # this file may not be opened in this session.
         # a new value will be added when the file is opened
         return
@@ -192,6 +192,11 @@ module FileWatch
           FileHelper.write_atomically(path) do |io|
             @serializer.serialize(@sincedb, io)
           end
+        end
+        @serializer.expired_keys.each do |key|
+          @sincedb[key].unset_watched_file
+          delete(key)
+          logger.debug("sincedb_write: cleaned", "key" => "'#{key}'")
         end
         @sincedb_last_write = time
       rescue Errno::EACCES

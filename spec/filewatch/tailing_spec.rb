@@ -269,10 +269,10 @@ module FileWatch
 
       it "the first set of lines are not re-read" do
         tailing.subscribe(observer)
-        expect(observer.listener_for(file_path).calls).to eq([:open, :accept, :accept, :timed_out, :delete])
         expect(observer.listener_for(file_path).lines).to eq(["line1", "line2"])
-        expect(observer.listener_for(new_file_path).calls).to eq([:open, :accept, :accept, :timed_out])
+        expect(observer.listener_for(file_path).calls).to eq([:open, :accept, :accept, :timed_out, :delete])
         expect(observer.listener_for(new_file_path).lines).to eq(["line3", "line4"])
+        expect(observer.listener_for(new_file_path).calls).to eq([:open, :accept, :accept, :timed_out])
       end
     end
 
