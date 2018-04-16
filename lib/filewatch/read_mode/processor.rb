@@ -1,6 +1,14 @@
 # encoding: utf-8
 require "logstash/util/loggable"
-module FileWatch module ReadHandlers
+
+require_relative "handlers/base"
+require_relative "handlers/read_file"
+require_relative "handlers/read_zip_file"
+
+module FileWatch module ReadMode
+  # Must handle
+  #   :read_file
+  #   :read_zip_file
   class Processor
     include LogStash::Util::Loggable
 
@@ -16,15 +24,28 @@ module FileWatch module ReadHandlers
       self
     end
 
-    def process_closed(watched_files, dispatcher)
+    def initialize_handlers(sincedb_collection, observer)
+      @read_file = Handlers::ReadFile.new(sincedb_collection, observer, @settings)
+      @read_zip_file = Handlers::ReadZipFile.new(sincedb_collection, observer, @settings)
+    end
+
+    def read_file(watched_file)
+      @read_file.handle(watched_file)
+    end
+
+    def read_zip_file(watched_file)
+      @read_zip_file.handle(watched_file)
+    end
+
+    def process_closed(watched_files)
       # do not process watched_files in the closed state.
     end
 
-    def process_ignored(watched_files, dispatcher)
+    def process_ignored(watched_files)
       # do not process watched_files in the closed state.
     end
 
-    def process_watched(watched_files, dispatcher)
+    def process_watched(watched_files)
       logger.debug("Watched processing")
       # Handles watched_files in the watched state.
       # for a slice of them:
@@ -39,7 +60,7 @@ module FileWatch module ReadHandlers
             watched_file.restat
             watched_file.activate
           rescue Errno::ENOENT
-            common_deleted_reaction(watched_file, dispatcher, "Watched")
+            common_deleted_reaction(watched_file, "Watched")
             next
           rescue => e
             common_error_reaction(path, e, "Watched")
@@ -57,7 +78,7 @@ module FileWatch module ReadHandlers
       end
     end
 
-    def process_active(watched_files, dispatcher)
+    def process_active(watched_files)
       logger.debug("Active processing")
       # Handles watched_files in the active state.
       watched_files.select {|wf| wf.active? }.each do |watched_file|
@@ -65,7 +86,7 @@ module FileWatch module ReadHandlers
         begin
           watched_file.restat
         rescue Errno::ENOENT
-          common_deleted_reaction(watched_file, dispatcher, "Active")
+          common_deleted_reaction(watched_file, "Active")
           next
         rescue => e
           common_error_reaction(path, e, "Active")
@@ -74,18 +95,17 @@ module FileWatch module ReadHandlers
         break if watch.quit?
 
         if watched_file.compressed?
-          dispatcher.read_zip_file(watched_file)
+          read_zip_file(watched_file)
         else
-          dispatcher.read_file(watched_file)
+          read_file(watched_file)
         end
-        # dispatched handlers take care of closing and unwatching
+        # handlers take care of closing and unwatching
       end
     end
 
-    def common_deleted_reaction(watched_file, dispatcher, action)
+    def common_deleted_reaction(watched_file, action)
       # file has gone away or we can't read it anymore.
       watched_file.unwatch
-      dispatcher.delete(watched_file)
       deletable_filepaths << watched_file.path
       logger.debug("#{action} - stat failed: #{watched_file.path}, removing from collection")
     end

@@ -24,20 +24,6 @@ apply plugin: "idea"
 group = 'org.logstash.filewatch'
 version "1.0.0"
 
-//import java.nio.file.Files
-//import static java.nio.file.StandardCopyOption.REPLACE_EXISTING
-
-buildscript {
-    repositories {
-        mavenCentral()
-        jcenter()
-    }
-
-    dependencies {
-        classpath group: 'org.jruby', name: 'jruby-complete', version: "9.1.13.0"
-    }
-}
-
 repositories {
     mavenCentral()
 }

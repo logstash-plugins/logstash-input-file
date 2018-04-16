@@ -1,5 +1,4 @@
 # encoding: utf-8
-require_relative 'bootstrap' unless defined?(FileWatch)
 
 module FileWatch
   # Tracks the position and expiry of the offset of a file-of-interest

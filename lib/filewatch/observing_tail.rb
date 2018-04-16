@@ -1,22 +1,22 @@
 # encoding: utf-8
-require_relative 'bootstrap'
-require_relative 'tail_handlers/processor'
 require "logstash/util/loggable"
+require_relative 'tail_mode/processor'
 
 module FileWatch
   class ObservingTail
     include LogStash::Util::Loggable
     include ObservingBase
 
-    def build_specific_processor(settings)
-      TailHandlers::Processor.new(settings)
-    end
-
     def subscribe(observer = NullObserver.new)
       # observer here is the file input
-      dispatcher = TailHandlers::Dispatch.new(sincedb_collection, observer, @settings)
-      watch.subscribe(dispatcher)
-      sincedb_collection.write("subscribe complete - shutting down")
+      watch.subscribe(observer, sincedb_collection)
+      sincedb_collection.write("tail mode subscribe complete - shutting down")
+    end
+
+    private
+
+    def build_specific_processor(settings)
+      TailMode::Processor.new(settings)
     end
   end
 end

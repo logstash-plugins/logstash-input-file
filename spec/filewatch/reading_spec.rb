@@ -61,7 +61,7 @@ module FileWatch
       let(:file_path1) { ::File.join(directory, "1.log") }
       let(:file_path2) { ::File.join(directory, "2.log") }
       # use a chunk size that does not align with the line boundaries
-      let(:opts) { super.merge(:file_chunk_size => 10, :read_iterations => 1)}
+      let(:opts) { super.merge(:file_chunk_size => 10, :file_chunk_count => 1)}
       let(:lines) { [] }
       let(:observer) { TestObserver.new(lines) }
 

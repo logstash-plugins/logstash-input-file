@@ -1,6 +1,7 @@
 # encoding: utf-8
 require "logstash/util/loggable"
-module FileWatch module ReadHandlers
+
+module FileWatch module ReadMode module Handlers
   class Base
     include LogStash::Util::Loggable
 
@@ -77,6 +78,4 @@ module FileWatch module ReadHandlers
       sincedb_collection.set(watched_file.sincedb_key, sincedb_value)
     end
   end
-end end
-
-require_relative "dispatch"
+end end end

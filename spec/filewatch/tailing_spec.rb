@@ -138,7 +138,7 @@ module FileWatch
       # these tests rely on the fact that the 'filepath' does not exist on disk
       # it simulates that the user deleted the file
       # so when a stat is taken on the file an error is raised
-      let(:quit_after) { 0.1 }
+      let(:quit_after) { 0.2 }
       let(:stat)  { double("stat", :size => 100, :ctime => Time.now, :mtime => Time.now, :ino => 234567, :dev_major => 3, :dev_minor => 2) }
       let(:watched_file) { WatchedFile.new(file_path, stat, tailing.settings) }
 

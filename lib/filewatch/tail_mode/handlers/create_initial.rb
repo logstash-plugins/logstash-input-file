@@ -1,6 +1,6 @@
 # encoding: utf-8
 
-module FileWatch module TailHandlers
+module FileWatch module TailMode module Handlers
   class CreateInitial < Base
     def handle_specifically(watched_file)
       if open_file(watched_file)
@@ -18,4 +18,4 @@ module FileWatch module TailHandlers
       sincedb_value.update_position(position)
     end
   end
-end end
+end end end

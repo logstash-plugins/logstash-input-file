@@ -1,4 +1,4 @@
-require 'filewatch/buftok'
+require_relative 'spec_helper'
 
 describe FileWatch::BufferedTokenizer do
 

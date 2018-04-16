@@ -1,18 +1,18 @@
 # encoding: utf-8
 
-module FileWatch module ReadHandlers
+module FileWatch module ReadMode module Handlers
   class ReadFile < Base
     def handle_specifically(watched_file)
       if open_file(watched_file)
         add_or_update_sincedb_collection(watched_file) unless sincedb_collection.member?(watched_file.sincedb_key)
-        # if the `read_iterations` * `file_chunk_size` is less than the file size
+        # if the `file_chunk_count` * `file_chunk_size` is less than the file size
         # then this method will be executed multiple times
         # and the seek is moved to just after a line boundary as recorded in the sincedb
         # for each run - so we reset the buffer
         watched_file.reset_buffer
         watched_file.file_seek(watched_file.bytes_read)
         changed = false
-        @settings.read_iterations.times do
+        @settings.file_chunk_count.times do
           begin
             lines = watched_file.buffer_extract(watched_file.file_read(@settings.file_chunk_size))
             logger.warn("read_to_eof: no delimiter found in current chunk") if lines.empty?
@@ -44,4 +44,4 @@ module FileWatch module ReadHandlers
       end
     end
   end
-end end
+end end end

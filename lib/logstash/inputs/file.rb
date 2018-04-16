@@ -11,6 +11,7 @@ require_relative "file/patch"
 require_relative "file_listener"
 require_relative "delete_completed_file_handler"
 require_relative "log_completed_file_handler"
+require "filewatch/bootstrap"
 
 # Stream events from files, normally by tailing them in a manner
 # similar to `tail -0F` but optionally reading them from the
@@ -30,8 +31,8 @@ require_relative "log_completed_file_handler"
 #
 # ==== Reading from remote network volumes
 #
-# The file input is not tested on remote filesystems such as NFS, Samba, s3fs-fuse, etc. These 
-# remote filesystems typically have behaviors that are very different from local filesystems and 
+# The file input is not tested on remote filesystems such as NFS, Samba, s3fs-fuse, etc. These
+# remote filesystems typically have behaviors that are very different from local filesystems and
 # are therefore unlikely to work correctly when used with the file input.
 #
 # ==== Tracking of current position in watched files
@@ -153,8 +154,8 @@ class File < LogStash::Inputs::Base
   # can be closed (allowing other files to be opened) but will be queued for
   # reopening when new data is detected. If reading, the file will be closed
   # after closed_older seconds from when the last bytes were read.
-  # The default is 1 hour
-  config :close_older, :validate => :number, :default => 1 * 60 * 60
+  # By default, this option disabled
+  config :close_older, :validate => :number
 
   # What is the maximum number of file_handles that this input consumes
   # at any one time. Use close_older to close some files if you need to
@@ -180,32 +181,46 @@ class File < LogStash::Inputs::Base
   # If 'delete' is specified then the file will be deleted.
   # If 'log' is specified then the full path of the file is logged to the file specified
   # in the `file_completed_log_path` setting.
-  config :file_completed_action, :validate => ["delete", "log"], :default => "delete"
+  config :file_completed_action, :validate => ["delete", "log", "log_and_delete"], :default => "delete"
 
   # Which file should the completely read file paths be appended to.
-  # Only specify this path to a file when `file_completed_action` is 'log'.
+  # Only specify this path to a file when `file_completed_action` is 'log' or 'log_and_delete'.
+  # IMPORTANT: this file is appended to only - it could become very large. You are responsible for file rotation.
   config :file_completed_log_path, :validate => :string
 
   # The sincedb entry now has a last active timestamp associated with it.
   # If no changes are detected in tracked files in the last N days their sincedb
   # tracking record will expire and not be persisted.
   # This option protects against the well known inode recycling problem. (add reference)
-  config :sincedb_clean_after, :validate => :number,  :default => 14 # days
+  config :sincedb_clean_after, :validate => :number, :default => 14 # days
 
-  # This option sets up a form of striped read. Some lines from each active file will
-  # appear be processed in parallel.
-  # Given that the sort order of discovered files is OS dependent, it is not possible to control
-  # the file processing order. Each read iteration will process a 32KB chunk,
-  # e.g. 32 read iterations will process 1MB from each active file.
-  # See the option `max_open_files` for more info, but note in "read" mode, close_older is
-  # not required as files are closed at EOF
-  # The default set internally is very large (the maximum positive Ruby integer)
-  config :read_iterations, :validate => :number,  :default => (2**(0.size * 8 - 2) - 1)
-
-  # Specify the size in bytes of each chunk read in each read iteration
-  # See `read_iterations` to see why and when to change this from the default.
+  # File content is read off disk in blocks or chunks, then using whatever the set delimiter
+  # is, lines are extracted from the chunk. Specify the size in bytes of each chunk.
+  # See `chunk_count` to see why and when to change this from the default.
   # The default set internally is 32768 (32KB)
-  config :file_chunk_size, :validate => :number,  :default => 32768
+  config :file_chunk_size, :validate => :number, :default => FileWatch::FILE_READ_SIZE
+
+  # When combined with the `file_chunk_size`, this option sets how many chunks
+  # are read from each file before moving to the next active file.
+  # e.g. a `chunk_count` of 32 with the default `file_chunk_size` will process
+  # 1MB from each active file. See the option `max_open_files` for more info.
+  # The default set internally is very large, 4611686018427387903. By default
+  # the file is read to the end before moving to the next active file.
+  config :file_chunk_count, :validate => :number, :default => FileWatch::FIXNUM_MAX
+
+  # Which attribute of a discovered file should be used to sort the discovered files.
+  # Files can be sort by modified date or full path alphabetic.
+  # The default is `last_modified`
+  # Previously the processing order of the discovered files was OS dependent.
+  config :file_sort_by, :validate => ["last_modified", "path"], :default => "last_modified"
+
+  # Choose between ascending and descending order when also choosing between
+  # `last_modified` and `path` file_sort_by options.
+  # If ingesting the newest data first is important then opt for last_modified + desc
+  # If ingesting the oldest data first is important then opt for last_modified + asc
+  # If you use a special naming convention for the file full paths then
+  # perhaps path + asc will help to achieve the goal of controlling the order of file ingestion
+  config :file_sort_direction, :validate => ["asc", "desc"], :default => "asc"
 
   public
   def register
@@ -227,9 +242,13 @@ class File < LogStash::Inputs::Base
       :close_older => @close_older,
       :max_open_files => @max_open_files,
       :sincedb_clean_after => @sincedb_clean_after,
-      :read_iterations => @read_iterations,
-      :file_chunk_size => @file_chunk_size
+      :file_chunk_count => @file_chunk_count,
+      :file_chunk_size => @file_chunk_size,
+      :file_sort_by => @file_sort_by,
+      :file_sort_direction => @file_sort_direction,
     }
+
+    @completed_file_handlers = []
 
     @path.each do |path|
       if Pathname.new(path).relative?
@@ -238,58 +257,31 @@ class File < LogStash::Inputs::Base
     end
 
     if @sincedb_path.nil?
-      if settings
-        datapath = Pathname.new(settings.get_value("path.data")).join("plugins", "inputs", "file")
-        # Ensure that the filepath exists before writing, since it's deeply nested.
-        datapath.mkpath
-        @sincedb_path = datapath.join(".sincedb_" + Digest::MD5.hexdigest(@path.join(",")))
+      base_sincedb_path = build_sincedb_base_from_settings(settings) || build_sincedb_base_from_env
+      @sincedb_path = build_random_sincedb_filename(base_sincedb_path)
+      @logger.info('No sincedb_path set, generating one based on the "path" setting', :sincedb_path => @sincedb_path.to_s, :path => @path)
+      # Migrate any old .sincedb to the new file (this is for version <=1.1.1 compatibility)
+      # only migrate an old file if the user did not explicitly set sincedb_path
+      old_v1_sincedb_file = find_old_v1_sincedb_file
+      if old_v1_sincedb_file && old_v1_sincedb_file.exist?
+        @logger.debug("Renaming v1.1.1 (or older) .sincedb file to new name", :old => old_v1_sincedb_file.to_s,
+                     :new => @sincedb_path.to_s)
+        old_v1_sincedb_file.rename(@sincedb_path)
       end
     else
       @sincedb_path = Pathname.new(@sincedb_path)
-    end
-
-    # This section is going to be deprecated eventually, as path.data will be
-    # the default, not an environment variable (SINCEDB_DIR or HOME)
-    if @sincedb_path.nil? # If it is _still_ nil...
-      if ENV["SINCEDB_DIR"].nil? && ENV["HOME"].nil?
-        @logger.error("No SINCEDB_DIR or HOME environment variable set, I don't know where " \
-                      "to keep track of the files I'm watching. Either set " \
-                      "HOME or SINCEDB_DIR in your environment, or set sincedb_path in " \
-                      "in your Logstash config for the file input with " \
-                      "path '#{@path.inspect}'")
-        raise # TODO(sissel): HOW DO I FAIL PROPERLY YO
+      if @sincedb_path.directory?
+        raise ArgumentError.new("The \"sincedb_path\" argument must point to a file, received a directory: \"#{@sincedb_path}\"")
       end
-
-      #pick SINCEDB_DIR if available, otherwise use HOME
-      sincedb_dir = Pathname.new(ENV["SINCEDB_DIR"] || ENV["HOME"])
-
-      # Join by ',' to make it easy for folks to know their own sincedb
-      # generated path (vs, say, inspecting the @path array)
-      @sincedb_path = sincedb_dir.join(".sincedb_" + Digest::MD5.hexdigest(@path.join(",")))
-
-      # Migrate any old .sincedb to the new file (this is for version <=1.1.1 compatibility)
-      old_sincedb = sincedb_dir.join(".sincedb")
-      if old_sincedb.exists?
-        @logger.debug("Renaming old ~/.sincedb to new one", :old => old_sincedb.to_s,
-                     :new => @sincedb_path.to_s)
-        old_sincedb.rename(@sincedb_path)
-      end
-
-      @logger.info("No sincedb_path set, generating one based on the file path",
-                   :sincedb_path => @sincedb_path.to_s, :path => @path)
-    end
-
-    if @sincedb_path.directory?
-      raise ArgumentError.new("The \"sincedb_path\" argument must point to a file, received a directory: \"#{@sincedb_path}\"")
     end
 
     @filewatch_config[:sincedb_path] = @sincedb_path
 
     @filewatch_config[:start_new_files_at] = @start_position.to_sym
 
-    if @file_completed_action == 'log'
+    if @file_completed_action.include?('log')
       if @file_completed_log_path.nil?
-        raise ArgumentError.new('The "file_completed_log_path" setting must be provided when the "file_completed_action" is set to "log"')
+        raise ArgumentError.new('The "file_completed_log_path" setting must be provided when the "file_completed_action" is set to "log" or "log_and_delete"')
       else
         @file_completed_log_path = Pathname.new(@file_completed_log_path)
         unless @file_completed_log_path.exist?
@@ -303,17 +295,14 @@ class File < LogStash::Inputs::Base
     end
 
     if tail_mode?
-      require "filewatch/observing_tail"
       @watcher_class = FileWatch::ObservingTail
     else
-      require "filewatch/observing_read"
       @watcher_class = FileWatch::ObservingRead
-      if @file_completed_action == 'delete'
-        @completed_file_handler = DeleteCompletedFileHandler.new
-      elsif @file_completed_action == 'log'
-        @completed_file_handler = LogCompletedFileHandler.new(@file_completed_log_path)
-      else
-        # nothing
+      if @file_completed_action.include?('log')
+        @completed_file_handlers << LogCompletedFileHandler.new(@file_completed_log_path)
+      end
+      if @file_completed_action.include?('delete')
+        @completed_file_handlers << DeleteCompletedFileHandler.new
       end
     end
     @codec = LogStash::Codecs::IdentityMapCodec.new(@codec)
@@ -348,13 +337,8 @@ class File < LogStash::Inputs::Base
 
   def handle_deletable_path(path)
     return if tail_mode?
-    return if @completed_file_handler.nil?
-    @completed_file_handler.handle(path)
-    # event = LogStash::Event.new
-    # event.set("[@metadata][path]", path)
-    # event.set("path", path)
-    # event.tag("file_input_read_mode_path_deletable")
-    # @queue << event
+    return if @completed_file_handlers.empty?
+    @completed_file_handlers.each { |handler| handler.handle(path) }
   end
 
   def log_line_received(path, line)
@@ -373,6 +357,40 @@ class File < LogStash::Inputs::Base
   end
 
   private
+
+  def build_sincedb_base_from_settings(settings)
+    logstash_data_path = settings.get_value("path.data")
+    Pathname.new(logstash_data_path).join("plugins", "inputs", "file").tap do |path|
+      # Ensure that the filepath exists before writing, since it's deeply nested.
+      path.mkpath
+    end
+  end
+
+  def build_sincedb_base_from_env
+    # This section is going to be deprecated eventually, as path.data will be
+    # the default, not an environment variable (SINCEDB_DIR or HOME)
+    if ENV["SINCEDB_DIR"].nil? && ENV["HOME"].nil?
+      @logger.error("No SINCEDB_DIR or HOME environment variable set, I don't know where " \
+                    "to keep track of the files I'm watching. Either set " \
+                    "HOME or SINCEDB_DIR in your environment, or set sincedb_path in " \
+                    "in your Logstash config for the file input with " \
+                    "path '#{@path.inspect}'")
+      raise ArgumentError.new('The "sincedb_path" setting was not given and the environment variables "SINCEDB_DIR" or "HOME" are not set so we cannot build a file path for the sincedb')
+    end
+    Pathname.new(ENV["SINCEDB_DIR"] || ENV["HOME"])
+  end
+
+  def find_old_v1_sincedb_file
+    env_path = ENV["SINCEDB_DIR"] || ENV["HOME"]
+    return if env_path.nil?
+    Pathname.new(env_path).join(".sincedb")
+  end
+
+  def build_random_sincedb_filename(pathname)
+    # Join by ',' to make it easy for folks to know their own sincedb
+    # generated path (vs, say, inspecting the @path array)
+    pathname.join(".sincedb_" + Digest::MD5.hexdigest(@path.join(",")))
+  end
 
   def tail_mode?
     @mode == "tail"

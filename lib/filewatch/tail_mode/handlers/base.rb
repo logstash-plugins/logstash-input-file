@@ -1,7 +1,7 @@
 # encoding: utf-8
-#
 require "logstash/util/loggable"
-module FileWatch module TailHandlers
+
+module FileWatch module TailMode module Handlers
   class Base
     include LogStash::Util::Loggable
     attr_reader :sincedb_collection
@@ -35,11 +35,11 @@ module FileWatch module TailHandlers
       # from a real config (has 102 file inputs)
       # -- This cfg creates a file input for every log file to create a dedicated file pointer and read all file simultaneously
       # -- If we put all log files in one file input glob we will have indexing delay, because Logstash waits until the first file becomes EOF
-      # by allowing the user to specify a combo of `read_iterations` X `file_chunk_size`...
+      # by allowing the user to specify a combo of `file_chunk_count` X `file_chunk_size`...
       # we enable the pseudo parallel processing of each file.
       # user also has the option to specify a low `stat_interval` and a very high `discover_interval`to respond
       # quicker to changing files and not allowing too much content to build up before reading it.
-      @settings.read_iterations.times do
+      @settings.file_chunk_count.times do
         begin
           data = watched_file.file_read(@settings.file_chunk_size)
           lines = watched_file.buffer_extract(data)
@@ -66,7 +66,7 @@ module FileWatch module TailHandlers
 
     def open_file(watched_file)
       return true if watched_file.file_open?
-      logger.debug("TailHandlers::Handler - opening #{watched_file.path}")
+      logger.debug("opening #{watched_file.path}")
       begin
         watched_file.open
       rescue
@@ -121,6 +121,4 @@ module FileWatch module TailHandlers
       value
     end
   end
-end end
-
-require_relative "dispatch"
+end end end

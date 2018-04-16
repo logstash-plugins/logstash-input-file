@@ -1,22 +1,23 @@
 # encoding: utf-8
-require_relative 'bootstrap'
-require_relative "read_handlers/processor"
 require "logstash/util/loggable"
+require_relative "read_mode/processor"
 
 module FileWatch
   class ObservingRead
     include LogStash::Util::Loggable
     include ObservingBase
 
-    def build_specific_processor(settings)
-      ReadHandlers::Processor.new(settings)
-    end
-
     def subscribe(observer = NullObserver.new)
       # observer here is the file input
-      dispatcher = ReadHandlers::Dispatch.new(sincedb_collection, observer, @settings)
-      watch.subscribe(dispatcher)
-      sincedb_collection.write("shutting down")
+      watch.subscribe(observer, sincedb_collection)
+      sincedb_collection.write("read mode subscribe complete - shutting down")
     end
+
+    private
+
+    def build_specific_processor(settings)
+      ReadMode::Processor.new(settings)
+    end
+
   end
 end

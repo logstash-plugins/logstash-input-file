@@ -1,36 +1,44 @@
 # encoding: utf-8
 require "rbconfig"
 require "pathname"
+# require "logstash/environment"
 
 ## Common setup
 #  all the required constants and files
 #  defined in one place
 module FileWatch
-  HOST_OS_WINDOWS = (RbConfig::CONFIG['host_os'] =~ /mswin|mingw|cygwin/) != nil
   # the number of bytes read from a file during the read phase
   FILE_READ_SIZE = 32768
   # the largest fixnum in ruby
   # this is used in the read loop e.g.
-  # @opts[:read_iterations].times do
-  # where read_iterations defaults to this constant
+  # @opts[:file_chunk_count].times do
+  # where file_chunk_count defaults to this constant
   FIXNUM_MAX = (2**(0.size * 8 - 2) - 1)
 
   require_relative "helper"
 
-  if HOST_OS_WINDOWS
+  if LogStash::Environment.windows?
     require "winhelper"
-    FILEWATCH_INODE_METHOD = :win_inode
-  else
-    FILEWATCH_INODE_METHOD = :nix_inode
   end
 
-  if defined?(JRUBY_VERSION)
-    require "java"
-    require_relative "../../lib/jars/filewatch-1.0.0.jar"
-    require "jruby_file_watch"
+  module WindowsInode
+    def prepare_inode(path, stat)
+      fileId = Winhelper.GetWindowsUniqueFileIdentifier(path)
+      [fileId, 0, 0] # dev_* doesn't make sense on Windows
+    end
   end
 
-  if HOST_OS_WINDOWS && defined?(JRUBY_VERSION)
+  module UnixInode
+    def prepare_inode(path, stat)
+      [stat.ino.to_s, stat.dev_major, stat.dev_minor]
+    end
+  end
+
+  require "java"
+  require_relative "../../lib/jars/filewatch-1.0.0.jar"
+  require "jruby_file_watch"
+
+  if LogStash::Environment.windows?
     FileOpener = FileExt
   else
     FileOpener = ::File
@@ -50,8 +58,8 @@ module FileWatch
   OPEN_WARN_INTERVAL = ENV.fetch("FILEWATCH_OPEN_WARN_INTERVAL", 300).to_i
   MAX_FILES_WARN_INTERVAL = ENV.fetch("FILEWATCH_MAX_FILES_WARN_INTERVAL", 20).to_i
 
+  require "logstash/util/buftok"
   require_relative "settings"
-  require_relative "buftok"
   require_relative "sincedb_value"
   require_relative "sincedb_record_serializer"
   require_relative "watched_files_collection"
@@ -60,11 +68,8 @@ module FileWatch
   require_relative "watched_file"
   require_relative "discoverer"
   require_relative "observing_base"
-  require_relative "tail_handlers/base"
-  require_relative "read_handlers/base"
-
-  # TODO [guy] make this a config option, perhaps.
-  CurrentSerializerClass = SincedbRecordSerializer
+  require_relative "observing_tail"
+  require_relative "observing_read"
 
   # these classes are used if the caller does not
   # supply their own observer and listener

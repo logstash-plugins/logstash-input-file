@@ -1,6 +1,6 @@
 # encoding: utf-8
 
-module FileWatch module TailHandlers
+module FileWatch module TailMode module Handlers
   class Create < Base
     def handle_specifically(watched_file)
       if open_file(watched_file)
@@ -14,4 +14,4 @@ module FileWatch module TailHandlers
       watched_file.update_bytes_read(position)
     end
   end
-end end
+end end end

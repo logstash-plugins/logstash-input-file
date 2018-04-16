@@ -1,6 +1,6 @@
 # encoding: utf-8
-require_relative 'bootstrap' unless defined?(FileWatch)
 require "logstash/util/loggable"
+
 module FileWatch
   class Watch
     include LogStash::Util::Loggable
@@ -42,12 +42,14 @@ module FileWatch
       return true
     end
 
-    def subscribe(dispatcher)
+    def subscribe(observer, sincedb_collection)
+      @processor.initialize_handlers(sincedb_collection, observer)
+
       glob = 0
       interval = @settings.discover_interval
       reset_quit
       until quit?
-        iterate_on_state(dispatcher)
+        iterate_on_state
         break if quit?
         glob += 1
         if glob == interval
@@ -60,28 +62,21 @@ module FileWatch
       @watched_files_collection.close_all
     end # def subscribe
 
-    # Will dispatch to these handlers:
-    #   :create_initial - initially present file (so start at end for tail)
-    #   :create - file is created (new file after initial globs, start at 0)
-    #   :grow   - file has more content
-    #   :shrink - file has less content
-    #   :delete   - file can't be read
-    #   :timeout - file is closable
-    #   :unignore - file was ignored, but since then it received new content
-    #   see the individual handlers for more info
-    def iterate_on_state(handler)
+    # Read mode processor will handle watched_files in the closed, ignored, watched and active state
+    # differently from Tail mode - see the ReadMode::Processor and TailMode::Processor
+    def iterate_on_state
       return if @watched_files_collection.empty?
       synchronized do
         begin
           # creates this snapshot of watched_file values just once
           watched_files = @watched_files_collection.values
-          @processor.process_closed(watched_files, handler)
+          @processor.process_closed(watched_files)
           return if quit?
-          @processor.process_ignored(watched_files, handler)
+          @processor.process_ignored(watched_files)
           return if quit?
-          @processor.process_watched(watched_files, handler)
+          @processor.process_watched(watched_files)
           return if quit?
-          @processor.process_active(watched_files, handler)
+          @processor.process_active(watched_files)
         ensure
           @watched_files_collection.delete(@processor.deletable_filepaths)
           @processor.deletable_filepaths.clear

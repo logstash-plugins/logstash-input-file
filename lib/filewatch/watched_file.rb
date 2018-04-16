@@ -1,25 +1,11 @@
 # encoding: utf-8
-require_relative 'bootstrap'
 
 module FileWatch
   class WatchedFile
-    def self.win_inode(path, stat)
-      fileId = Winhelper.GetWindowsUniqueFileIdentifier(path)
-      [fileId, 0, 0] # dev_* doesn't make sense on Windows
-    end
-
-    def self.nix_inode(path, stat)
-      [stat.ino.to_s, stat.dev_major, stat.dev_minor]
-    end
-
-    def self.inode(path, stat)
-      # removed the send(sym, ...) call as
-      # its slow and this is called on each restat
-      if FILEWATCH_INODE_METHOD == :win_inode
-        win_inode(path, stat)
-      else
-        nix_inode(path, stat)
-      end
+    if LogStash::Environment.windows?
+      include WindowsInode
+    else
+      include UnixInode
     end
 
     attr_reader :bytes_read, :state, :file, :buffer, :recent_states
@@ -34,7 +20,8 @@ module FileWatch
       @path = @pathname.to_path
       @bytes_read = 0
       @last_stat_size = 0
-      @sdb_key_v1 = InodeStruct.new(*self.class.inode(path, stat))
+      # the prepare_inode method is sourced from the mixed module above
+      @sdb_key_v1 = InodeStruct.new(*prepare_inode(path, stat))
       # initial as true means we have not associated this watched_file with a previous sincedb value yet.
       # and we should read from the beginning if necessary
       @initial = true
@@ -115,15 +102,11 @@ module FileWatch
     end
 
     def reset_buffer
-      @buffer.input.clear
+      @buffer.flush
     end
 
     def buffer_extract(data)
       @buffer.extract(data)
-    end
-
-    def buffer_delimiter_byte_size
-      @buffer.delimiter_byte_size
     end
 
     def increment_bytes_read(delta)

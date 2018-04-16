@@ -1,9 +1,8 @@
 # encoding: utf-8
-require_relative 'bootstrap' unless defined?(FileWatch)
 
 module FileWatch
   class SincedbRecordSerializer
-    
+
     attr_reader :expired_keys
 
     def initialize(sincedb_value_expiry)
@@ -28,7 +27,7 @@ module FileWatch
 
     def deserialize(io)
       io.each do |record|
-        yield deserialize_record(record)
+        yield deserialize_record(record) #.tap{|val| STDERR.puts val}
       end
     end
 

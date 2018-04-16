@@ -7,6 +7,8 @@ require "tempfile"
 require "stud/temporary"
 require "logstash/codecs/multiline"
 
+# LogStash::Logging::Logger::configure_logging("DEBUG")
+
 TEST_FILE_DELIMITER = LogStash::Environment.windows? ? "\r\n" : "\n"
 
 describe LogStash::Inputs::File do
@@ -173,6 +175,32 @@ describe LogStash::Inputs::File do
 
       it "should raise exception" do
         expect { subject.register }.to raise_error(ArgumentError)
+      end
+    end
+
+    context "when old <= v1.1.1 sincedb file exists" do
+      let(:tmpfile_path) { Stud::Temporary.pathname }
+      let(:sincedb_path) { Stud::Temporary.directory }
+      let(:dot_sincedb) { Pathname.new(sincedb_path).join(".sincedb") }
+      subject { LogStash::Inputs::File.new("path" => tmpfile_path) }
+
+      before :each do
+        ENV["SINCEDB_DIR"] = sincedb_path
+        File.open(dot_sincedb, "w") do |fd|
+          fd.puts('5855766 1 4 1475')
+        end
+      end
+
+      after :each do
+        FileUtils.rm_rf(sincedb_path)
+        ENV["SINCEDB_DIR"] = nil
+      end
+
+      it "should rename the old sincedb to the new file name" do
+        expect(dot_sincedb.exist?).to be_truthy
+        expect { subject.register }.not_to raise_error
+        expect(dot_sincedb.exist?).to be_falsey
+        expect(Pathname.new(subject.sincedb_path).read).to eq("5855766 1 4 1475\n")
       end
     end
   end

@@ -1,6 +1,6 @@
 # encoding: utf-8
 
-module FileWatch module TailHandlers
+module FileWatch module TailMode module Handlers
   class Delete < Base
     def handle_specifically(watched_file)
       watched_file.listener.deleted
@@ -8,4 +8,4 @@ module FileWatch module TailHandlers
       watched_file.file_close
     end
   end
-end end
+end end end

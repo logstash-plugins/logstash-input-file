@@ -1,6 +1,6 @@
 # encoding: utf-8
-require_relative 'bootstrap' unless defined?(FileWatch)
 require "logstash/util/loggable"
+
 module FileWatch
   # this KV collection has a watched_file storage_key (an InodeStruct) as the key
   # and a SincedbValue as the value.
@@ -15,9 +15,11 @@ module FileWatch
       @settings = settings
       @sincedb_last_write = 0
       @sincedb = {}
-      @serializer = CurrentSerializerClass.new(@settings.sincedb_expiry_duration)
+      @serializer = SincedbRecordSerializer.new(@settings.sincedb_expiry_duration)
       @path = Pathname.new(@settings.sincedb_path)
-      FileUtils.touch(@path.to_path)
+      @write_method = LogStash::Environment.windows? || @path.chardev? || @path.blockdev? ? method(:non_atomic_write) : method(:atomic_write)
+      @full_path = @path.to_path
+      FileUtils.touch(@full_path)
     end
 
     def request_disk_flush
@@ -184,15 +186,7 @@ module FileWatch
     def sincedb_write(time = Time.now.to_i)
       logger.debug("sincedb_write: to: #{path}")
       begin
-        if HOST_OS_WINDOWS || FileHelper.device?(path)
-          IO.open(path, 0) do |io|
-            @serializer.serialize(@sincedb, io)
-          end
-        else
-          FileHelper.write_atomically(path) do |io|
-            @serializer.serialize(@sincedb, io)
-          end
-        end
+        @write_method.call
         @serializer.expired_keys.each do |key|
           @sincedb[key].unset_watched_file
           delete(key)
@@ -203,6 +197,18 @@ module FileWatch
         # no file handles free perhaps
         # maybe it will work next time
         logger.debug("sincedb_write: error: #{path}: #{$!}")
+      end
+    end
+
+    def atomic_write
+      FileHelper.write_atomically(@full_path) do |io|
+        @serializer.serialize(@sincedb, io)
+      end
+    end
+
+    def non_atomic_write
+      IO.open(@full_path, 0) do |io|
+        @serializer.serialize(@sincedb, io)
       end
     end
   end

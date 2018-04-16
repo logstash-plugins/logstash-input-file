@@ -1,6 +1,6 @@
 # encoding: utf-8
 
-module FileWatch module TailHandlers
+module FileWatch module TailMode module Handlers
   class Shrink < Base
     def handle_specifically(watched_file)
       add_or_update_sincedb_collection(watched_file)
@@ -17,4 +17,4 @@ module FileWatch module TailHandlers
       sincedb_value.update_position(0)
     end
   end
-end end
+end end end
