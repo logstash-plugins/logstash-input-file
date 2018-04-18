@@ -42,7 +42,7 @@ module FileWatch module ReadMode
     end
 
     def process_ignored(watched_files)
-      # do not process watched_files in the closed state.
+      # do not process watched_files in the ignored state.
     end
 
     def process_watched(watched_files)

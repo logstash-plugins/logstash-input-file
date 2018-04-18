@@ -196,7 +196,7 @@ class File < LogStash::Inputs::Base
 
   # File content is read off disk in blocks or chunks, then using whatever the set delimiter
   # is, lines are extracted from the chunk. Specify the size in bytes of each chunk.
-  # See `chunk_count` to see why and when to change this from the default.
+  # See `file_chunk_count` to see why and when to change this from the default.
   # The default set internally is 32768 (32KB)
   config :file_chunk_size, :validate => :number, :default => FileWatch::FILE_READ_SIZE
 
