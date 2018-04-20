@@ -260,14 +260,6 @@ class File < LogStash::Inputs::Base
       base_sincedb_path = build_sincedb_base_from_settings(settings) || build_sincedb_base_from_env
       @sincedb_path = build_random_sincedb_filename(base_sincedb_path)
       @logger.info('No sincedb_path set, generating one based on the "path" setting', :sincedb_path => @sincedb_path.to_s, :path => @path)
-      # Migrate any old .sincedb to the new file (this is for version <=1.1.1 compatibility)
-      # only migrate an old file if the user did not explicitly set sincedb_path
-      old_v1_sincedb_file = find_old_v1_sincedb_file
-      if old_v1_sincedb_file && old_v1_sincedb_file.exist?
-        @logger.debug("Renaming v1.1.1 (or older) .sincedb file to new name", :old => old_v1_sincedb_file.to_s,
-                     :new => @sincedb_path.to_s)
-        old_v1_sincedb_file.rename(@sincedb_path)
-      end
     else
       @sincedb_path = Pathname.new(@sincedb_path)
       if @sincedb_path.directory?
@@ -368,22 +360,16 @@ class File < LogStash::Inputs::Base
 
   def build_sincedb_base_from_env
     # This section is going to be deprecated eventually, as path.data will be
-    # the default, not an environment variable (SINCEDB_DIR or HOME)
-    if ENV["SINCEDB_DIR"].nil? && ENV["HOME"].nil?
-      @logger.error("No SINCEDB_DIR or HOME environment variable set, I don't know where " \
+    # the default, not an environment variable (SINCEDB_DIR or LOGSTASH_HOME)
+    if ENV["SINCEDB_DIR"].nil? && ENV["LOGSTASH_HOME"].nil?
+      @logger.error("No SINCEDB_DIR or LOGSTASH_HOME environment variable set, I don't know where " \
                     "to keep track of the files I'm watching. Either set " \
-                    "HOME or SINCEDB_DIR in your environment, or set sincedb_path in " \
+                    "LOGSTASH_HOME or SINCEDB_DIR in your environment, or set sincedb_path in " \
                     "in your Logstash config for the file input with " \
                     "path '#{@path.inspect}'")
-      raise ArgumentError.new('The "sincedb_path" setting was not given and the environment variables "SINCEDB_DIR" or "HOME" are not set so we cannot build a file path for the sincedb')
+      raise ArgumentError.new('The "sincedb_path" setting was not given and the environment variables "SINCEDB_DIR" or "LOGSTASH_HOME" are not set so we cannot build a file path for the sincedb')
     end
-    Pathname.new(ENV["SINCEDB_DIR"] || ENV["HOME"])
-  end
-
-  def find_old_v1_sincedb_file
-    env_path = ENV["SINCEDB_DIR"] || ENV["HOME"]
-    return if env_path.nil?
-    Pathname.new(env_path).join(".sincedb")
+    Pathname.new(ENV["SINCEDB_DIR"] || ENV["LOGSTASH_HOME"])
   end
 
   def build_random_sincedb_filename(pathname)

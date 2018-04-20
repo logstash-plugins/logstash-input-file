@@ -23,11 +23,7 @@ module FileWatch
 
     def position
       # either the value from disk or the current wf position
-      if @watched_file.nil?
-        @position
-      else
-        @watched_file.bytes_read
-      end
+      @watched_file.nil? ? @position : @watched_file.bytes_read
     end
 
     def update_position(pos)

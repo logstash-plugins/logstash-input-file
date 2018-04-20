@@ -17,10 +17,6 @@ module FileWatch
 
   require_relative "helper"
 
-  if LogStash::Environment.windows?
-    require "winhelper"
-  end
-
   module WindowsInode
     def prepare_inode(path, stat)
       fileId = Winhelper.GetWindowsUniqueFileIdentifier(path)
@@ -34,14 +30,19 @@ module FileWatch
     end
   end
 
+  jar_version = IO.read("JAR_VERSION").strip
+
   require "java"
-  require_relative "../../lib/jars/filewatch-1.0.0.jar"
+  require_relative "../../lib/jars/filewatch-#{jar_version}.jar"
   require "jruby_file_watch"
 
   if LogStash::Environment.windows?
+    require "winhelper"
     FileOpener = FileExt
+    InodeMixin = WindowsInode
   else
     FileOpener = ::File
+    InodeMixin = UnixInode
   end
 
   # Structs can be used as hash keys because they compare by value
@@ -70,27 +71,4 @@ module FileWatch
   require_relative "observing_base"
   require_relative "observing_tail"
   require_relative "observing_read"
-
-  # these classes are used if the caller does not
-  # supply their own observer and listener
-  # which would be a programming error when coding against
-  # observable_tail
-  class NullListener
-    def initialize(path) @path = path; end
-    def accept(line) end
-    def deleted
-    end
-    def opened
-    end
-    def error
-    end
-    def eof
-    end
-    def timed_out
-    end
-  end
-
-  class NullObserver
-    def listener_for(path) NullListener.new(path); end
-  end
 end

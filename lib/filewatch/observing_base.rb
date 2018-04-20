@@ -49,11 +49,7 @@ module FileWatch
         :file_sort_direction => "asc",
       }.merge(opts)
       unless options.include?(:sincedb_path)
-        options[:sincedb_path] = File.join(ENV["HOME"], ".sincedb") if ENV.include?("HOME")
-        options[:sincedb_path] = ENV["SINCEDB_PATH"] if ENV.include?("SINCEDB_PATH")
-      end
-      unless options.include?(:sincedb_path)
-        raise NoSinceDBPathGiven.new("No HOME or SINCEDB_PATH set in environment. I need one of these set so I can keep track of the files I am following.")
+        raise NoSinceDBPathGiven.new("No sincedb_path set in options. This should have been added in the main LogStash::Inputs::File class")
       end
       @settings = Settings.from_options(options)
       build_watch_and_dependencies

@@ -34,19 +34,17 @@ module FileWatch
     private
 
     def can_exclude?(watched_file, new_discovery)
-      skip = false
       @exclude.each do |pattern|
         if watched_file.pathname.fnmatch?(pattern)
           if new_discovery
             logger.debug("Discoverer can_exclude?: #{watched_file.path}: skipping " +
               "because it matches exclude #{pattern}")
           end
-          skip = true
           watched_file.unwatch
-          break
+          return true
         end
       end
-      skip
+      false
     end
 
     def discover_files(path)

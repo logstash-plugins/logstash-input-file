@@ -11,7 +11,7 @@ Gem::Specification.new do |s|
   s.require_paths = ["lib"]
 
   # Files
-  s.files = Dir["lib/**/*","spec/**/*","*.gemspec","*.md","CONTRIBUTORS","Gemfile","LICENSE","NOTICE.TXT", "vendor/jar-dependencies/**/*.jar", "vendor/jar-dependencies/**/*.rb", "VERSION", "docs/**/*"]
+  s.files = Dir["lib/**/*","spec/**/*","*.gemspec","*.md","CONTRIBUTORS","Gemfile","LICENSE","NOTICE.TXT", "vendor/jar-dependencies/**/*.jar", "vendor/jar-dependencies/**/*.rb", "VERSION", "JAR_VERSION", "docs/**/*"]
 
   # Tests
   s.test_files = s.files.grep(%r{^(test|spec|features)/})
@@ -30,5 +30,6 @@ Gem::Specification.new do |s|
   s.add_development_dependency 'logstash-devutils'
   s.add_development_dependency 'logstash-codec-json'
   s.add_development_dependency 'rspec-sequencing'
+  s.add_development_dependency "rspec-wait"
   s.add_development_dependency 'timecop'
 end

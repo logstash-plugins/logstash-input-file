@@ -177,32 +177,6 @@ describe LogStash::Inputs::File do
         expect { subject.register }.to raise_error(ArgumentError)
       end
     end
-
-    context "when old <= v1.1.1 sincedb file exists" do
-      let(:tmpfile_path) { Stud::Temporary.pathname }
-      let(:sincedb_path) { Stud::Temporary.directory }
-      let(:dot_sincedb) { Pathname.new(sincedb_path).join(".sincedb") }
-      subject { LogStash::Inputs::File.new("path" => tmpfile_path) }
-
-      before :each do
-        ENV["SINCEDB_DIR"] = sincedb_path
-        File.open(dot_sincedb, "w") do |fd|
-          fd.puts('5855766 1 4 1475')
-        end
-      end
-
-      after :each do
-        FileUtils.rm_rf(sincedb_path)
-        ENV["SINCEDB_DIR"] = nil
-      end
-
-      it "should rename the old sincedb to the new file name" do
-        expect(dot_sincedb.exist?).to be_truthy
-        expect { subject.register }.not_to raise_error
-        expect(dot_sincedb.exist?).to be_falsey
-        expect(Pathname.new(subject.sincedb_path).read).to eq("5855766 1 4 1475\n")
-      end
-    end
   end
 
   describe "testing with new, register, run and stop" do
@@ -427,7 +401,6 @@ describe LogStash::Inputs::File do
     context "when #run is called multiple times", :unix => true do
       let(:file_path)    { "#{tmpdir_path}/a.log" }
       let(:buffer)       { [] }
-      # let(:lsof)         { [] }
       let(:run_thread_proc) do
         lambda { Thread.new { subject.run(buffer) } }
       end
@@ -456,21 +429,15 @@ describe LogStash::Inputs::File do
         expect(lsof_proc.call).to eq("")
         # first run processes the file and records sincedb progress
         run_thread_proc.call
-        sleep 0.2
-        first_lsof = lsof_proc.call
-        expect(first_lsof.scan(file_path).size).to eq(1)
+        wait(1).for{lsof_proc.call.scan(file_path).size}.to eq(1)
         # second run quits the first run
         # sees the file has not changed size and does not open it
         run_thread_proc.call
-        sleep 0.2
-        second_lsof = lsof_proc.call
-        expect(second_lsof.scan(file_path).size).to eq(0)
+        wait(1).for{lsof_proc.call.scan(file_path).size}.to eq(0)
         # truncate and write less than before
         File.open(file_path, "w"){ |fd| fd.puts('baz'); fd.fsync }
-        sleep 0.2
         # sees the file has changed size and does open it
-        third_lsof = lsof_proc.call
-        expect(third_lsof.scan(file_path).size).to eq(1)
+        wait(1).for{lsof_proc.call.scan(file_path).size}.to eq(1)
       end
     end
 

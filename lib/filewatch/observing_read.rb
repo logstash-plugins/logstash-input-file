@@ -7,7 +7,7 @@ module FileWatch
     include LogStash::Util::Loggable
     include ObservingBase
 
-    def subscribe(observer = NullObserver.new)
+    def subscribe(observer)
       # observer here is the file input
       watch.subscribe(observer, sincedb_collection)
       sincedb_collection.write("read mode subscribe complete - shutting down")

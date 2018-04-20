@@ -2,11 +2,7 @@
 
 module FileWatch
   class WatchedFile
-    if LogStash::Environment.windows?
-      include WindowsInode
-    else
-      include UnixInode
-    end
+    include InodeMixin # see bootstrap.rb at `if LogStash::Environment.windows?`
 
     attr_reader :bytes_read, :state, :file, :buffer, :recent_states
     attr_reader :path, :filestat, :accessed_at, :modified_at, :pathname
@@ -28,7 +24,7 @@ module FileWatch
       @recent_states = [] # keep last 8 states, managed in set_state
       @state = :watched
       set_stat(stat) # can change @last_stat_size
-      @listener = NullListener.new(@path)
+      @listener = nil
       @last_open_warning_at = nil
       set_accessed_at
     end
@@ -42,7 +38,7 @@ module FileWatch
     end
 
     def has_listener?
-      !@listener.is_a?(NullListener)
+      !@listener.nil?
     end
 
     def sincedb_key

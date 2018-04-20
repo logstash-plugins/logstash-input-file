@@ -22,7 +22,7 @@ apply plugin: "distribution"
 apply plugin: "idea"
 
 group = 'org.logstash.filewatch'
-version "1.0.0"
+version file("JAR_VERSION").text.replaceAll("\\s","")
 
 repositories {
     mavenCentral()

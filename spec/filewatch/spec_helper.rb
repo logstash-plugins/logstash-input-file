@@ -1,4 +1,5 @@
 require "rspec_sequencing"
+require 'rspec/wait'
 require "logstash/devutils/rspec/spec_helper"
 require "timecop"
 

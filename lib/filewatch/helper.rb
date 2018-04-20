@@ -12,13 +12,6 @@ module FileHelper
   #   File.write_atomically('important.file') do |file|
   #     file.write('hello')
   #   end
-  #
-  # If your temp directory is not on the same filesystem as the file you're
-  # trying to write, you can provide a different temporary directory.
-  #
-  #   File.write_atomically('/data/something.important', '/data/tmp') do |file|
-  #     file.write('hello')
-  #   end
   def write_atomically(file_name)
 
     if File.exist?(file_name)
