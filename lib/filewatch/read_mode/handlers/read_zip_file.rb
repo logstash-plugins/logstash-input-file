@@ -43,15 +43,15 @@ module FileWatch module ReadMode module Handlers
       end
       sincedb_collection.unset_watched_file(watched_file)
     end
-  end
 
-  private
+    private
 
-  def close_java_closeable(closeable)
-    begin
-      closeable.close
-    rescue Exception # IOException can be thrown by any of the Java classes that implement the Closable interface.
-      # ignore this
+    def close_java_closeable(closeable)
+      begin
+        closeable.close
+      rescue Exception # IOException can be thrown by any of the Java classes that implement the Closable interface.
+        # ignore this
+      end
     end
   end
 end end end
