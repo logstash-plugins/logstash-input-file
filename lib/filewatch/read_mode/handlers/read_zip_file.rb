@@ -27,7 +27,7 @@ module FileWatch module ReadMode module Handlers
         end
         watched_file.listener.eof
       rescue ZipException => e
-        logger.error("ReadZipFile: cannot decompress the gzip file at path: #{watched_file.path}")
+        logger.error("Cannot decompress the gzip file at path: #{watched_file.path}")
         watched_file.listener.error
       else
         sincedb_collection.store_last_read(watched_file.sincedb_key, watched_file.last_stat_size)
@@ -36,21 +36,21 @@ module FileWatch module ReadMode module Handlers
         watched_file.unwatch
       ensure
         # rescue each close individually so all close attempts are tried
-        close_java_closeable(buffered) unless buffered.nil?
-        close_java_closeable(decoder) unless decoder.nil?
-        close_java_closeable(gzip_stream) unless gzip_stream.nil?
-        close_java_closeable(file_stream) unless file_stream.nil?
+        close_and_ignore_ioexception(buffered) unless buffered.nil?
+        close_and_ignore_ioexception(decoder) unless decoder.nil?
+        close_and_ignore_ioexception(gzip_stream) unless gzip_stream.nil?
+        close_and_ignore_ioexception(file_stream) unless file_stream.nil?
       end
       sincedb_collection.unset_watched_file(watched_file)
     end
 
     private
 
-    def close_java_closeable(closeable)
+    def close_and_ignore_ioexception(closeable)
       begin
         closeable.close
       rescue Exception # IOException can be thrown by any of the Java classes that implement the Closable interface.
-        # ignore this
+        logger.warn("Ignoring an IOException when closing an instance of #{closeable.class.name}")
       end
     end
   end
