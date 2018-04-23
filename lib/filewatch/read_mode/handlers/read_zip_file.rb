@@ -35,12 +35,23 @@ module FileWatch module ReadMode module Handlers
         watched_file.listener.deleted
         watched_file.unwatch
       ensure
-        buffered.close unless buffered.nil?
-        decoder.close unless decoder.nil?
-        gzip_stream.close unless gzip_stream.nil?
-        file_stream.close unless file_stream.nil?
+        # rescue each close individually so all close attempts are tried
+        close_java_closeable(buffered) unless buffered.nil?
+        close_java_closeable(decoder) unless decoder.nil?
+        close_java_closeable(gzip_stream) unless gzip_stream.nil?
+        close_java_closeable(file_stream) unless file_stream.nil?
       end
       sincedb_collection.unset_watched_file(watched_file)
+    end
+  end
+
+  private
+
+  def close_java_closeable(closeable)
+    begin
+      closeable.close
+    rescue Exception # IOException can be thrown by any of the Java classes that implement the Closable interface.
+      # ignore this
     end
   end
 end end end
