@@ -50,7 +50,7 @@ module FileWatch module ReadMode module Handlers
       begin
         closeable.close
       rescue Exception => e # IOException can be thrown by any of the Java classes that implement the Closable interface.
-        logger.warn("Ignoring an IOException when closing an instance of #{closeable.class.name}", "exception" => e.class.name, "message" => e.message)
+        logger.warn("Ignoring an IOException when closing an instance of #{closeable.class.name}", "exception" => e)
       end
     end
   end
