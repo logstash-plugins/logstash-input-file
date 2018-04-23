@@ -49,8 +49,8 @@ module FileWatch module ReadMode module Handlers
     def close_and_ignore_ioexception(closeable)
       begin
         closeable.close
-      rescue Exception # IOException can be thrown by any of the Java classes that implement the Closable interface.
-        logger.warn("Ignoring an IOException when closing an instance of #{closeable.class.name}")
+      rescue Exception => e # IOException can be thrown by any of the Java classes that implement the Closable interface.
+        logger.warn("Ignoring an IOException when closing an instance of #{closeable.class.name}", "exception" => e.class.name, "message" => e.message)
       end
     end
   end
