@@ -1,14 +1,18 @@
 # encoding: utf-8
-require_relative "../spec_helper"
+
+require "helpers/spec_helper"
 require "logstash/inputs/file"
+
 require "tempfile"
 require "stud/temporary"
 require "logstash/codecs/multiline"
 
-FILE_DELIMITER = LogStash::Environment.windows? ? "\r\n" : "\n"
+# LogStash::Logging::Logger::configure_logging("DEBUG")
+
+TEST_FILE_DELIMITER = LogStash::Environment.windows? ? "\r\n" : "\n"
 
 describe LogStash::Inputs::File do
-  describe "testing with input(conf) do |pipeline, queue|" do
+  describe "'tail' mode testing with input(conf) do |pipeline, queue|" do
     it_behaves_like "an interruptible input plugin" do
       let(:config) do
         {
@@ -29,7 +33,7 @@ describe LogStash::Inputs::File do
             path => "#{tmpfile_path}"
             start_position => "beginning"
             sincedb_path => "#{sincedb_path}"
-            delimiter => "#{FILE_DELIMITER}"
+            delimiter => "#{TEST_FILE_DELIMITER}"
           }
         }
       CONFIG
@@ -43,12 +47,10 @@ describe LogStash::Inputs::File do
       events = input(conf) do |pipeline, queue|
         2.times.collect { queue.pop }
       end
-
-      insist { events[0].get("message") } == "hello"
-      insist { events[1].get("message") } == "world"
+      expect(events.map{|e| e.get("message")}).to contain_exactly("hello", "world")
     end
 
-    it "should restarts at the sincedb value" do
+    it "should restart at the sincedb value" do
       tmpfile_path = Stud::Temporary.pathname
       sincedb_path = Stud::Temporary.pathname
 
@@ -59,7 +61,7 @@ describe LogStash::Inputs::File do
             path => "#{tmpfile_path}"
             start_position => "beginning"
             sincedb_path => "#{sincedb_path}"
-            delimiter => "#{FILE_DELIMITER}"
+            delimiter => "#{TEST_FILE_DELIMITER}"
           }
         }
       CONFIG
@@ -73,8 +75,7 @@ describe LogStash::Inputs::File do
         2.times.collect { queue.pop }
       end
 
-      insist { events[0].get("message") } == "hello3"
-      insist { events[1].get("message") } == "world3"
+      expect(events.map{|e| e.get("message")}).to contain_exactly("hello3", "world3")
 
       File.open(tmpfile_path, "a") do |fd|
         fd.puts("foo")
@@ -86,10 +87,8 @@ describe LogStash::Inputs::File do
       events = input(conf) do |pipeline, queue|
         3.times.collect { queue.pop }
       end
-
-      insist { events[0].get("message") } == "foo"
-      insist { events[1].get("message") } == "bar"
-      insist { events[2].get("message") } == "baz"
+      messages = events.map{|e| e.get("message")}
+      expect(messages).to contain_exactly("foo", "bar", "baz")
     end
 
     it "should not overwrite existing path and host fields" do
@@ -103,7 +102,7 @@ describe LogStash::Inputs::File do
             path => "#{tmpfile_path}"
             start_position => "beginning"
             sincedb_path => "#{sincedb_path}"
-            delimiter => "#{FILE_DELIMITER}"
+            delimiter => "#{TEST_FILE_DELIMITER}"
             codec => "json"
           }
         }
@@ -119,13 +118,15 @@ describe LogStash::Inputs::File do
         2.times.collect { queue.pop }
       end
 
-      insist { events[0].get("path") } == "my_path"
-      insist { events[0].get("host") } == "my_host"
-      insist { events[0].get("[@metadata][host]") } == "#{Socket.gethostname.force_encoding(Encoding::UTF_8)}"
+      existing_path_index, added_path_index  = "my_val" == events[0].get("my_field") ? [1,0] : [0,1]
 
-      insist { events[1].get("path") } == "#{tmpfile_path}"
-      insist { events[1].get("host") } == "#{Socket.gethostname.force_encoding(Encoding::UTF_8)}"
-      insist { events[1].get("[@metadata][host]") } == "#{Socket.gethostname.force_encoding(Encoding::UTF_8)}"
+      expect(events[existing_path_index].get("path")).to eq "my_path"
+      expect(events[existing_path_index].get("host")).to eq "my_host"
+      expect(events[existing_path_index].get("[@metadata][host]")).to eq "#{Socket.gethostname.force_encoding(Encoding::UTF_8)}"
+
+      expect(events[added_path_index].get("path")).to eq "#{tmpfile_path}"
+      expect(events[added_path_index].get("host")).to eq "#{Socket.gethostname.force_encoding(Encoding::UTF_8)}"
+      expect(events[added_path_index].get("[@metadata][host]")).to eq "#{Socket.gethostname.force_encoding(Encoding::UTF_8)}"
     end
 
     it "should read old files" do
@@ -153,14 +154,14 @@ describe LogStash::Inputs::File do
       events = input(conf) do |pipeline, queue|
         2.times.collect { queue.pop }
       end
+      existing_path_index, added_path_index  = "my_val" == events[0].get("my_field") ? [1,0] : [0,1]
+      expect(events[existing_path_index].get("path")).to eq "my_path"
+      expect(events[existing_path_index].get("host")).to eq "my_host"
+      expect(events[existing_path_index].get("[@metadata][host]")).to eq "#{Socket.gethostname.force_encoding(Encoding::UTF_8)}"
 
-      insist { events[0].get("path") } == "my_path"
-      insist { events[0].get("host") } == "my_host"
-      insist { events[0].get("[@metadata][host]") } == "#{Socket.gethostname.force_encoding(Encoding::UTF_8)}"
-
-      insist { events[1].get("path") } == "#{tmpfile_path}"
-      insist { events[1].get("host") } == "#{Socket.gethostname.force_encoding(Encoding::UTF_8)}"
-      insist { events[1].get("[@metadata][host]") } == "#{Socket.gethostname.force_encoding(Encoding::UTF_8)}"
+      expect(events[added_path_index].get("path")).to eq "#{tmpfile_path}"
+      expect(events[added_path_index].get("host")).to eq "#{Socket.gethostname.force_encoding(Encoding::UTF_8)}"
+      expect(events[added_path_index].get("[@metadata][host]")).to eq "#{Socket.gethostname.force_encoding(Encoding::UTF_8)}"
     end
 
     context "when sincedb_path is an existing directory" do
@@ -207,17 +208,17 @@ describe LogStash::Inputs::File do
               "sincedb_path" => sincedb_path,
               "stat_interval" => 0.1,
               "codec" => mlcodec,
-              "delimiter" => FILE_DELIMITER)
-        subject.register
+              "delimiter" => TEST_FILE_DELIMITER)
       end
 
       it "reads the appended data only" do
+        subject.register
         RSpec::Sequencing
-          .run_after(0.1, "assert zero events then append two lines") do
+          .run_after(0.2, "assert zero events then append two lines") do
             expect(events.size).to eq(0)
             File.open(tmpfile_path, "a") { |fd| fd.puts("hello"); fd.puts("world") }
           end
-          .then_after(0.25, "quit") do
+          .then_after(0.4, "quit") do
             subject.stop
           end
 
@@ -250,7 +251,7 @@ describe LogStash::Inputs::File do
               "stat_interval" => 0.02,
               "codec" => codec,
               "close_older" => 0.5,
-              "delimiter" => FILE_DELIMITER)
+              "delimiter" => TEST_FILE_DELIMITER)
 
         subject.register
       end
@@ -294,7 +295,7 @@ describe LogStash::Inputs::File do
               "stat_interval" => 0.02,
               "codec" => codec,
               "ignore_older" => 1,
-              "delimiter" => FILE_DELIMITER)
+              "delimiter" => TEST_FILE_DELIMITER)
 
         subject.register
         Thread.new { subject.run(events) }
@@ -320,7 +321,7 @@ describe LogStash::Inputs::File do
               "sincedb_path" => sincedb_path,
               "stat_interval" => 0.05,
               "codec" => mlcodec,
-              "delimiter" => FILE_DELIMITER)
+              "delimiter" => TEST_FILE_DELIMITER)
 
         subject.register
       end
@@ -355,13 +356,13 @@ describe LogStash::Inputs::File do
             if e1_message.start_with?('line1.1-of-z')
               expect(e1.get("path")).to match(/z.log/)
               expect(e2.get("path")).to match(/A.log/)
-              expect(e1_message).to eq("line1.1-of-z#{FILE_DELIMITER}  line1.2-of-z#{FILE_DELIMITER}  line1.3-of-z")
-              expect(e2_message).to eq("line1.1-of-a#{FILE_DELIMITER}  line1.2-of-a#{FILE_DELIMITER}  line1.3-of-a")
+              expect(e1_message).to eq("line1.1-of-z#{TEST_FILE_DELIMITER}  line1.2-of-z#{TEST_FILE_DELIMITER}  line1.3-of-z")
+              expect(e2_message).to eq("line1.1-of-a#{TEST_FILE_DELIMITER}  line1.2-of-a#{TEST_FILE_DELIMITER}  line1.3-of-a")
             else
               expect(e1.get("path")).to match(/A.log/)
               expect(e2.get("path")).to match(/z.log/)
-              expect(e1_message).to eq("line1.1-of-a#{FILE_DELIMITER}  line1.2-of-a#{FILE_DELIMITER}  line1.3-of-a")
-              expect(e2_message).to eq("line1.1-of-z#{FILE_DELIMITER}  line1.2-of-z#{FILE_DELIMITER}  line1.3-of-z")
+              expect(e1_message).to eq("line1.1-of-a#{TEST_FILE_DELIMITER}  line1.2-of-a#{TEST_FILE_DELIMITER}  line1.3-of-a")
+              expect(e2_message).to eq("line1.1-of-z#{TEST_FILE_DELIMITER}  line1.2-of-z#{TEST_FILE_DELIMITER}  line1.3-of-z")
             end
           end
         subject.run(events)
@@ -385,7 +386,7 @@ describe LogStash::Inputs::File do
               e1 = events.first
               e1_message = e1.get("message")
               expect(e1["path"]).to match(/a.log/)
-              expect(e1_message).to eq("line1.1-of-a#{FILE_DELIMITER}  line1.2-of-a#{FILE_DELIMITER}  line1.3-of-a")
+              expect(e1_message).to eq("line1.1-of-a#{TEST_FILE_DELIMITER}  line1.2-of-a#{TEST_FILE_DELIMITER}  line1.3-of-a")
             end
             .then("stop") do
               subject.stop
@@ -400,7 +401,6 @@ describe LogStash::Inputs::File do
     context "when #run is called multiple times", :unix => true do
       let(:file_path)    { "#{tmpdir_path}/a.log" }
       let(:buffer)       { [] }
-      let(:lsof)         { [] }
       let(:run_thread_proc) do
         lambda { Thread.new { subject.run(buffer) } }
       end
@@ -424,17 +424,20 @@ describe LogStash::Inputs::File do
         end
       end
 
-      it "should only have one set of files open" do
+      it "should only actually open files when content changes are detected" do
         subject.register
         expect(lsof_proc.call).to eq("")
+        # first run processes the file and records sincedb progress
         run_thread_proc.call
-        sleep 0.25
-        first_lsof = lsof_proc.call
-        expect(first_lsof.scan(file_path).size).to eq(1)
+        wait(1).for{lsof_proc.call.scan(file_path).size}.to eq(1)
+        # second run quits the first run
+        # sees the file has not changed size and does not open it
         run_thread_proc.call
-        sleep 0.25
-        second_lsof = lsof_proc.call
-        expect(second_lsof.scan(file_path).size).to eq(1)
+        wait(1).for{lsof_proc.call.scan(file_path).size}.to eq(0)
+        # truncate and write less than before
+        File.open(file_path, "w"){ |fd| fd.puts('baz'); fd.fsync }
+        # sees the file has changed size and does open it
+        wait(1).for{lsof_proc.call.scan(file_path).size}.to eq(1)
       end
     end
 
@@ -463,7 +466,7 @@ describe LogStash::Inputs::File do
                 "stat_interval" => 0.1,
                 "max_open_files" => 1,
                 "start_position" => "beginning",
-                "delimiter" => FILE_DELIMITER)
+                "delimiter" => TEST_FILE_DELIMITER)
           subject.register
         end
         it "collects line events from only one file" do
@@ -502,7 +505,7 @@ describe LogStash::Inputs::File do
                 "max_open_files" => 1,
                 "close_older" => 0.5,
                 "start_position" => "beginning",
-                "delimiter" => FILE_DELIMITER)
+                "delimiter" => TEST_FILE_DELIMITER)
           subject.register
         end
 

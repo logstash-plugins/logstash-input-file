@@ -5,3 +5,9 @@ task :default do
 end
 
 require "logstash/devutils/rake"
+
+desc "Compile and put filewatch jar into lib/jars"
+task :vendor do
+  exit(1) unless system './gradlew clean jar'
+  puts "-------------------> built filewatch jar via rake"
+end
