@@ -1,6 +1,7 @@
 :plugin: file
 :type: input
 :default_codec: plain
+:filebeat: http://www.elastic.co/guide/en/beats/filebeat/{doc-branch}
 
 ///////////////////////////////////////////
 START - GENERATED VARIABLES, DO NOT EDIT!
@@ -38,12 +39,12 @@ in the "watched" or "ignored" state. Other states in the lifecycle are:
 By default, a window of 4095 files is used to limit the number of file handles in use.
 The processing phase has a number of stages:
 
-. checks whether "closed" or "ignored" files have
-changed in size since last time and if so puts them in the "watched" state.
-. selects enough "watched" files to fill the available space in the window,
-these files are made "active".
-. the active files are opened and read, each file is read from the
-last known position to the end of current content (EOF) by default.
+* Checks whether "closed" or "ignored" files have changed in size since last time and
+if so puts them in the "watched" state.
+* Selects enough "watched" files to fill the available space in the window, these files
+are made "active".
+* The active files are opened and read, each file is read from the last known position
+to the end of current content (EOF) by default.
 
 In some cases it is useful to be able to control which files are read first, sorting,
 and whether files are read completely or banded/striped.
@@ -51,7 +52,8 @@ Complete reading is *all of* file A then file B then file C and so on.
 Banded or striped reading is *some of* file A then file B then file C and so on looping around
 to file A again until all files are read. Banded reading is specified by changing
 <<plugins-{type}s-{plugin}-file_chunk_count>> and perhaps <<plugins-{type}s-{plugin}-file_chunk_size>>.
-Banding and sorting may be useful if you want some events from all files to appear in Kibana as early as possible.
+Banding and sorting may be useful if you want some events from all files to appear
+in Kibana as early as possible.
 
 The plugin has two modes of operation, Tail mode and Read mode.
 
@@ -70,7 +72,7 @@ In this mode the plugin treats each file as if it is content complete, that is,
 a finite stream of lines and now EOF is significant. A last delimiter is not
 needed because EOF means that the accumulated characters can be emitted as a line.
 Further, EOF here means that the file can be closed and put in the "unwatched"
-state - this automatically frees up space in the active window, This mode also
+state - this automatically frees up space in the active window. This mode also
 makes it possible to process compressed files as they are content complete.
 Read mode also allows for an action to take place after processing the file completely.
 
@@ -103,12 +105,11 @@ path will cause issues. The read checkpoints for each input must be
 stored in a different path so the information does not override.
 
 Sincedb records can now be expired meaning that read positions of older files
-will not be remembered after a certain time period. File systems may need to
-reuse inodes for new content and it would be wrong to use the read position of
-old content in this case but we have no reliable way to detect that
-inode reuse has occurred. This is more relevant to Read mode where a
-great many files are tracked in the sincedb. Bear in mind though, if a record
-has expired, a previously seen file will be read again.
+will not be remembered after a certain time period. File systems may need to reuse
+inodes for new content. Ideally, we would not use the read position of old content,
+but we have no reliable way to detect that inode reuse has occurred. This is more
+relevant to Read mode where a great many files are tracked in the sincedb.
+Bear in mind though, if a record has expired, a previously seen file will be read again.
 
 Sincedb files are text files with four (< v5.0.0), five or six columns:
 
@@ -361,7 +362,7 @@ on the {logstash-ref}/configuration-file-structure.html#array[Logstash configura
 The sincedb record now has a last active timestamp associated with it.
 If no changes are detected in a tracked file in the last N days its sincedb
 tracking record expires and will not be persisted.
-This option helps protect against the inode recycling problem. (add reference to beats docs??)
+This option helps protect against the inode recycling problem. Read more {filebeat}/current/faq.html#inode-reuse-issue[here]
 
 [id="plugins-{type}s-{plugin}-sincedb_path"]
 ===== `sincedb_path`
@@ -414,3 +415,4 @@ but increase the time to detect new log lines.
 include::{include_path}/{type}.asciidoc[]
 
 :default_codec!:
+
