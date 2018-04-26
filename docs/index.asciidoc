@@ -1,7 +1,6 @@
 :plugin: file
 :type: input
 :default_codec: plain
-:filebeat: http://www.elastic.co/guide/en/beats/filebeat/{doc-branch}
 
 ///////////////////////////////////////////
 START - GENERATED VARIABLES, DO NOT EDIT!
@@ -362,7 +361,8 @@ on the {logstash-ref}/configuration-file-structure.html#array[Logstash configura
 The sincedb record now has a last active timestamp associated with it.
 If no changes are detected in a tracked file in the last N days its sincedb
 tracking record expires and will not be persisted.
-This option helps protect against the inode recycling problem. Read more {filebeat}/current/faq.html#inode-reuse-issue[here]
+This option helps protect against the inode recycling problem.
+Filebeat has a {filebeat-ref}/faq.html#inode-reuse-issue[FAQ about inode recycling].
 
 [id="plugins-{type}s-{plugin}-sincedb_path"]
 ===== `sincedb_path`
