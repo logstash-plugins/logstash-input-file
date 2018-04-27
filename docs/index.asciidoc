@@ -179,7 +179,7 @@ input plugins.
 ===== `close_older`
 
   * Value type is <<number,number>>
-  * There is no default value for this setting
+  * Default value is `3600`
 
 The file input closes any files that were last read the specified
 timespan in seconds ago.
