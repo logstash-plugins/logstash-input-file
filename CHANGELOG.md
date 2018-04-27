@@ -1,4 +1,4 @@
-## 5.0.0
+## 4.1.0
   - Move Filewatch code into the plugin folder, rework Filewatch code as we
     don't have to maintain Logstash neutrality on the off chance that other apps
     are using the filewatch gem.
