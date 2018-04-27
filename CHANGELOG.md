@@ -1,7 +1,6 @@
 ## 4.1.0
-  - Move Filewatch code into the plugin folder, rework Filewatch code as we
-    don't have to maintain Logstash neutrality on the off chance that other apps
-    are using the filewatch gem.
+  - Move Filewatch code into the plugin folder, rework Filewatch code to use
+    Logstash facilities like logging and environment.
   - New feature: `mode` setting. Introduces two modes, `tail` mode is the
     existing behaviour for tailing, `read` mode is new behaviour that is
     optimized for the read complete content scenario. Please read the docs to
@@ -9,7 +8,7 @@
   - New feature: File completion actions. Settings `file_completed_action`
     and `file_completed_log_path` control what actions to do after a file is
     completely read. Applicable: `read` mode only.
-  - New feature: in `read` mode, compressed files can be processed (GZIP).
+  - New feature: in `read` mode, compressed files can be processed, GZIP only.
   - New feature: Files are sorted after being discovered. Settings `file_sort_by`
     and `file_sort_direction` control the sort order. Applicable: any mode.
   - New feature: Banded or striped file processing. Settings: `file_chunk_size`
