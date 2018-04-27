@@ -1,3 +1,26 @@
+## 5.0.0
+  - Move Filewatch code into the plugin folder, rework Filewatch code as we
+    don't have to maintain Logstash neutrality on the off chance that other apps
+    are using the filewatch gem.
+  - New feature: `mode` setting. Introduces two modes, `tail` mode is the
+    existing behaviour for tailing, `read` mode is new behaviour that is
+    optimized for the read complete content scenario. Please read the docs to
+    fully appreciate the benefits of `read` mode.
+  - New feature: File completion actions. Settings `file_completed_action`
+    and `file_completed_log_path` control what actions to do after a file is
+    completely read. Applicable: `read` mode only.
+  - New feature: in `read` mode, compressed files can be processed (GZIP).
+  - New feature: Files are sorted after being discovered. Settings `file_sort_by`
+    and `file_sort_direction` control the sort order. Applicable: any mode.
+  - New feature: Banded or striped file processing. Settings: `file_chunk_size`
+    and `file_chunk_count` control banded or striped processing. Applicable: any mode.
+  - New feature: `sincedb_clean_after` setting. Introduces expiry of sincedb
+    records. The default is 14 days. If, after `sincedb_clean_after` days, no
+    activity has been detected on a file (inode) the record expires and is not
+    written to disk. The persisted record now includes the "last activity seen"
+    timestamp. Applicable: any mode.
+  - Docs: extensive additions to introduce the new features.
+
 ## 4.0.5
   - Docs: Set the default_codec doc attribute.
 
@@ -12,9 +35,9 @@
   - Fix an issue with the rspec suite not finding log4j
 
 ## 4.0.0
-  - Breaking: `ignore_older` settings is disabled by default. Previously if the file was older than 
-    24 hours (the default for ignore_older), it would be ignored. This confused new users a lot, specially 
-    when they were reading new files with Logstash (with `start_position => beginning`). This setting also 
+  - Breaking: `ignore_older` settings is disabled by default. Previously if the file was older than
+    24 hours (the default for ignore_older), it would be ignored. This confused new users a lot, specially
+    when they were reading new files with Logstash (with `start_position => beginning`). This setting also
     makes it consistent with Filebeat.
 
 ## 3.1.2

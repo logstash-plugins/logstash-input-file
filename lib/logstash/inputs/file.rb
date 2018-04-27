@@ -149,13 +149,12 @@ class File < LogStash::Inputs::Base
 
   # The file input closes any files that were last read the specified
   # timespan in seconds ago.
-  # This has different implications depending on if a file is being tailed or
-  # read. If tailing, and there is a large time gap in incoming data the file
+  # If tailing, and there is a large time gap in incoming data the file
   # can be closed (allowing other files to be opened) but will be queued for
   # reopening when new data is detected. If reading, the file will be closed
   # after closed_older seconds from when the last bytes were read.
-  # By default, this option disabled
-  config :close_older, :validate => :number
+  # The default is 1 hour
+  config :close_older, :validate => :number, :default => 1 * 60 * 60
 
   # What is the maximum number of file_handles that this input consumes
   # at any one time. Use close_older to close some files if you need to
