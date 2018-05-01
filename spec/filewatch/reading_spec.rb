@@ -55,6 +55,22 @@ module FileWatch
       end
     end
 
+    context "when watching a directory with files and sincedb_path is /dev/null or NUL" do
+      let(:directory) { Stud::Temporary.directory }
+      let(:sincedb_path) { File::NULL }
+      let(:watch_dir) { ::File.join(directory, "*.log") }
+      let(:file_path) { ::File.join(directory, "1.log") }
+
+      it "the file is read" do
+        File.open(file_path, "wb") { |file|  file.write("line1\nline2\n") }
+        actions.activate
+        reading.watch_this(watch_dir)
+        reading.subscribe(observer)
+        expect(observer.listener_for(file_path).calls).to eq([:open, :accept, :accept, :eof, :delete])
+        expect(observer.listener_for(file_path).lines).to eq(["line1", "line2"])
+      end
+    end
+
     context "when watching a directory with files using striped reading" do
       let(:directory) { Stud::Temporary.directory }
       let(:watch_dir) { ::File.join(directory, "*.log") }

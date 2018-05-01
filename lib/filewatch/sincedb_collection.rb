@@ -207,7 +207,7 @@ module FileWatch
     end
 
     def non_atomic_write
-      IO.open(@full_path, 0) do |io|
+      IO.open(IO.sysopen(@full_path, "w+")) do |io|
         @serializer.serialize(@sincedb, io)
       end
     end
