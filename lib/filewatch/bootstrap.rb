@@ -30,7 +30,7 @@ module FileWatch
     end
   end
 
-  jar_version = IO.read("JAR_VERSION").strip
+  jar_version = Pathname.new(__FILE__).dirname.join("../../JAR_VERSION").realpath.read.strip
 
   require "java"
   require_relative "../../lib/jars/filewatch-#{jar_version}.jar"

@@ -1,3 +1,9 @@
+## 4.1.1
+  - Fix JAR_VERSION read problem, prevented Logstash from starting.
+    [Issue #180](https://github.com/logstash-plugins/logstash-input-file/issues/180)
+  - Fix sincedb write error when using /dev/null, repeatedly causes a plugin restart.
+    [Issue #182](https://github.com/logstash-plugins/logstash-input-file/issues/182)
+
 ## 4.1.0
   - Move Filewatch code into the plugin folder, rework Filewatch code to use
     Logstash facilities like logging and environment.
