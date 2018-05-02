@@ -3,6 +3,8 @@ require 'stud/temporary'
 require_relative 'spec_helper'
 require 'filewatch/observing_read'
 
+LogStash::Logging::Logger::configure_logging("WARN")
+
 module FileWatch
   describe Watch do
     before(:all) do
@@ -92,6 +94,25 @@ module FileWatch
         else
           expect(lines).to eq(%w(string1 stringA string2 stringB))
         end
+      end
+    end
+
+    context "when a non default delimiter is specified and it is not in the content" do
+      let(:opts) { super.merge(:delimiter => "\nø") }
+
+      it "the file is opened, data is read, but no lines are found initially, at EOF the whole file becomes the line" do
+        File.open(file_path, "wb") { |file|  file.write("line1\nline2") }
+        actions.activate
+        reading.watch_this(watch_dir)
+        reading.subscribe(observer)
+        listener = observer.listener_for(file_path)
+        expect(listener.calls).to eq([:open, :accept, :eof, :delete])
+        expect(listener.lines).to eq(["line1\nline2"])
+        sincedb_record_fields = File.read(sincedb_path).split(" ")
+        position_field_index = 3
+        # tailing, no delimiter, we are expecting one, if it grows we read from the start.
+        # there is an info log telling us that no lines were seen but we can't test for it.
+        expect(sincedb_record_fields[position_field_index]).to eq("11")
       end
     end
 

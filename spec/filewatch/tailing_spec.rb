@@ -58,7 +58,6 @@ module FileWatch
       end
 
       context "when max_active is 1" do
-
         it "without close_older set, opens only 1 file" do
           actions.activate
           tailing.watch_this(watch_dir)
@@ -432,6 +431,33 @@ module FileWatch
         tailing.subscribe(observer)
         expect(observer.listener_for(file_path).lines).to eq(["line3", "line4"])
         expect(observer.listener_for(file_path).calls).to eq([:open, :accept, :accept, :timed_out])
+      end
+    end
+
+    context "when a non default delimiter is specified and it is not in the content" do
+      let(:opts) { super.merge(:ignore_older => 20, :close_older => 1, :delimiter => "\nø") }
+      before do
+        RSpec::Sequencing
+          .run("create file") do
+            File.open(file_path, "wb") { |file|  file.write("line1\nline2") }
+          end
+          .then("start watching before file ages more than close_older") do
+            tailing.watch_this(watch_dir)
+          end
+          .then_after(2.1, "quit after allowing time to close the file") do
+            tailing.quit
+          end
+      end
+
+      it "the file is opened, data is read, but no lines are found, the file times out" do
+        tailing.subscribe(observer)
+        expect(observer.listener_for(file_path).calls).to eq([:open, :timed_out])
+        expect(observer.listener_for(file_path).lines).to eq([])
+        sincedb_record_fields = File.read(sincedb_path).split(" ")
+        position_field_index = 3
+        # tailing, no delimiter, we are expecting one, if it grows we read from the start.
+        # there is an info log telling us that no lines were seen but we can't test for it.
+        expect(sincedb_record_fields[position_field_index]).to eq("0")
       end
     end
   end

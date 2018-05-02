@@ -2,8 +2,14 @@
 
 module FileWatch
   # Tracks the position and expiry of the offset of a file-of-interest
+  # NOTE: the `watched_file.bytes_read` and this `sincedb_value.position` can diverge
+  # At any given moment IF the `watched_file.bytes_read` is greater than `sincedb_value.position`
+  # then it is larger to account for bytes held in the `watched_file.buffer`
+  # in Tail mode if we quit the buffer is not flushed and we restart from
+  # the `sincedb_value.position` (end of the last line read).
+  # in Read mode the buffer is flushed as a line and both values should be the same.
   class SincedbValue
-    attr_reader :last_changed_at, :watched_file, :path_in_sincedb
+    attr_reader :last_changed_at, :watched_file, :path_in_sincedb, :position
 
     def initialize(position, last_changed_at = nil, watched_file = nil)
       @position = position # this is the value read from disk
@@ -21,27 +27,19 @@ module FileWatch
       @last_changed_at + duration
     end
 
-    def position
-      # either the value from disk or the current wf position
-      @watched_file.nil? ? @position : @watched_file.bytes_read
-    end
-
     def update_position(pos)
+      # called when we reset the position to bof or eof on shrink or file read complete
       touch
-      if @watched_file.nil?
-        @position = pos
-      else
-        @watched_file.update_bytes_read(pos)
-      end
+      @position = pos
+      @watched_file.update_bytes_read(pos) unless @watched_file.nil?
     end
 
     def increment_position(pos)
+      # called when actual lines are sent to the observer listener
+      # this gets serialized as its a more true indication of position than
+      # chunk read size
       touch
-      if watched_file.nil?
-        @position += pos
-      else
-        @watched_file.increment_bytes_read(pos)
-      end
+      @position += pos
     end
 
     def set_watched_file(watched_file)
@@ -69,6 +67,7 @@ module FileWatch
     end
 
     def unset_watched_file
+      # called in read mode only because we flushed any remaining bytes as a final line.
       # cache the position
       # we don't cache the path here because we know we are done with this file.
       # either due via the `delete` handling
