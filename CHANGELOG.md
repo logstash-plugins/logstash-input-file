@@ -1,3 +1,10 @@
+## 4.1.2
+  - Fix `require winhelper` error in WINDOWS.
+    [Issue #184](https://github.com/logstash-plugins/logstash-input-file/issues/184)
+  - Fix when no delimiter is found in a chunk, the chunk is reread - no forward progress
+    is made in the file.
+    [Issue #185](https://github.com/logstash-plugins/logstash-input-file/issues/185)
+
 ## 4.1.1
   - Fix JAR_VERSION read problem, prevented Logstash from starting.
     [Issue #180](https://github.com/logstash-plugins/logstash-input-file/issues/180)

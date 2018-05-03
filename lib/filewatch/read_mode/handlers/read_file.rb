@@ -5,28 +5,28 @@ module FileWatch module ReadMode module Handlers
     def handle_specifically(watched_file)
       if open_file(watched_file)
         add_or_update_sincedb_collection(watched_file) unless sincedb_collection.member?(watched_file.sincedb_key)
-        # if the `file_chunk_count` * `file_chunk_size` is less than the file size
-        # then this method will be executed multiple times
-        # and the seek is moved to just after a line boundary as recorded in the sincedb
-        # for each run - so we reset the buffer
-        watched_file.reset_buffer
-        watched_file.file_seek(watched_file.bytes_read)
         changed = false
         @settings.file_chunk_count.times do
           begin
-            lines = watched_file.buffer_extract(watched_file.file_read(@settings.file_chunk_size))
-            logger.warn("read_to_eof: no delimiter found in current chunk") if lines.empty?
+            data = watched_file.file_read(@settings.file_chunk_size)
+            result = watched_file.buffer_extract(data) # expect BufferExtractResult
+            logger.info(result.warning, result.additional) unless result.warning.empty?
             changed = true
-            lines.each do |line|
+            result.lines.each do |line|
               watched_file.listener.accept(line)
+              # sincedb position is independent from the watched_file bytes_read
               sincedb_collection.increment(watched_file.sincedb_key, line.bytesize + @settings.delimiter_byte_size)
             end
+            # instead of tracking the bytes_read line by line we need to track by the data read size.
+            # because we initially seek to the bytes_read not the sincedb position
+            watched_file.increment_bytes_read(data.bytesize)
           rescue EOFError
             # flush the buffer now in case there is no final delimiter
             line = watched_file.buffer.flush
             watched_file.listener.accept(line) unless line.empty?
             watched_file.listener.eof
             watched_file.file_close
+            # unset_watched_file will set sincedb_value.position to be watched_file.bytes_read
             sincedb_collection.unset_watched_file(watched_file)
             watched_file.listener.deleted
             watched_file.unwatch

@@ -37,7 +37,7 @@ module FileWatch
   require "jruby_file_watch"
 
   if LogStash::Environment.windows?
-    require "winhelper"
+    require_relative "winhelper"
     FileOpener = FileExt
     InodeMixin = WindowsInode
   else
@@ -52,6 +52,8 @@ module FileWatch
       to_a.join(" ")
     end
   end
+
+  BufferExtractResult = Struct.new(:lines, :warning, :additional)
 
   class NoSinceDBPathGiven < StandardError; end
 

@@ -42,13 +42,17 @@ module FileWatch module TailMode module Handlers
       @settings.file_chunk_count.times do
         begin
           data = watched_file.file_read(@settings.file_chunk_size)
-          lines = watched_file.buffer_extract(data)
-          logger.warn("read_to_eof: no delimiter found in current chunk") if lines.empty?
+          result = watched_file.buffer_extract(data) # expect BufferExtractResult
+          logger.info(result.warning, result.additional) unless result.warning.empty?
           changed = true
-          lines.each do |line|
+          result.lines.each do |line|
             watched_file.listener.accept(line)
+            # sincedb position is now independent from the watched_file bytes_read
             sincedb_collection.increment(watched_file.sincedb_key, line.bytesize + @settings.delimiter_byte_size)
           end
+          # instead of tracking the bytes_read line by line we need to track by the data read size.
+          # because we seek to the bytes_read not the sincedb position
+          watched_file.increment_bytes_read(data.bytesize)
         rescue EOFError
           # it only makes sense to signal EOF in "read" mode not "tail"
           break
