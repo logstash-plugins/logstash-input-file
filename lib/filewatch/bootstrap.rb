@@ -53,6 +53,8 @@ module FileWatch
     end
   end
 
+  BufferExtractResult = Struct.new(:lines, :warning, :additional)
+
   class NoSinceDBPathGiven < StandardError; end
 
   # how often (in seconds) we logger.warn a failed file open, per path.

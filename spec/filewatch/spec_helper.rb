@@ -119,3 +119,8 @@ module FileWatch
       @listeners.clear; end
   end
 end
+
+ENV["LOG_AT"].tap do |level|
+  LogStash::Logging::Logger::configure_logging(level) unless level.nil?
+end
+

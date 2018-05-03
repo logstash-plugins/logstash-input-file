@@ -9,12 +9,10 @@ module FileWatch module ReadMode module Handlers
         @settings.file_chunk_count.times do
           begin
             data = watched_file.file_read(@settings.file_chunk_size)
-            lines = watched_file.buffer_extract(data)
-            if lines.empty?
-              log_delimiter_not_found(watched_file, data.bytesize)
-            end
+            result = watched_file.buffer_extract(data) # expect BufferExtractResult
+            logger.info(result.warning, result.additional) unless result.warning.empty?
             changed = true
-            lines.each do |line|
+            result.lines.each do |line|
               watched_file.listener.accept(line)
               # sincedb position is independent from the watched_file bytes_read
               sincedb_collection.increment(watched_file.sincedb_key, line.bytesize + @settings.delimiter_byte_size)
@@ -44,23 +42,6 @@ module FileWatch module ReadMode module Handlers
         end
         sincedb_collection.request_disk_flush if changed
       end
-    end
-
-    private
-
-    def log_delimiter_not_found(watched_file, data_size)
-      warning = "read_to_eof: a delimiter can't be found in current chunk"
-      warning.concat(", maybe there are no more delimiters or the delimiter is incorrect")
-      warning.concat(" or the text before the delimiter, a 'line', is very large")
-      warning.concat(", if this message is logged often try increasing the `file_chunk_size` setting.")
-      log_details = {
-        "delimiter" => @settings.delimiter,
-        "read_position" => watched_file.bytes_read,
-        "bytes_read_count" => data_size,
-        "last_known_file_size" => watched_file.last_stat_size,
-        "file_path" => watched_file.path,
-      }
-      logger.info(warning, log_details)
     end
   end
 end end end

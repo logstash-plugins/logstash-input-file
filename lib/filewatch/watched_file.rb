@@ -1,4 +1,5 @@
 # encoding: utf-8
+require "logstash/util/loggable"
 
 module FileWatch
   class WatchedFile
@@ -102,7 +103,20 @@ module FileWatch
     end
 
     def buffer_extract(data)
-      @buffer.extract(data)
+      warning, additional = "", {}
+      lines = @buffer.extract(data)
+      if lines.empty?
+        warning.concat("buffer_extract: a delimiter can't be found in current chunk")
+        warning.concat(", maybe there are no more delimiters or the delimiter is incorrect")
+        warning.concat(" or the text before the delimiter, a 'line', is very large")
+        warning.concat(", if this message is logged often try increasing the `file_chunk_size` setting.")
+        additional["delimiter"] = @settings.delimiter
+        additional["read_position"] = @bytes_read
+        additional["bytes_read_count"] = data.bytesize
+        additional["last_known_file_size"] = @last_stat_size
+        additional["file_path"] = @path
+      end
+      BufferExtractResult.new(lines, warning, additional)
     end
 
     def increment_bytes_read(delta)

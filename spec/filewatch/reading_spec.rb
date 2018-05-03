@@ -3,8 +3,6 @@ require 'stud/temporary'
 require_relative 'spec_helper'
 require 'filewatch/observing_read'
 
-LogStash::Logging::Logger::configure_logging("WARN")
-
 module FileWatch
   describe Watch do
     before(:all) do
