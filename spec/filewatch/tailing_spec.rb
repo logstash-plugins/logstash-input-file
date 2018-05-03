@@ -1,4 +1,4 @@
-
+# encoding: utf-8
 require 'stud/temporary'
 require_relative 'spec_helper'
 require 'filewatch/observing_tail'
