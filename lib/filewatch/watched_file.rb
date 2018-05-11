@@ -89,8 +89,27 @@ module FileWatch
     end
 
     def file_read(amount)
-      set_accessed_at
-      @file.sysread(amount)
+      #debug "*** file_read #{path}"
+      cc = 3        # max attempts
+      dt = 1.0/128  # delay beetwen attempts
+      loop do
+        set_accessed_at
+        buf = @file.sysread(amount)
+        # return if no zero byte inside
+        return buf unless zc = buf.index("\0")
+        # update amount to read
+        amount = buf.bytesize
+        # warn "*** ZERO-#{cc} byte (#{zc} of #{amount}) in #{path}"
+        cc -= 1
+        # was last attempt - returning buffer with zero byte
+        return buf if cc.zero?
+        # sllep before next read
+        sleep(dt)
+        # increase sleep time
+        dt *= 4
+        # get back in file
+        @file.sysseek(-amount, IO::SEEK_CUR)
+      end
     end
 
     def file_open?
