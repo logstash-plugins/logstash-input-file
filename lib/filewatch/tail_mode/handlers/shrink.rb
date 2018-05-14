@@ -13,6 +13,7 @@ module FileWatch module TailMode module Handlers
       # we have a match but size is smaller
       # set all to zero
       logger.debug("update_existing_specifically: #{watched_file.path}: was truncated seeking to beginning")
+      watched_file.reset_bytes_unread
       watched_file.update_bytes_read(0) if watched_file.bytes_read != 0
       sincedb_value.update_position(0)
     end

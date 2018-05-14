@@ -364,6 +364,41 @@ module FileWatch
       end
     end
 
+    context "when a file is renamed before it gets activated" do
+      let(:max) { 1 }
+      let(:opts) { super.merge(:file_chunk_count => 8, :file_chunk_size => 6, :close_older => 0.25, :discover_interval => 6) }
+      let(:file_path2) { ::File.join(directory, "2.log") }
+      let(:file_path3) { ::File.join(directory, "3.log") }
+      before do
+        File.open(file_path, "wb") { |file| 32.times{file.write("line1\n")} }
+        File.open(file_path2, "wb") { |file| file.write("line2\n") }
+        # synthesize a sincedb record
+        stat = File.stat(file_path2)
+        record = [stat.ino.to_s, stat.dev_major.to_s, stat.dev_minor.to_s, "0", "1526220348.083179", file_path2]
+        File.open(sincedb_path, "wb") { |file| file.puts(record.join(" ")) }
+
+        RSpec::Sequencing
+          .run("watch") do
+            tailing.watch_this(watch_dir)
+          end
+          .then_after(0.1, "rename") do
+            FileUtils.mv(file_path2, file_path3)
+          end
+          .then_after(1.1, "quit") do
+            tailing.quit
+          end
+      end
+
+      it "files are read correctly" do
+        tailing.subscribe(observer)
+        expect(observer.listener_for(file_path).lines.size).to eq(32)
+        expect(observer.listener_for(file_path2).calls).to eq([:delete])
+        expect(observer.listener_for(file_path2).lines).to eq([])
+        expect(observer.listener_for(file_path3).calls).to eq([:open, :accept])
+        expect(observer.listener_for(file_path3).lines).to eq(["line2"])
+      end
+    end
+
     context "when ignore_older is less than close_older and all files are not expired" do
       let(:opts) { super.merge(:ignore_older => 1, :close_older => 1.5) }
       before do

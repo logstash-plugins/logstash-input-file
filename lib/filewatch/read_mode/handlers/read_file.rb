@@ -5,11 +5,11 @@ module FileWatch module ReadMode module Handlers
     def handle_specifically(watched_file)
       if open_file(watched_file)
         add_or_update_sincedb_collection(watched_file) unless sincedb_collection.member?(watched_file.sincedb_key)
-        @settings.file_chunk_count.times do
-          break if quit?
+        break if quit?
+        changed = false
+        watched_file.read_loop_count.times do
           begin
-            data = watched_file.file_read(@settings.file_chunk_size)
-            result = watched_file.buffer_extract(data) # expect BufferExtractResult
+            result = watched_file.read_extract_lines # expect BufferExtractResult
             logger.info(result.warning, result.additional) unless result.warning.empty?
             result.lines.each do |line|
               watched_file.listener.accept(line)

@@ -39,10 +39,9 @@ module FileWatch module TailMode module Handlers
       # we enable the pseudo parallel processing of each file.
       # user also has the option to specify a low `stat_interval` and a very high `discover_interval`to respond
       # quicker to changing files and not allowing too much content to build up before reading it.
-      @settings.file_chunk_count.times do
+      watched_file.read_loop_count.times do
         begin
-          data = watched_file.file_read(@settings.file_chunk_size)
-          result = watched_file.buffer_extract(data) # expect BufferExtractResult
+          result = watched_file.read_extract_lines # expect BufferExtractResult
           logger.info(result.warning, result.additional) unless result.warning.empty?
           changed = true
           result.lines.each do |line|
@@ -50,9 +49,6 @@ module FileWatch module TailMode module Handlers
             # sincedb position is now independent from the watched_file bytes_read
             sincedb_collection.increment(watched_file.sincedb_key, line.bytesize + @settings.delimiter_byte_size)
           end
-          # instead of tracking the bytes_read line by line we need to track by the data read size.
-          # because we seek to the bytes_read not the sincedb position
-          watched_file.increment_bytes_read(data.bytesize)
         rescue EOFError
           # it only makes sense to signal EOF in "read" mode not "tail"
           break

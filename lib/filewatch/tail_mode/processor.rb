@@ -76,19 +76,12 @@ module FileWatch module TailMode
       # Handles watched_files in the closed state.
       # if its size changed it is put into the watched state
       watched_files.select {|wf| wf.closed? }.each do |watched_file|
-        path = watched_file.path
-        begin
-          watched_file.restat
+        common_restat(watched_file, "Closed") do
           if watched_file.size_changed?
             # if the closed file changed, move it to the watched state
             # not to active state because we want to respect the active files window.
             watched_file.watch
           end
-        rescue Errno::ENOENT
-          # file has gone away or we can't read it anymore.
-          common_deleted_reaction(watched_file, "Closed")
-        rescue => e
-          common_error_reaction(path, e, "Closed")
         end
         break if watch.quit?
       end
@@ -101,18 +94,11 @@ module FileWatch module TailMode
       #   put it in the watched state
       #   invoke unignore
       watched_files.select {|wf| wf.ignored? }.each do |watched_file|
-        path = watched_file.path
-        begin
-          watched_file.restat
+        common_restat(watched_file, "Ignored") do
           if watched_file.size_changed?
             watched_file.watch
             unignore(watched_file)
           end
-        rescue Errno::ENOENT
-          # file has gone away or we can't read it anymore.
-          common_deleted_reaction(watched_file, "Ignored")
-        rescue => e
-          common_error_reaction(path, e, "Ignored")
         end
         break if watch.quit?
       end
@@ -131,20 +117,13 @@ module FileWatch module TailMode
       to_take = @settings.max_active - watched_files.count{|wf| wf.active?}
       if to_take > 0
         watched_files.select {|wf| wf.watched?}.take(to_take).each do |watched_file|
-          path = watched_file.path
-          begin
-            watched_file.restat
+          common_restat(watched_file, "Watched") do
             watched_file.activate
             if watched_file.initial?
               create_initial(watched_file)
             else
               create(watched_file)
             end
-          rescue Errno::ENOENT
-            # file has gone away or we can't read it anymore.
-            common_deleted_reaction(watched_file, "Watched")
-          rescue => e
-            common_error_reaction(path, e, "Watched")
           end
           break if watch.quit?
         end
@@ -161,29 +140,54 @@ module FileWatch module TailMode
     def process_active(watched_files)
       logger.debug("Active processing")
       # Handles watched_files in the active state.
-      # it has been read once - unless they were empty at the time
+      # files have been opened at this point
       watched_files.select {|wf| wf.active? }.each do |watched_file|
         path = watched_file.path
-        begin
-          watched_file.restat
-        rescue Errno::ENOENT
-          # file has gone away or we can't read it anymore.
-          common_deleted_reaction(watched_file, "Active")
-          next
-        rescue => e
-          common_error_reaction(path, e, "Active")
-          next
-        end
+        physical_file_exists = common_restat(watched_file, "Active")
         break if watch.quit?
-        if watched_file.grown?
-          logger.debug("Active - file grew: #{path}: new size is #{watched_file.last_stat_size}, old size #{watched_file.bytes_read}")
-          grow(watched_file)
-        elsif watched_file.shrunk?
-          # we don't update the size here, its updated when we actually read
-          logger.debug("Active - file shrunk #{path}: new size is #{watched_file.last_stat_size}, old size #{watched_file.bytes_read}")
-          shrink(watched_file)
+        next unless physical_file_exists
+        logger.debug("Active - info", "sincedb_key" => watched_file.sincedb_key, "size" => watched_file.last_stat_size, "read" => watched_file.bytes_read, "unread" => watched_file.bytes_unread, "path" => path)
+        # when the file is open, all size based tests are driven from the open file not the path
+        if watched_file.new_inode_detected? && watched_file.all_read?
+          # rotated with a new inode and is fully read
+          # close file but keep buffer contents if any
+          watched_file.file_close
+          # now we can use the path based stat for the sincedb_key
+          # and reset the pending_inode_count
+          watched_file.set_sincedb_key_from_stat
+          # put it back to watched
+          watched_file.watch
+          logger.debug("Active - inode change detected, closing old file handle & set back to watched: #{path}")
         else
-          # same size, do nothing
+          if watched_file.grown?
+            logger.debug("Active - file grew: #{path}: new size is #{watched_file.last_stat_size}, old size #{watched_file.bytes_read}")
+            grow(watched_file)
+            # after reading, did the inode change and did we complete the old inode
+            # we still have an open file handle on the 'old' file.
+            # we need to fully read it now
+            if watched_file.new_inode_detected? && !watched_file.all_read?
+              # rotated file but original opened file is not fully read
+              # we need to keep reading the open file, if we close it we lose it because the path is now pointing at a different file.
+              logger.debug("Active - grow: new_inode_detected and not fully read: #{path}: new size is #{watched_file.last_stat_size}, old size #{watched_file.bytes_read}")
+              # need to fully read open file while we can
+              watched_file.set_depth_first_read_loop
+              grow(watched_file)
+              watched_file.file_close
+              watched_file.set_sincedb_key_from_stat
+              watched_file.set_user_defined_read_loop
+              watched_file.watch
+              logger.debug("Active - grow: inode change detected, closing old file handle & set back to watched: #{path}")
+            end
+          elsif watched_file.shrunk?
+            if watched_file.bytes_unread > 0
+              logger.warn("Active - shrunk: DATA LOSS!! truncate detected with #{watched_file.bytes_unread} unread bytes: #{path}")
+            end
+            # we don't update the size here, its updated when we actually read
+            logger.debug("Active - file shrunk #{path}: new size is #{watched_file.last_stat_size}, old size #{watched_file.bytes_read}")
+            shrink(watched_file)
+          else
+            # same size, do nothing
+          end
         end
         # can any active files be closed to make way for waiting files?
         if watched_file.file_closable?
@@ -194,12 +198,28 @@ module FileWatch module TailMode
       end
     end
 
+    def common_restat(watched_file, action)
+      all_ok = true
+      begin
+        watched_file.restat
+        yield if block_given?
+      rescue Errno::ENOENT
+        # file has gone away or we can't read it anymore.
+        common_deleted_reaction(watched_file, action)
+        all_ok = false
+      rescue => e
+        common_error_reaction(watched_file.path, e, action)
+        all_ok = false
+      end
+      all_ok
+    end
+
     def common_deleted_reaction(watched_file, action)
       # file has gone away or we can't read it anymore.
       watched_file.unwatch
       delete(watched_file)
       deletable_filepaths << watched_file.path
-      logger.debug("#{action} - stat failed: #{watched_file.path}, removing from collection")
+      logger.debug("#{action} - stat failed, removing from collection: #{watched_file.path}")
     end
 
     def common_error_reaction(path, error, action)

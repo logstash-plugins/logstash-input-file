@@ -4,6 +4,7 @@ module FileWatch module TailMode module Handlers
   class CreateInitial < Base
     def handle_specifically(watched_file)
       if open_file(watched_file)
+        logger.debug("handle_specifically opened file handle: #{watched_file.file.fileno}, path: #{watched_file.path}")
         add_or_update_sincedb_collection(watched_file)
       end
     end

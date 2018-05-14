@@ -59,9 +59,9 @@ module FileWatch
         new_discovery = false
         watched_file = @watched_files_collection.watched_file_by_path(file)
         if watched_file.nil?
-          logger.debug("Discoverer discover_files: #{path}: new: #{file} (exclude is #{@exclude.inspect})")
           new_discovery = true
           watched_file = WatchedFile.new(pathname, pathname.stat, @settings)
+          logger.debug("Discoverer new discovery: #{watched_file.path}, inode: #{watched_file.sincedb_key.inode}, discover_files: #{path} (exclude is #{@exclude.inspect})")
         end
         # if it already unwatched or its excluded then we can skip
         next if watched_file.unwatched? || can_exclude?(watched_file, new_discovery)
@@ -77,6 +77,7 @@ module FileWatch
             # they are still added to the collection so we know they are there for the next periodic discovery
             watched_file.ignore
           end
+
           # now add the discovered file to the watched_files collection and adjust the sincedb collections
           @watched_files_collection.add(watched_file)
           # initially when the sincedb collection is filled with records from the persistence file

@@ -61,34 +61,38 @@ module FileWatch
     end
 
     def associate(watched_file)
-      logger.debug("associate: finding: #{watched_file.path}")
+      logger.debug("associate: finding", "inode" => watched_file.sincedb_key.inode, "path" => watched_file.path)
       sincedb_value = find(watched_file)
       if sincedb_value.nil?
         # sincedb has no record of this inode
         # and due to the window handling of many files
         # this file may not be opened in this session.
         # a new value will be added when the file is opened
+        logger.debug("associate: unmatched")
         return
       end
+      logger.debug("associate: matched", "sincedb_value" => sincedb_value)
       if sincedb_value.watched_file.nil?
         # not associated
         if sincedb_value.path_in_sincedb.nil?
           # old v1 record, assume its the same file
           handle_association(sincedb_value, watched_file)
+          logger.debug("associate: inode matched but no path in sincedb")
           return
         end
         if sincedb_value.path_in_sincedb == watched_file.path
           # the path on disk is the same as discovered path
           # and the inode is the same.
           handle_association(sincedb_value, watched_file)
+          logger.debug("associate: inode and path matched")
           return
         end
         # the path on disk is different from discovered unassociated path
         # but they have the same key (inode)
         # treat as a new file, a new value will be added when the file is opened
-        logger.debug("associate: matched but allocated to another - #{sincedb_value}")
         sincedb_value.clear_watched_file
         delete(watched_file.sincedb_key)
+        logger.debug("associate: matched but allocated to another - #{sincedb_value}")
         return
       end
       if sincedb_value.watched_file.equal?(watched_file) # pointer equals
@@ -96,23 +100,39 @@ module FileWatch
         return
       end
       # sincedb_value.watched_file is not the discovered watched_file but they have the same key (inode)
-      # this means that the filename was changed during this session.
-      # logout the history of the old sincedb_value and remove it
-      # a new value will be added when the file is opened
-      # TODO notify about done-ness of old sincedb_value and watched_file
+      # this means that the filename was changed during this session but before the file became active or after it was closed.
+      # when a renamed 'watched' file becomes active the stat fails and it goes through the deleted workflow.
+      # logout the history of both watched_files then remove the sincdb entry.
+      # a new value will be added when the file is processed
       old_watched_file = sincedb_value.watched_file
       sincedb_value.clear_watched_file
-      if logger.debug?
-        logger.debug("associate: matched but allocated to another - #{sincedb_value}")
-        logger.debug("associate: matched but allocated to another - old watched_file history - #{old_watched_file.recent_state_history.join(', ')}")
-        logger.debug("associate: matched but allocated to another - DELETING value at key `#{old_watched_file.sincedb_key}`")
-      end
+      msg = "associate: matched but allocated to another watched_file - DELETING value at key. Was this file renamed before it was processed?"
+      logger.warn(msg,
+        "sincedb_key" => old_watched_file.sincedb_key,
+        "sincedb_value" => sincedb_value,
+        "this watched_file history" => watched_file.recent_state_history.join(', '),
+        "this watched_file size" => watched_file.last_stat_size,
+        "this watched_file bytes read" => watched_file.bytes_read,
+        "this watched_file bytes unread" => watched_file.bytes_unread,
+        "this watched_file path" => watched_file.path,
+        "other watched_file history" => old_watched_file.recent_state_history.join(', '),
+        "other watched_file size" => old_watched_file.last_stat_size,
+        "other watched_file bytes read" => old_watched_file.bytes_read,
+        "other watched_file bytes unread" => old_watched_file.bytes_unread,
+        "other watched_file path" => old_watched_file.path
+      )
+      # the risk in deleting the sincedb record here is:
+      # 1. if the file is unread - none, a new record is created and the file is read.
+      # 2. if the inode was reused - none, a new record is created and the new content is read.
+      # 3. if the file has been partially read and the sincedb record holds that position - data duplication.
+      # we can't tell if we are in 2 or 3.
+      # It is less likely that a file is renamed into the glob and then appended-to, inode reuse is more likely.
       delete(old_watched_file.sincedb_key)
     end
 
     def find(watched_file)
       get(watched_file.sincedb_key).tap do |obj|
-        logger.debug("find for path: #{watched_file.path}, found: '#{!obj.nil?}'")
+        logger.debug("find: found = '#{!obj.nil?}', path: #{watched_file.path}")
       end
     end
 
