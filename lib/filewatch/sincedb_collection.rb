@@ -71,7 +71,6 @@ module FileWatch
         logger.debug("associate: unmatched")
         return
       end
-      logger.debug("associate: matched", "sincedb_value" => sincedb_value)
       if sincedb_value.watched_file.nil?
         # not associated
         if sincedb_value.path_in_sincedb.nil?
@@ -99,27 +98,48 @@ module FileWatch
         logger.debug("associate: already associated - #{sincedb_value}, for path: #{watched_file.path}")
         return
       end
-      # sincedb_value.watched_file is not the discovered watched_file but they have the same key (inode)
-      # this means that the filename was changed during this session but before the file became active or after it was closed.
-      # when a renamed 'watched' file becomes active the stat fails and it goes through the deleted workflow.
+      # sincedb_value.watched_file is not this discovered watched_file but they have the same key (inode)
+      # this means that the filename path was changed during this session.
+      # renamed file can be discovered...
+      #   before the original is detected as deleted: state is `active`
+      #   after the original is detected as deleted but before it is actually deleted: state is `delayed_delete`
+      #   after the original is deleted
+      # are not yet in the delete phase, let this play out
+      old_watched_file = sincedb_value.watched_file
+      if old_watched_file.file_open?
+        msg = "associate: the found sincedb_value has a watched_file with an open file handle - this is a rename, switching to discovered file"
+        logger.debug(msg,
+        "discovered watched_file state" => watched_file.state,
+        "discovered watched_file size" => watched_file.last_stat_size,
+        "discovered watched_file bytes read" => watched_file.bytes_read,
+        "discovered watched_file path" => watched_file.path,
+        "found watched_file state" => old_watched_file.state,
+        "found watched_file size" => old_watched_file.last_stat_size,
+        "found watched_file bytes read" => old_watched_file.bytes_read,
+        "found watched_file path" => old_watched_file.path
+        )
+        sincedb_value.set_watched_file(watched_file)
+        sincedb_value.update_position(old_watched_file.bytes_read)
+        watched_file.initial_completed
+        return
+      end
       # logout the history of both watched_files then remove the sincdb entry.
       # a new value will be added when the file is processed
-      old_watched_file = sincedb_value.watched_file
       sincedb_value.clear_watched_file
       msg = "associate: matched but allocated to another watched_file - DELETING value at key. Was this file renamed before it was processed?"
       logger.warn(msg,
         "sincedb_key" => old_watched_file.sincedb_key,
         "sincedb_value" => sincedb_value,
-        "this watched_file history" => watched_file.recent_state_history.join(', '),
-        "this watched_file size" => watched_file.last_stat_size,
-        "this watched_file bytes read" => watched_file.bytes_read,
-        "this watched_file bytes unread" => watched_file.bytes_unread,
-        "this watched_file path" => watched_file.path,
-        "other watched_file history" => old_watched_file.recent_state_history.join(', '),
-        "other watched_file size" => old_watched_file.last_stat_size,
-        "other watched_file bytes read" => old_watched_file.bytes_read,
-        "other watched_file bytes unread" => old_watched_file.bytes_unread,
-        "other watched_file path" => old_watched_file.path
+        "discovered watched_file history" => watched_file.recent_state_history.join(', '),
+        "discovered watched_file size" => watched_file.last_stat_size,
+        "discovered watched_file bytes read" => watched_file.bytes_read,
+        "discovered watched_file bytes unread" => watched_file.bytes_unread,
+        "discovered watched_file path" => watched_file.path,
+        "found watched_file history" => old_watched_file.recent_state_history.join(', '),
+        "found watched_file size" => old_watched_file.last_stat_size,
+        "found watched_file bytes read" => old_watched_file.bytes_read,
+        "found watched_file bytes unread" => old_watched_file.bytes_unread,
+        "found watched_file path" => old_watched_file.path
       )
       # the risk in deleting the sincedb record here is:
       # 1. if the file is unread - none, a new record is created and the file is read.

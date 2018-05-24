@@ -49,7 +49,7 @@ module FileWatch
 
     def discover_files(path)
       globbed = Dir.glob(path)
-      globbed = [path] if globbed.empty?
+      # globbed = [path] if globbed.empty?
       logger.debug("Discoverer found files, count: #{globbed.size}")
       globbed.each do |file|
         logger.debug("Discoverer found file, path: #{file}")

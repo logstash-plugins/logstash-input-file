@@ -72,7 +72,7 @@ module FileWatch
             tmpfile = directory.join("1.logtmp")
             tmpfile.open("wb") { |file|  file.write("\n#{line3}\n")}
             file_path.rename(directory.join("1.log.1"))
-            tmpfile.rename(directory.join("1.log"))
+            FileUtils.mv(directory.join("1.logtmp").to_path, file_path.to_path)
           end
           .then_after(0.45, "quit after a short time") do
             tailing.quit
@@ -182,6 +182,7 @@ module FileWatch
 
     context "? rotation: when an active file is renamed inside the glob and the reading does not lag" do
       let(:file2) { directory.join("2.log") }
+      # let(:discover_interval) { 1 }
       subject { described_class.new(conf) }
       before do
         tailing.watch_this(watch_dir.to_path)
@@ -195,7 +196,7 @@ module FileWatch
           .then_after(0.1, "write to renamed file") do
             file2.open("ab") { |file|  file.puts(line3) }
           end
-          .then_after(0.3, "quit after a short time") do
+          .then_after(0.2, "quit after a short time") do
             tailing.quit
           end
       end
@@ -208,6 +209,7 @@ module FileWatch
     end
 
     context "? rotation: when an active file is renamed inside the glob and the reading lags behind" do
+      # let(:discover_interval) { 1 }
       let(:opts) { super.merge(
           :file_chunk_size => line1.bytesize.succ,
           :file_chunk_count => 2
@@ -236,6 +238,39 @@ module FileWatch
         lines = observer.listener_for(full_file_path).lines + observer.listener_for(file2.to_path).lines
         expect(lines.size).to eq(66)
         expect(lines.last).to eq(line3)
+      end
+    end
+
+    context "? rotation: when a not active file is rotated outside the glob before the file is read" do
+      # let(:discover_interval) { 1 }
+      let(:opts) { super.merge(
+          :close_older => 3600,
+          :max_active => 1
+        ) }
+      let(:file2) { directory.join("2.log") }
+      let(:file3) { directory.join("2.log.1") }
+      subject { described_class.new(conf) }
+      before do
+        tailing.watch_this(watch_dir.to_path)
+        RSpec::Sequencing
+          .run_after(0.1, "create file") do
+            file_path.open("wb") { |file| 65.times{file.puts(line1)} }
+            file2.open("wb")     { |file| 65.times{file.puts(line1)} }
+          end
+          .then_after(0.1, "rename") do
+            FileUtils.mv(file2.to_path, file3.to_path)
+          end
+          .then_after(0.75, "quit after a short time") do
+            tailing.quit
+          end
+      end
+
+      it "file 1 content is read correctly, the renamed file 2 is not read at all" do
+        tailing.subscribe(observer)
+        lines = observer.listener_for(full_file_path).lines
+        expect(lines.size).to eq(65)
+        expect(observer.listener_for(file2.to_path).lines.size).to eq(0)
+        expect(observer.listener_for(file3.to_path).lines.size).to eq(0)
       end
     end
   end

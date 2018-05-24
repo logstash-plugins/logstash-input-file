@@ -25,7 +25,8 @@ module FileWatch
     let(:opts) do
       {
         :stat_interval => stat_interval, :start_new_files_at => start_new_files_at, :max_active => max,
-        :delimiter => "\n", :discover_interval => discover_interval, :sincedb_path => sincedb_path
+        :delimiter => "\n", :discover_interval => discover_interval, :sincedb_path => sincedb_path,
+        :file_sort_by => "path"
       }
     end
     let(:observer) { TestObserver.new }
@@ -51,7 +52,7 @@ module FileWatch
       before do
         ENV["FILEWATCH_MAX_FILES_WARN_INTERVAL"] = "0"
         File.open(file_path, "wb")  { |file| file.write("line1\nline2\n") }
-        File.open(file_path2, "wb") { |file| file.write("lineA\nlineB\n") }
+        File.open(file_path2, "wb") { |file| file.write("line-A\nline-B\n") }
       end
 
       context "when max_active is 1" do
@@ -62,15 +63,9 @@ module FileWatch
           expect(tailing.settings.max_active).to eq(max)
           file1_calls = observer.listener_for(file_path).calls
           file2_calls = observer.listener_for(file_path2).calls
-          # file glob order is OS dependent
-          if file1_calls.empty?
-            expect(observer.listener_for(file_path2).lines).to eq(["lineA", "lineB"])
-            expect(file2_calls).to eq([:open, :accept, :accept])
-          else
-            expect(observer.listener_for(file_path).lines).to eq(["line1", "line2"])
-            expect(file1_calls).to eq([:open, :accept, :accept])
-            expect(file2_calls).to be_empty
-          end
+          expect(observer.listener_for(file_path).lines).to eq(["line1", "line2"])
+          expect(file1_calls).to eq([:open, :accept, :accept])
+          expect(file2_calls).to be_empty
         end
       end
 
@@ -85,7 +80,7 @@ module FileWatch
           filelistener_1 = observer.listener_for(file_path)
           filelistener_2 = observer.listener_for(file_path2)
           expect(filelistener_2.calls).to eq([:open, :accept, :accept, :timed_out])
-          expect(filelistener_2.lines).to eq(["lineA", "lineB"])
+          expect(filelistener_2.lines).to eq(["line-A", "line-B"])
           expect(filelistener_1.calls).to eq([:open, :accept, :accept, :timed_out])
           expect(filelistener_1.lines).to eq(["line1", "line2"])
         end
@@ -366,7 +361,7 @@ module FileWatch
 
     context "when a file is renamed before it gets activated" do
       let(:max) { 1 }
-      let(:opts) { super.merge(:file_chunk_count => 8, :file_chunk_size => 6, :close_older => 0.25, :discover_interval => 6) }
+      let(:opts) { super.merge(:file_chunk_count => 8, :file_chunk_size => 6, :close_older => 0.1, :discover_interval => 6) }
       let(:file_path2) { ::File.join(directory, "2.log") }
       let(:file_path3) { ::File.join(directory, "3.log") }
       before do
@@ -394,7 +389,7 @@ module FileWatch
         expect(observer.listener_for(file_path).lines.size).to eq(32)
         expect(observer.listener_for(file_path2).calls).to eq([:delete])
         expect(observer.listener_for(file_path2).lines).to eq([])
-        expect(observer.listener_for(file_path3).calls).to eq([:open, :accept])
+        expect(observer.listener_for(file_path3).calls).to eq([:open, :accept, :timed_out])
         expect(observer.listener_for(file_path3).lines).to eq(["line2"])
       end
     end
