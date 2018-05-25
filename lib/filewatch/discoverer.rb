@@ -48,14 +48,11 @@ module FileWatch
     end
 
     def discover_files(path)
-      globbed = Dir.glob(path)
-      # globbed = [path] if globbed.empty?
-      logger.debug("Discoverer found files, count: #{globbed.size}")
-      globbed.each do |file|
+      fileset = Dir.glob(path).select{|f| File.file?(f) && !File.symlink?(f)}
+      logger.debug("Discoverer found files, count: #{fileset.size}")
+      fileset.each do |file|
         logger.debug("Discoverer found file, path: #{file}")
         pathname = Pathname.new(file)
-        next unless pathname.file?
-        next if pathname.symlink?
         new_discovery = false
         watched_file = @watched_files_collection.watched_file_by_path(file)
         if watched_file.nil?
