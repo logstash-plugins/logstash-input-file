@@ -8,38 +8,37 @@ module LogStash module Inputs
     MEGA = 10**6
     KILO = 10**3
 
-    def self.call(value, unit = "sec")
-      val_string = value.to_s.strip
-      result = coerce_in_seconds(val_string, unit)
-      return result if result.is_a?(String)
-      yield result
-      nil
+    ValidatedStruct = Struct.new(:value, :error_message) do
+      def to_a
+        error_message.nil? ? [true, value] : [false, error_message]
+      end
     end
 
-    private
-
-    def self.coerce_in_seconds(value, unit)
-      matched = NUMBERS_RE.match(value)
+    def self.call(value, unit = "sec")
+      # coerce into seconds
+      val_string = value.to_s.strip
+      matched = NUMBERS_RE.match(val_string)
       if matched.nil?
-        return "Value '#{value}' is not a valid duration string e.g. 200 usec, 250ms, 60 sec, 18h, 21.5d, 1 day, 2w, 6 weeks"
+        failed_message = "Value '#{val_string}' is not a valid duration string e.g. 200 usec, 250ms, 60 sec, 18h, 21.5d, 1 day, 2w, 6 weeks"
+        return ValidatedStruct.new(nil, failed_message)
       end
       multiplier = matched[:units] || unit
       numeric = matched[:number].to_f
       case multiplier
       when "m","min","mins","minute","minutes"
-        numeric * 60
+        ValidatedStruct.new(numeric * 60, nil)
       when "h","hour","hours"
-        numeric * HOURS
+        ValidatedStruct.new(numeric * HOURS, nil)
       when "d","day","days"
-        numeric * DAYS
+        ValidatedStruct.new(numeric * DAYS, nil)
       when "w","week","weeks"
-        numeric * 7 * DAYS
+        ValidatedStruct.new(numeric * 7 * DAYS, nil)
       when "ms","msec","msecs"
-        numeric / KILO
+        ValidatedStruct.new(numeric / KILO, nil)
       when "us","usec","usecs"
-        numeric / MEGA
+        ValidatedStruct.new(numeric / MEGA, nil)
       else
-        numeric
+        ValidatedStruct.new(numeric, nil)
       end
     end
   end

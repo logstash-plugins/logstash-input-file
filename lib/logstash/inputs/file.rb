@@ -229,9 +229,9 @@ class File < LogStash::Inputs::Base
 
     def validate_value(value, validator)
       if validator.is_a?(Array) && validator.size == 2 && validator.first.respond_to?(:call)
-        callable, units, val = *validator, value
-        validation_errors = callable.call(value, units){|coerced| val = coerced}
-        return validation_errors.nil? ? [true, val] : [false, validation_errors]
+        callable, units = *validator
+        # returns a ValidatedStruct having a `to_a` method suitable to return to the config mixin caller
+        return callable.call(value, units).to_a
       end
       old_validate_value(value, validator)
     end

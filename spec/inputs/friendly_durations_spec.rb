@@ -7,22 +7,23 @@ describe "FriendlyDurations module function call" do
   context "unacceptable strings" do
     it "gives an error message for 'foobar'" do
       result = LogStash::Inputs::FriendlyDurations.call("foobar","sec")
-      expect(result).to start_with("Value 'foobar' is not a valid duration string e.g. 200 usec")
+      expect(result.error_message).to start_with("Value 'foobar' is not a valid duration string e.g. 200 usec")
     end
     it "gives an error message for '5 5 days'" do
       result = LogStash::Inputs::FriendlyDurations.call("5 5 days","sec")
-      expect(result).to start_with("Value '5 5 days' is not a valid duration string e.g. 200 usec")
+      expect(result.error_message).to start_with("Value '5 5 days' is not a valid duration string e.g. 200 usec")
     end
   end
 
   context "when a unit is not specified, a unit override will affect the result" do
-    it "coerces 14 to 1209600.0 as days with a block callback" do
-      result = LogStash::Inputs::FriendlyDurations.call(14,"d"){|value| expect(value).to eq(1209600.0)}
-      expect(result).to eq(nil)
+    it "coerces 14 to 1209600.0s as days" do
+      result = LogStash::Inputs::FriendlyDurations.call(14,"d")
+      expect(result.error_message).to eq(nil)
+      expect(result.value).to eq(1209600.0)
     end
-    it "coerces '30' to 1800 as minutes with a block callback" do
-      result = LogStash::Inputs::FriendlyDurations.call("30","minutes"){|value| expect(value).to eq(1800.0)}
-      expect(result).to eq(nil)
+    it "coerces '30' to 1800.0s as minutes" do
+      result = LogStash::Inputs::FriendlyDurations.call("30","minutes")
+      expect(result.to_a).to eq([true, 1800.0])
     end
   end
 
@@ -61,9 +62,9 @@ describe "FriendlyDurations module function call" do
       ["2 weeks",      1209600.0],
       ["1.5 weeks",     907200.0],
     ].each do |input, coerced|
-      it "coerces #{input.inspect.rjust(16)} to #{coerced.inspect} with a block callback" do
-        result = LogStash::Inputs::FriendlyDurations.call(input,"sec"){|value| expect(value).to eq(coerced)}
-        expect(result).to eq(nil)
+      it "coerces #{input.inspect.rjust(16)} to #{coerced.inspect}" do
+        result = LogStash::Inputs::FriendlyDurations.call(input,"sec")
+        expect(result.to_a).to eq([true, coerced])
       end
     end
   end
