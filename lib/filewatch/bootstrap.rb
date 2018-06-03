@@ -1,7 +1,5 @@
 # encoding: utf-8
-require "rbconfig"
 require "pathname"
-# require "logstash/environment"
 
 ## Common setup
 #  all the required constants and files
@@ -19,7 +17,7 @@ module FileWatch
 
   module WindowsInode
     def prepare_inode(path, stat)
-      fileId = Winhelper.GetWindowsUniqueFileIdentifier(path)
+      fileId = Winhelper.identifier_from_path(path)
       [fileId, 0, 0] # dev_* doesn't make sense on Windows
     end
   end
@@ -33,7 +31,8 @@ module FileWatch
   jar_version = Pathname.new(__FILE__).dirname.join("../../JAR_VERSION").realpath.read.strip
 
   require "java"
-  require_relative "../../lib/jars/filewatch-#{jar_version}.jar"
+  fullpath = Pathname.new("lib/jars/filewatch-#{jar_version}.jar").expand_path.to_path
+  require fullpath
   require "jruby_file_watch"
 
   if LogStash::Environment.windows?
