@@ -31,11 +31,14 @@ import org.jruby.RubyObject;
 import org.jruby.RubyString;
 import org.jruby.anno.JRubyClass;
 import org.jruby.anno.JRubyMethod;
+import org.jruby.ext.ffi.Factory;
+import org.jruby.ext.ffi.MemoryIO;
+import org.jruby.ext.ffi.Pointer;
 import org.jruby.runtime.Arity;
+import org.jruby.runtime.Block;
 import org.jruby.runtime.ThreadContext;
 import org.jruby.runtime.builtin.IRubyObject;
 import org.jruby.runtime.load.Library;
-import org.jruby.util.io.ChannelFD;
 import org.jruby.util.io.OpenFile;
 
 import java.io.IOException;
@@ -43,7 +46,6 @@ import java.math.BigInteger;
 import java.nio.channels.Channel;
 import java.nio.channels.FileChannel;
 import java.nio.file.FileSystems;
-import java.nio.file.OpenOption;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 
@@ -96,40 +98,42 @@ public class JrubyFileWatchLibrary implements Library {
         }
 
         @JRubyMethod(name = "open", required = 1, meta = true)
-        public static RubyIO open(final ThreadContext context, final IRubyObject self, final RubyString path) throws IOException {
+        public static IRubyObject open(final ThreadContext context, final IRubyObject self, final RubyString path) throws IOException {
             final Path javapath = FileSystems.getDefault().getPath(path.asJavaString());
-            final OpenOption[] options = new OpenOption[1];
-            options[0] = StandardOpenOption.READ;
-            final Channel channel = FileChannel.open(javapath, options);
-            return new RubyIO(Ruby.getGlobalRuntime(), channel);
+            final Channel channel = FileChannel.open(javapath, StandardOpenOption.READ);
+            final RubyIO irubyobject = new RubyWinIO(context.runtime, channel);
+            return irubyobject;
         }
 
         @JRubyMethod(name = "io_handle", required = 1, meta = true)
-        public static HANDLE ioHandle(final ThreadContext context, final IRubyObject self, final IRubyObject object) {
+        public static IRubyObject ioHandle(final ThreadContext context, final IRubyObject object, Block block) {
             final Ruby runtime = context.runtime;
-            HANDLE handle = HANDLE.valueOf(HANDLE.INVALID_HANDLE_VALUE);
-            if (!(object instanceof RubyIO)) {
-                System.out.println("Required argument is not an IO instance");
-                return handle;
+            if (!block.isGiven()) {
+                throw runtime.newArgumentError(0, 1);
             }
-            final RubyIO rubyIO = (RubyIO) object;
-            final OpenFile fptr = rubyIO.getOpenFileChecked();
-            final boolean locked = fptr.lock();
-            try {
-                fptr.checkClosed();
-                final ChannelFD channelFd = fptr.fd();
-                if (channelFd.realFileno != -1) {
-                    handle = JavaLibCHelper.gethandle(JavaLibCHelper.getDescriptorFromChannel(fptr.fd().chFile));
+            if (object instanceof RubyWinIO) {
+                final RubyWinIO rubyWinIO = (RubyWinIO) object;
+                final OpenFile fptr = rubyWinIO.getOpenFileChecked();
+                final boolean locked = fptr.lock();
+                try {
+                    fptr.checkClosed();
+                    if (rubyWinIO.isDirect()) {
+                        final MemoryIO memoryio = Factory.getInstance().wrapDirectMemory(runtime, rubyWinIO.getAddress());
+                        final Pointer pointer = new Pointer(runtime, memoryio);
+                        return block.yield(context, pointer);
+                    }
+                } finally {
+                    if (locked) {
+                        fptr.unlock();
+                    }
                 }
-            } finally {
-                if (locked) {
-                    fptr.unlock();
-                }
+            } else {
+                System.out.println("Required argument is not a WinIO instance");
             }
-            return handle;
+            return runtime.newString();
         }
 
-        @JRubyMethod(name = "io_inode", required = 1, meta = true)
+        //@JRubyMethod(name = "io_inode", required = 1, meta = true)
         public static RubyString ioInode(final ThreadContext context, final IRubyObject self, final IRubyObject object) {
             final Ruby runtime = context.runtime;
             if (!(object instanceof RubyIO)) {
@@ -167,7 +171,7 @@ public class JrubyFileWatchLibrary implements Library {
             return runtime.newString(inode);
         }
 
-        @JRubyMethod(name = "path_inode", required = 1, meta = true)
+        //@JRubyMethod(name = "path_inode", required = 1, meta = true)
         public static RubyString pathInode(final ThreadContext context, final IRubyObject self, final RubyString path) {
             final Ruby runtime = context.runtime;
             final POSIX posix = runtime.getPosix();

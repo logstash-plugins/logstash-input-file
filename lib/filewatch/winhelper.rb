@@ -1,7 +1,6 @@
 # encoding: utf-8
 require "ffi"
 
-
 module Winhelper
   extend FFI::Library
 
@@ -106,8 +105,9 @@ module Winhelper
   end
 
   def self.file_system_type_from_io(io)
-    handle = FileExt.io_handle(io)
-    file_system_type_from_handle(handle)
+    FileWatch::FileExt.io_handle(io) do |pointer|
+      file_system_type_from_handle(pointer, false)
+    end
   end
 
   def self.file_system_type_from_handle(handle, close_handle = true)
@@ -122,8 +122,9 @@ module Winhelper
   end
 
   def self.identifier_from_io(io)
-    handle = FileExt.io_handle(io)
-    identifier_from_handle(handle)
+    FileWatch::FileExt.io_handle(io) do |pointer|
+      identifier_from_handle(pointer, false)
+    end
   end
 
   def self.identifier_from_path(path)
@@ -138,7 +139,7 @@ module Winhelper
     fileIdInfo = Winhelper::FileIdInfo.new
     success = GetFileInformationByHandleEx(handle, :FileIdInfo, fileIdInfo, fileIdInfo.size)
     if success > 0
-      vsn = fileIdInfo[:volumeSerialNumber]
+      vsn   = fileIdInfo[:volumeSerialNumber]
       lpfid = fileIdInfo[:lowPart]
       hpfid = fileIdInfo[:highPart]
       return "#{vsn}-#{lpfid}-#{hpfid}"
