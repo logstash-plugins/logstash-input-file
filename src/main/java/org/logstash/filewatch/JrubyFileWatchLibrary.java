@@ -106,7 +106,7 @@ public class JrubyFileWatchLibrary implements Library {
         }
 
         @JRubyMethod(name = "io_handle", required = 1, meta = true)
-        public static IRubyObject ioHandle(final ThreadContext context, final IRubyObject object, Block block) {
+        public static IRubyObject ioHandle(final ThreadContext context, final IRubyObject self, final IRubyObject object, Block block) {
             final Ruby runtime = context.runtime;
             if (!block.isGiven()) {
                 throw runtime.newArgumentError(0, 1);
