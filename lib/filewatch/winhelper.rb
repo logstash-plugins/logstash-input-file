@@ -135,17 +135,25 @@ module Winhelper
     identifier_from_handle_ex(open_handle_from_path(path))
   end
 
-  def self.identifier_from_handle_ex(handle)
+  def self.identifier_from_io_ex(io)
+    FileWatch::FileExt.io_handle(io) do |pointer|
+      identifier_from_handle_ex(pointer, false)
+    end
+  end
+
+  def self.identifier_from_handle_ex(handle, close_handle = true)
     fileIdInfo = Winhelper::FileIdInfo.new
     success = GetFileInformationByHandleEx(handle, :FileIdInfo, fileIdInfo, fileIdInfo.size)
     if success > 0
       vsn   = fileIdInfo[:volumeSerialNumber]
-      lpfid = fileIdInfo[:lowPart]
-      hpfid = fileIdInfo[:highPart]
+      lpfid = fileIdInfo[:fileId][:lowPart]
+      hpfid = fileIdInfo[:fileId][:highPart]
       return "#{vsn}-#{lpfid}-#{hpfid}"
     else
       return 'unknown'
     end
+  ensure
+    CloseHandle(handle) if close_handle
   end
 
   def self.identifier_from_handle(handle, close_handle = true)
