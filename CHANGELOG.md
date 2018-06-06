@@ -1,3 +1,10 @@
+## 4.1.3
+  - Fixed `read` mode of regular files sincedb write is requested in each read loop
+    iteration rather than waiting for the end-of-file to be reached. Note: for gz files,
+    the sincedb entry can only be updated at the end of the file as it is not possible
+    to seek into a compressed file and begin reading from that position.
+    [Issue #196](https://github.com/logstash-plugins/logstash-input-file/pull/196)
+
 ## 4.1.2
   - Fix `require winhelper` error in WINDOWS.
     [Issue #184](https://github.com/logstash-plugins/logstash-input-file/issues/184)
