@@ -30,8 +30,11 @@ module FileWatch module ReadMode module Handlers
         logger.error("Cannot decompress the gzip file at path: #{watched_file.path}")
         watched_file.listener.error
       else
-        sincedb_collection.store_last_read(watched_file.sincedb_key, watched_file.last_stat_size)
-        sincedb_collection.request_disk_flush
+        watched_file.update_bytes_read(watched_file.last_stat_size)
+        sincedb_collection.unset_watched_file(watched_file)
+        # we know we're done, we should not wait until the discovery of a
+        # new file (or LS shutdown) to write out the sincedb
+        sincedb_collection.immediate_write
         watched_file.listener.deleted
         watched_file.unwatch
       ensure

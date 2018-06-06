@@ -22,13 +22,16 @@ module FileWatch
       FileUtils.touch(@full_path)
     end
 
+    def immediate_write
+      # used in read mode when we know we are done with a file
+      sincedb_write
+    end
+
     def request_disk_flush
-      now = Time.now.to_i
-      delta = now - @sincedb_last_write
-      if delta >= @settings.sincedb_write_interval
-        logger.debug("writing sincedb (delta since last write = #{delta})")
-        sincedb_write(now)
-      end
+      delta = Time.now.to_i - @sincedb_last_write
+      return if @settings.sincedb_write_interval > delta
+      logger.debug("writing sincedb (delta since last write = #{delta})")
+      sincedb_write
     end
 
     def write(reason=nil)
@@ -128,10 +131,6 @@ module FileWatch
 
     def rewind(key)
       @sincedb[key].update_position(0)
-    end
-
-    def store_last_read(key, last_read)
-      @sincedb[key].update_position(last_read)
     end
 
     def increment(key, amount)
