@@ -6,6 +6,7 @@ module FileWatch module ReadMode module Handlers
       if open_file(watched_file)
         add_or_update_sincedb_collection(watched_file) unless sincedb_collection.member?(watched_file.sincedb_key)
         @settings.file_chunk_count.times do
+          break if quit?
           begin
             data = watched_file.file_read(@settings.file_chunk_size)
             result = watched_file.buffer_extract(data) # expect BufferExtractResult

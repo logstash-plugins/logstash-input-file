@@ -18,6 +18,5 @@ module FileWatch
     def build_specific_processor(settings)
       ReadMode::Processor.new(settings)
     end
-
   end
 end

@@ -25,8 +25,10 @@ module FileWatch module ReadMode
     end
 
     def initialize_handlers(sincedb_collection, observer)
-      @read_file = Handlers::ReadFile.new(sincedb_collection, observer, @settings)
-      @read_zip_file = Handlers::ReadZipFile.new(sincedb_collection, observer, @settings)
+      # we deviate from the tail mode handler initialization here
+      # by adding a reference to self so we can read the quit flag during a (depth first) read loop
+      @read_file = Handlers::ReadFile.new(self, sincedb_collection, observer, @settings)
+      @read_zip_file = Handlers::ReadZipFile.new(self, sincedb_collection, observer, @settings)
     end
 
     def read_file(watched_file)

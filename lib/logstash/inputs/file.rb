@@ -316,6 +316,7 @@ class File < LogStash::Inputs::Base
     start_processing
     @queue = queue
     @watcher.subscribe(self) # halts here until quit is called
+    # last action of the subscribe call is to write the sincedb
     exit_flush
   end # def run
 
@@ -338,9 +339,6 @@ class File < LogStash::Inputs::Base
   end
 
   def stop
-    # in filewatch >= 0.6.7, quit will closes and forget all files
-    # but it will write their last read positions to since_db
-    # beforehand
     if @watcher
       @codec.close
       @watcher.quit
