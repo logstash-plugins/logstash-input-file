@@ -33,9 +33,6 @@ module FileWatch module ReadMode module Handlers
       else
         watched_file.update_bytes_read(watched_file.last_stat_size)
         sincedb_collection.unset_watched_file(watched_file)
-        # we know we're done, we should not wait until the discovery of a
-        # new file (or LS shutdown) to write out the sincedb
-        sincedb_collection.immediate_write
         watched_file.listener.deleted
         watched_file.unwatch
       ensure

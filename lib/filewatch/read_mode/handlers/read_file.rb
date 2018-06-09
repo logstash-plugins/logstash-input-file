@@ -28,9 +28,6 @@ module FileWatch module ReadMode module Handlers
             watched_file.file_close
             # unset_watched_file will set sincedb_value.position to be watched_file.bytes_read
             sincedb_collection.unset_watched_file(watched_file)
-            # we know we're done, we should not wait until the discovery of a
-            # new file (or LS shutdown) to write out the sincedb
-            sincedb_collection.immediate_write
             watched_file.listener.deleted
             watched_file.unwatch
             break
