@@ -7,10 +7,15 @@ module FileWatch module ReadMode module Handlers
 
     attr_reader :sincedb_collection
 
-    def initialize(sincedb_collection, observer, settings)
+    def initialize(processor, sincedb_collection, observer, settings)
       @settings = settings
+      @processor = processor
       @sincedb_collection = sincedb_collection
       @observer = observer
+    end
+
+    def quit?
+      @processor.watch.quit?
     end
 
     def handle(watched_file)

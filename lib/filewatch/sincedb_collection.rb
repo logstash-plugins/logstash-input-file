@@ -20,14 +20,21 @@ module FileWatch
       @write_method = LogStash::Environment.windows? || @path.chardev? || @path.blockdev? ? method(:non_atomic_write) : method(:atomic_write)
       @full_path = @path.to_path
       FileUtils.touch(@full_path)
+      @write_requested = false
+    end
+
+    def write_requested?
+      @write_requested
     end
 
     def request_disk_flush
-      now = Time.now.to_i
-      delta = now - @sincedb_last_write
-      if delta >= @settings.sincedb_write_interval
-        logger.debug("writing sincedb (delta since last write = #{delta})")
-        sincedb_write(now)
+      @write_requested = true
+      flush_at_interval
+    end
+
+    def write_if_requested
+      if write_requested?
+        flush_at_interval
       end
     end
 
@@ -51,7 +58,6 @@ module FileWatch
         #No existing sincedb to load
         logger.debug("open: error: #{path}: #{e.inspect}")
       end
-
     end
 
     def associate(watched_file)
@@ -130,10 +136,6 @@ module FileWatch
       @sincedb[key].update_position(0)
     end
 
-    def store_last_read(key, last_read)
-      @sincedb[key].update_position(last_read)
-    end
-
     def increment(key, amount)
       @sincedb[key].increment_position(amount)
     end
@@ -167,6 +169,15 @@ module FileWatch
 
     private
 
+    def flush_at_interval
+      now = Time.now.to_i
+      delta = now - @sincedb_last_write
+      if delta >= @settings.sincedb_write_interval
+        logger.debug("writing sincedb (delta since last write = #{delta})")
+        sincedb_write(now)
+      end
+    end
+
     def handle_association(sincedb_value, watched_file)
       watched_file.update_bytes_read(sincedb_value.position)
       sincedb_value.set_watched_file(watched_file)
@@ -193,6 +204,7 @@ module FileWatch
           logger.debug("sincedb_write: cleaned", "key" => "'#{key}'")
         end
         @sincedb_last_write = time
+        @write_requested = false
       rescue Errno::EACCES
         # no file handles free perhaps
         # maybe it will work next time

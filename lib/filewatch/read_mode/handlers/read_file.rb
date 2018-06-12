@@ -5,13 +5,12 @@ module FileWatch module ReadMode module Handlers
     def handle_specifically(watched_file)
       if open_file(watched_file)
         add_or_update_sincedb_collection(watched_file) unless sincedb_collection.member?(watched_file.sincedb_key)
-        changed = false
         @settings.file_chunk_count.times do
+          break if quit?
           begin
             data = watched_file.file_read(@settings.file_chunk_size)
             result = watched_file.buffer_extract(data) # expect BufferExtractResult
             logger.info(result.warning, result.additional) unless result.warning.empty?
-            changed = true
             result.lines.each do |line|
               watched_file.listener.accept(line)
               # sincedb position is independent from the watched_file bytes_read
@@ -20,6 +19,7 @@ module FileWatch module ReadMode module Handlers
             # instead of tracking the bytes_read line by line we need to track by the data read size.
             # because we initially seek to the bytes_read not the sincedb position
             watched_file.increment_bytes_read(data.bytesize)
+            sincedb_collection.request_disk_flush
           rescue EOFError
             # flush the buffer now in case there is no final delimiter
             line = watched_file.buffer.flush
@@ -40,7 +40,6 @@ module FileWatch module ReadMode module Handlers
             break
           end
         end
-        sincedb_collection.request_disk_flush if changed
       end
     end
   end

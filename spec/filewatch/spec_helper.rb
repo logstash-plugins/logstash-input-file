@@ -28,6 +28,32 @@ require 'filewatch/bootstrap'
 
 module FileWatch
 
+  class DummyFileReader
+    def initialize(read_size, iterations)
+      @read_size = read_size
+      @iterations = iterations
+      @closed = false
+      @accumulated = 0
+    end
+    def file_seek(*)
+    end
+    def close()
+      @closed = true
+    end
+    def closed?
+      @closed
+    end
+    def sysread(amount)
+      @accumulated += amount
+      if @accumulated > @read_size * @iterations
+        raise EOFError.new
+      end
+      string = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcde\n"
+      multiplier = amount / string.length
+      string * multiplier
+    end
+  end
+
   FIXTURE_DIR = File.join('spec', 'fixtures')
 
   def self.make_file_older(path, seconds)

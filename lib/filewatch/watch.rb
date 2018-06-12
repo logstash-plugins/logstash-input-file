@@ -51,6 +51,7 @@ module FileWatch
       until quit?
         iterate_on_state
         break if quit?
+        sincedb_collection.write_if_requested
         glob += 1
         if glob == interval
           discover
