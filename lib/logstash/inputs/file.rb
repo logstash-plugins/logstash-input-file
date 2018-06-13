@@ -11,6 +11,7 @@ require_relative "file/patch"
 require_relative "file_listener"
 require_relative "delete_completed_file_handler"
 require_relative "log_completed_file_handler"
+require_relative "friendly_durations"
 require "filewatch/bootstrap"
 
 # Stream events from files, normally by tailing them in a manner
@@ -109,7 +110,7 @@ class File < LogStash::Inputs::Base
   # How often (in seconds) we stat files to see if they have been modified.
   # Increasing this interval will decrease the number of system calls we make,
   # but increase the time to detect new log lines.
-  config :stat_interval, :validate => :number, :default => 1
+  config :stat_interval, :validate => [FriendlyDurations, "seconds"], :default => 1
 
   # How often (in seconds) we expand the filename patterns in the
   # `path` option to discover new files to watch.
@@ -123,7 +124,7 @@ class File < LogStash::Inputs::Base
 
   # How often (in seconds) to write a since database with the current position of
   # monitored log files.
-  config :sincedb_write_interval, :validate => :number, :default => 15
+  config :sincedb_write_interval, :validate => [FriendlyDurations, "seconds"], :default => 15
 
   # Choose where Logstash starts initially reading files: at the beginning or
   # at the end. The default behavior treats files like live streams and thus
@@ -145,7 +146,7 @@ class File < LogStash::Inputs::Base
   # After its discovery, if an ignored file is modified it is no
   # longer ignored and any new data is read. By default, this option is
   # disabled. Note this unit is in seconds.
-  config :ignore_older, :validate => :number
+  config :ignore_older, :validate => [FriendlyDurations, "seconds"]
 
   # The file input closes any files that were last read the specified
   # timespan in seconds ago.
@@ -154,7 +155,7 @@ class File < LogStash::Inputs::Base
   # reopening when new data is detected. If reading, the file will be closed
   # after closed_older seconds from when the last bytes were read.
   # The default is 1 hour
-  config :close_older, :validate => :number, :default => 1 * 60 * 60
+  config :close_older, :validate => [FriendlyDurations, "seconds"], :default => "1 hour"
 
   # What is the maximum number of file_handles that this input consumes
   # at any one time. Use close_older to close some files if you need to
@@ -191,7 +192,7 @@ class File < LogStash::Inputs::Base
   # If no changes are detected in tracked files in the last N days their sincedb
   # tracking record will expire and not be persisted.
   # This option protects against the well known inode recycling problem. (add reference)
-  config :sincedb_clean_after, :validate => :number, :default => 14 # days
+  config :sincedb_clean_after, :validate => [FriendlyDurations, "days"], :default => "14 days" # days
 
   # File content is read off disk in blocks or chunks, then using whatever the set delimiter
   # is, lines are extracted from the chunk. Specify the size in bytes of each chunk.
@@ -222,6 +223,20 @@ class File < LogStash::Inputs::Base
   config :file_sort_direction, :validate => ["asc", "desc"], :default => "asc"
 
   public
+
+  class << self
+    alias_method :old_validate_value, :validate_value
+
+    def validate_value(value, validator)
+      if validator.is_a?(Array) && validator.size == 2 && validator.first.respond_to?(:call)
+        callable, units = *validator
+        # returns a ValidatedStruct having a `to_a` method suitable to return to the config mixin caller
+        return callable.call(value, units).to_a
+      end
+      old_validate_value(value, validator)
+    end
+  end
+
   def register
     require "addressable/uri"
     require "digest/md5"
