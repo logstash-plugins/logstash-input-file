@@ -3,7 +3,9 @@
     iteration rather than waiting for the end-of-file to be reached. Note: for gz files,
     the sincedb entry can only be updated at the end of the file as it is not possible
     to seek into a compressed file and begin reading from that position.
-    [Issue #196](https://github.com/logstash-plugins/logstash-input-file/pull/196)
+    [#196](https://github.com/logstash-plugins/logstash-input-file/pull/196)
+  - Added support for String Durations in some settings e.g. `stat_interval => "750 ms"`
+    [#194](https://github.com/logstash-plugins/logstash-input-file/pull/194)
 
 ## 4.1.2
   - Fix `require winhelper` error in WINDOWS.

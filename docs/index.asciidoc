@@ -146,10 +146,15 @@ will not get picked up.
 
 This plugin supports the following configuration options plus the <<plugins-{type}s-{plugin}-common-options>> described later.
 
+[NOTE]
+Duration settings can be specified in text form e.g. "250 ms", this string will be converted into
+decimal seconds. There are quite a few supported natural and abbreviated durations,
+see <<string_duration,string duration>> for the details.
+
 [cols="<,<,<",options="header",]
 |=======================================================================
 |Setting |Input type|Required
-| <<plugins-{type}s-{plugin}-close_older>> |<<number,number>>|No
+| <<plugins-{type}s-{plugin}-close_older>> |<<number,number>> or <<string_duration,string duration>>|No
 | <<plugins-{type}s-{plugin}-delimiter>> |<<string,string>>|No
 | <<plugins-{type}s-{plugin}-discover_interval>> |<<number,number>>|No
 | <<plugins-{type}s-{plugin}-exclude>> |<<array,array>>|No
@@ -159,15 +164,15 @@ This plugin supports the following configuration options plus the <<plugins-{typ
 | <<plugins-{type}s-{plugin}-file_completed_log_path>> |<<string,string>>|No
 | <<plugins-{type}s-{plugin}-file_sort_by>> |<<string,string>>, one of `["last_modified", "path"]`|No
 | <<plugins-{type}s-{plugin}-file_sort_direction>> |<<string,string>>, one of `["asc", "desc"]`|No
-| <<plugins-{type}s-{plugin}-ignore_older>> |<<number,number>>|No
+| <<plugins-{type}s-{plugin}-ignore_older>> |<<number,number>> or <<string_duration,string duration>>|No
 | <<plugins-{type}s-{plugin}-max_open_files>> |<<number,number>>|No
 | <<plugins-{type}s-{plugin}-mode>> |<<string,string>>, one of `["tail", "read"]`|No
 | <<plugins-{type}s-{plugin}-path>> |<<array,array>>|Yes
-| <<plugins-{type}s-{plugin}-sincedb_clean_after>> |<<number,number>>|No
+| <<plugins-{type}s-{plugin}-sincedb_clean_after>> |<<number,number>> or <<string_duration,string duration>>|No
 | <<plugins-{type}s-{plugin}-sincedb_path>> |<<string,string>>|No
-| <<plugins-{type}s-{plugin}-sincedb_write_interval>> |<<number,number>>|No
+| <<plugins-{type}s-{plugin}-sincedb_write_interval>> |<<number,number>> or <<string_duration,string duration>>|No
 | <<plugins-{type}s-{plugin}-start_position>> |<<string,string>>, one of `["beginning", "end"]`|No
-| <<plugins-{type}s-{plugin}-stat_interval>> |<<number,number>>|No
+| <<plugins-{type}s-{plugin}-stat_interval>> |<<number,number>> or <<string_duration,string duration>>|No
 |=======================================================================
 
 Also see <<plugins-{type}s-{plugin}-common-options>> for a list of options supported by all
@@ -178,18 +183,18 @@ input plugins.
 [id="plugins-{type}s-{plugin}-close_older"]
 ===== `close_older`
 
-  * Value type is <<number,number>>
-  * Default value is `3600`
+  * Value type is <<number,number>> or <<string_duration,string duration>>
+  * Default value is `"1 hour"`
 
 The file input closes any files that were last read the specified
-timespan in seconds ago.
+duration (seconds if a number is specified) ago.
 This has different implications depending on if a file is being tailed or
 read. If tailing, and there is a large time gap in incoming data the file
 can be closed (allowing other files to be opened) but will be queued for
 reopening when new data is detected. If reading, the file will be closed
 after closed_older seconds from when the last bytes were read.
 This setting is retained for backward compatibility if you upgrade the
-plugin to 5.0.0+, are reading not tailing and do not switch to using Read mode.
+plugin to 4.1.0+, are reading not tailing and do not switch to using Read mode.
 
 [id="plugins-{type}s-{plugin}-delimiter"]
 ===== `delimiter`
@@ -206,8 +211,10 @@ this setting is not used, instead the standard Windows or Unix line endings are 
   * Value type is <<number,number>>
   * Default value is `15`
 
-How often (in seconds) we expand the filename patterns in the
-`path` option to discover new files to watch.
+How often we expand the filename patterns in the `path` option to discover new files to watch.
+This value is a multiple to `stat_interval`, e.g. if `stat_interval` is "500 ms" then new files
+files could be discovered every 15 X 500 milliseconds - 7.5 seconds.
+In practice, this will be the best case because the time taken to read new content needs to be factored in.
 
 [id="plugins-{type}s-{plugin}-exclude"]
 ===== `exclude`
@@ -294,11 +301,11 @@ If you use special naming conventions for the file full paths then perhaps
 [id="plugins-{type}s-{plugin}-ignore_older"]
 ===== `ignore_older`
 
-  * Value type is <<number,number>>
+  * Value type is <<number,number>> or <<string_duration,string duration>>
   * There is no default value for this setting.
 
 When the file input discovers a file that was last modified
-before the specified timespan in seconds, the file is ignored.
+before the specified duration (seconds if a number is specified), the file is ignored.
 After it's discovery, if an ignored file is modified it is no
 longer ignored and any new data is read. By default, this option is
 disabled. Note this unit is in seconds.
@@ -354,9 +361,9 @@ on the {logstash-ref}/configuration-file-structure.html#array[Logstash configura
 [id="plugins-{type}s-{plugin}-sincedb_clean_after"]
 ===== `sincedb_clean_after`
 
-  * Value type is <<number,number>>
-  * The default value for this setting is 14.
-  * This unit is in *days* and can be decimal e.g. 0.5 is 12 hours.
+  * Value type is <<number,number>> or <<string_duration,string duration>>
+  * The default value for this setting is "2 weeks".
+  * If a number is specified then it is interpreted as *days* and can be decimal e.g. 0.5 is 12 hours.
 
 The sincedb record now has a last active timestamp associated with it.
 If no changes are detected in a tracked file in the last N days its sincedb
@@ -378,8 +385,8 @@ NOTE: it must be a file path and not a directory path
 [id="plugins-{type}s-{plugin}-sincedb_write_interval"]
 ===== `sincedb_write_interval`
 
-  * Value type is <<number,number>>
-  * Default value is `15`
+  * Value type is <<number,number>> or <<string_duration,string duration>>
+  * Default value is `"15 seconds"`
 
 How often (in seconds) to write a since database with the current position of
 monitored log files.
@@ -404,15 +411,56 @@ position recorded in the sincedb file will be used.
 [id="plugins-{type}s-{plugin}-stat_interval"]
 ===== `stat_interval`
 
-  * Value type is <<number,number>>
-  * Default value is `1`
+  * Value type is <<number,number>> or <<string_duration,string duration>>
+  * Default value is `"1 second"`
 
 How often (in seconds) we stat files to see if they have been modified.
 Increasing this interval will decrease the number of system calls we make,
 but increase the time to detect new log lines.
+[NOTE]
+Discovering new files and checking whether they have grown/or shrunk occurs in a loop.
+This loop will sleep for `stat_interval` seconds before looping again. However, if files
+have grown, the new content is read and lines are enqueued.
+Reading and enqueuing across all grown files can take time, especially if
+the pipeline is congested. So the overall loop time is a combination of the
+`stat_interval` and the file read time.
 
 [id="plugins-{type}s-{plugin}-common-options"]
 include::{include_path}/{type}.asciidoc[]
 
 :default_codec!:
+
+[id="string_duration"]
+// Move this to the includes when we make string durations available generally.
+==== String Durations
+
+Format is `number` `string` and the space between these is optional.
+So "45s" and "45 s" are both valid.
+[TIP]
+Use the most suitable duration, for example, "3 days" rather than "72 hours".
+
+===== Weeks
+Supported values: `w` `week` `weeks`, e.g. "2 w", "1 week", "4 weeks".
+
+===== Days
+Supported values: `d` `day` `days`, e.g. "2 d", "1 day", "2.5 days".
+
+===== Hours
+Supported values: `h` `hour` `hours`, e.g. "4 h", "1 hour", "0.5 hours".
+
+===== Minutes
+Supported values: `m` `min` `minute` `minutes`, e.g. "45 m", "35 min", "1 minute", "6 minutes".
+
+===== Seconds
+Supported values: `s` `sec` `second` `seconds`, e.g. "45 s", "15 sec", "1 second", "2.5 seconds".
+
+===== Milliseconds
+Supported values: `ms` `msec` `msecs`, e.g. "500 ms", "750 msec", "50 msecs
+[NOTE]
+`milli` `millis` and `milliseconds` are not supported
+
+===== Microseconds
+Supported values: `us` `usec` `usecs`, e.g. "600 us", "800 usec", "900 usecs"
+[NOTE]
+`micro` `micros` and `microseconds` are not supported
 
