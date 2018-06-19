@@ -34,6 +34,7 @@ module FileWatch module TailMode
     end
 
     def initialize_handlers(sincedb_collection, observer)
+      @sincedb_collection = sincedb_collection
       @create_initial = Handlers::CreateInitial.new(sincedb_collection, observer, @settings)
       @create = Handlers::Create.new(sincedb_collection, observer, @settings)
       @grow = Handlers::Grow.new(sincedb_collection, observer, @settings)
@@ -72,7 +73,7 @@ module FileWatch module TailMode
     end
 
     def process_closed(watched_files)
-      logger.debug("Closed processing")
+      # logger.trace("Closed processing")
       # Handles watched_files in the closed state.
       # if its size changed it is put into the watched state
       watched_files.select {|wf| wf.closed? }.each do |watched_file|
@@ -88,7 +89,7 @@ module FileWatch module TailMode
     end
 
     def process_ignored(watched_files)
-      logger.debug("Ignored processing")
+      # logger.trace("Ignored processing")
       # Handles watched_files in the ignored state.
       # if its size changed:
       #   put it in the watched state
@@ -114,19 +115,52 @@ module FileWatch module TailMode
       #
       # defer the delete to one loop later to ensure that the stat really really can't find a renamed file
       # because a `stat` can be called right in the middle of the rotation rename cascade
-      logger.debug("Delayed Delete processing")
+      logger.trace("Delayed Delete processing")
       watched_files.select {|wf| wf.delayed_delete?}.each do |watched_file|
-        common_restat_without_delay(watched_file, "Delayed Delete") do
-          watched_file.restore_previous_state
-          logger.debug("Delayed Delete: found previously unfound file: #{watched_file.path}")
+        logger.trace(">>> Delayed Delete", "path" => watched_file.filename)
+        common_restat_without_delay(watched_file, ">>> Delayed Delete") do
+          logger.trace(">>> Delayed Delete: file at path found again", "watched_file" => watched_file.details)
+          watched_file.file_at_path_found_again
         end
       end
       # do restat on all watched and active states once now. closed and ignored have been handled already
-      logger.debug("Watched + Active processing")
+      logger.trace("Watched + Active processing")
       watched_files.select {|wf| wf.watched? || wf.active?}.each do |watched_file|
         common_restat_with_delay(watched_file, "Watched")
       end
-      logger.debug("Watched processing")
+      rotation_set = watched_files.select {|wf| wf.rotation_in_progress?}
+      if !rotation_set.empty?
+        logger.trace(">>> Rotation In Progress ....")
+        rotation_set.each do |watched_file|
+          # log each for now
+          sdb_value = @sincedb_collection.find(watched_file)
+          potential_key = watched_file.path_based_sincedb_key
+          potential_sdb_value =  @sincedb_collection.get(potential_key)
+          logger.trace(">>> Rotation In Progress", "watched_file" => watched_file.details, "found_sdb_value" => sdb_value, "potential_key" => potential_key, "potential_sdb_value" => potential_sdb_value)
+          if potential_sdb_value.nil?
+            if sdb_value.nil?
+              logger.trace("---------- >>> Rotation In Progress: rotating as new file, no potential sincedb value AND no found sincedb value")
+              watched_file.rotate_as_initial_file
+            else
+              logger.trace("---------- >>>> Rotation In Progress: rotating as existing file, no potential sincedb value BUT found sincedb value")
+              sdb_value.clear_watched_file
+              watched_file.rotate_as_file
+            end
+          else
+            other_watched_file = potential_sdb_value.watched_file
+            potential_sdb_value.set_watched_file(watched_file)
+            if other_watched_file.nil?
+              logger.trace("---------- >>>> Rotation In Progress: rotating as existing file WITH potential sincedb value")
+              watched_file.rotate_as_file
+              watched_file.update_bytes_read(potential_sdb_value.position)
+            else
+              logger.trace("---------- >>>> Rotation In Progress: rotating from...", "this watched_file details" => watched_file.details, "other watched_file details" => other_watched_file.details)
+              watched_file.rotate_from(other_watched_file)
+            end
+          end
+        end
+      end
+      logger.trace("Watched processing")
       # how much of the max active window is available
       to_take = @settings.max_active - watched_files.count{|wf| wf.active?}
       if to_take > 0
@@ -150,56 +184,46 @@ module FileWatch module TailMode
     end
 
     def process_active(watched_files)
-      logger.debug("Active processing")
+      # logger.trace("Active processing")
       # Handles watched_files in the active state.
       # files have been opened at this point
       watched_files.select {|wf| wf.active? }.each do |watched_file|
         break if watch.quit?
-        path = watched_file.path
-        logger.debug("Active - info",
+        path = watched_file.filename
+        logger.trace("Active - info",
           "sincedb_key" => watched_file.sincedb_key,
           "size" => watched_file.last_stat_size,
-          "previous size" => watched_file.previous_inode_size,
           "active size" => watched_file.active_stat_size,
-          "pending_inode_count" => watched_file.pending_inode_count,
           "read" => watched_file.bytes_read,
           "unread" => watched_file.bytes_unread,
-          "path" => path)
+          "filename" => path)
         # when the file is open, all size based tests are driven from the open file not the path
-        if watched_file.new_inode_detected?
+        if watched_file.rotation_detected?
+          # rotated with a new inode and is fully read
+          # keep buffer contents if any
+          logger.trace(">>> Active - inode change detected, set to rotation_in_progress", "path" => path)
+          watched_file.rotation_in_progress
           if watched_file.all_previous_bytes_read?
-            # rotated with a new inode and is fully read
-            # close file but keep buffer contents if any
-            watched_file.file_close
-            # now we can use the path based stat for the sincedb_key
-            # and reset the pending_inode_count
-            watched_file.set_sincedb_key_from_path_based_stat
-            # put it back to watched
-            watched_file.watch
-            logger.debug("Active - inode change detected, closing old file handle & set back to watched: #{path}")
+            logger.trace(">>> Active - inode change detected and file is fully read")
           else
             # rotated file but original opened file is not fully read
             # we need to keep reading the open file, if we close it we lose it because the path is now pointing at a different file.
-            logger.debug("Active - inode change detected and not fully read: new size is #{watched_file.last_stat_size}, old size #{watched_file.previous_inode_size}: #{path}")
+            logger.trace(">>> Active - inode change detected and file is not fully read", "watched_file details" => watched_file.details)
             # need to fully read open file while we can
             watched_file.set_depth_first_read_loop
             grow(watched_file)
-            watched_file.file_close
-            watched_file.set_sincedb_key_from_path_based_stat
             watched_file.set_user_defined_read_loop
-            watched_file.watch
-            logger.debug("Active - inode change detected, closing old file handle & set back to watched: #{path}")
           end
         else
           if watched_file.grown?
-            logger.debug("Active - file grew: #{path}: new size is #{watched_file.last_stat_size}, bytes read #{watched_file.bytes_read}")
+            logger.trace("Active - file grew: #{path}: new size is #{watched_file.last_stat_size}, bytes read #{watched_file.bytes_read}")
             grow(watched_file)
           elsif watched_file.shrunk?
             if watched_file.bytes_unread > 0
               logger.warn("Active - shrunk: DATA LOSS!! truncate detected with #{watched_file.bytes_unread} unread bytes: #{path}")
             end
             # we don't update the size here, its updated when we actually read
-            logger.debug("Active - file shrunk #{path}: new size is #{watched_file.last_stat_size}, old size #{watched_file.bytes_read}")
+            logger.trace("Active - file shrunk #{path}: new size is #{watched_file.last_stat_size}, old size #{watched_file.bytes_read}")
             shrink(watched_file)
           else
             # same size, do nothing
@@ -207,7 +231,7 @@ module FileWatch module TailMode
         end
         # can any active files be closed to make way for waiting files?
         if watched_file.file_closable?
-          logger.debug("Watch each: active: file expired: #{path}")
+          logger.trace("Watch each: active: file expired: #{path}")
           timeout(watched_file)
           watched_file.close
         end
@@ -229,13 +253,13 @@ module FileWatch module TailMode
         yield if block_given?
       rescue Errno::ENOENT
         if delay
-          logger.debug("#{action} - delaying the stat fail on: #{watched_file.path}")
+          logger.trace("#{action} - delaying the stat fail on: #{watched_file.filename}")
           watched_file.delay_delete
         else
           # file has gone away or we can't read it anymore.
-          logger.debug("#{action} - really can't find this file: #{watched_file.path}")
+          logger.trace("#{action} - after a delay, really can't find this file: #{watched_file.filename}")
           watched_file.unwatch
-          logger.debug("#{action} - removing from collection: #{watched_file.path}")
+          logger.trace("#{action} - removing from collection: #{watched_file.filename}")
           delete(watched_file)
           deletable_filepaths << watched_file.path
           all_ok = false

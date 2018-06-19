@@ -39,7 +39,7 @@ module FileWatch
     end
 
     def write(reason=nil)
-      logger.debug("caller requested sincedb write (#{reason})")
+      logger.trace("caller requested sincedb write (#{reason})")
       sincedb_write
     end
 
@@ -47,56 +47,57 @@ module FileWatch
       @time_sdb_opened = Time.now.to_f
       begin
         path.open do |file|
-          logger.debug("open: reading from #{path}")
+          logger.trace("open: reading from #{path}")
           @serializer.deserialize(file) do |key, value|
-            logger.debug("open: importing ... '#{key}' => '#{value}'")
+            logger.trace("open: importing ... '#{key}' => '#{value}'")
             set_key_value(key, value)
           end
         end
-        logger.debug("open: count of keys read: #{@sincedb.keys.size}")
+        logger.trace("open: count of keys read: #{@sincedb.keys.size}")
       rescue => e
         #No existing sincedb to load
-        logger.debug("open: error: #{path}: #{e.inspect}")
+        logger.trace("open: error: #{path}: #{e.inspect}")
       end
     end
 
     def associate(watched_file)
-      logger.debug("associate: finding", "inode" => watched_file.sincedb_key.inode, "path" => watched_file.path)
+      logger.trace("associate: finding", "inode" => watched_file.sincedb_key.inode, "path" => watched_file.path)
       sincedb_value = find(watched_file)
       if sincedb_value.nil?
         # sincedb has no record of this inode
         # and due to the window handling of many files
         # this file may not be opened in this session.
         # a new value will be added when the file is opened
-        logger.debug("associate: unmatched")
-        return
+        logger.trace("associate: unmatched")
+        return true
       end
+      logger.trace("associate: found sincedb record", "sincedb key" => watched_file.sincedb_key,"sincedb_value" => sincedb_value)
       if sincedb_value.watched_file.nil?
         # not associated
         if sincedb_value.path_in_sincedb.nil?
           # old v1 record, assume its the same file
           handle_association(sincedb_value, watched_file)
-          logger.debug("associate: inode matched but no path in sincedb")
-          return
+          logger.trace("associate: inode matched but no path in sincedb")
+          return true
         end
         if sincedb_value.path_in_sincedb == watched_file.path
           # the path on disk is the same as discovered path
           # and the inode is the same.
           handle_association(sincedb_value, watched_file)
-          logger.debug("associate: inode and path matched")
-          return
+          logger.trace("associate: inode and path matched")
+          return true
         end
         # the path on disk is different from discovered unassociated path
         # but they have the same key (inode)
         # treat as a new file, a new value will be added when the file is opened
         sincedb_value.clear_watched_file
         delete(watched_file.sincedb_key)
-        logger.debug("associate: matched but allocated to another - #{sincedb_value}")
-        return
+        logger.trace("associate: matched but allocated to another - #{sincedb_value}")
+        return true
       end
       if sincedb_value.watched_file.equal?(watched_file) # pointer equals
-        logger.debug("associate: already associated - #{sincedb_value}, for path: #{watched_file.path}")
-        return
+        logger.trace("associate: already associated - #{sincedb_value}, for path: #{watched_file.path}")
+        return true
       end
       # sincedb_value.watched_file is not this discovered watched_file but they have the same key (inode)
       # this means that the filename path was changed during this session.
@@ -105,55 +106,39 @@ module FileWatch
       #   after the original is detected as deleted but before it is actually deleted: state is `delayed_delete`
       #   after the original is deleted
       # are not yet in the delete phase, let this play out
-      old_watched_file = sincedb_value.watched_file
-      if old_watched_file.file_open?
-        msg = "associate: the found sincedb_value has a watched_file with an open file handle - this is a rename, switching to discovered file"
-        logger.debug(msg,
-        "discovered watched_file state" => watched_file.state,
-        "discovered watched_file size" => watched_file.last_stat_size,
-        "discovered watched_file bytes read" => watched_file.bytes_read,
-        "discovered watched_file path" => watched_file.path,
-        "found watched_file state" => old_watched_file.state,
-        "found watched_file size" => old_watched_file.last_stat_size,
-        "found watched_file bytes read" => old_watched_file.bytes_read,
-        "found watched_file path" => old_watched_file.path
-        )
-        sincedb_value.set_watched_file(watched_file)
-        sincedb_value.update_position(old_watched_file.bytes_read)
-        watched_file.initial_completed
-        return
-      end
-      # logout the history of both watched_files then remove the sincdb entry.
-      # a new value will be added when the file is processed
-      sincedb_value.clear_watched_file
-      msg = "associate: matched but allocated to another watched_file - DELETING value at key. Was this file renamed before it was processed?"
-      logger.warn(msg,
-        "sincedb_key" => old_watched_file.sincedb_key,
-        "sincedb_value" => sincedb_value,
-        "discovered watched_file history" => watched_file.recent_state_history.join(', '),
-        "discovered watched_file size" => watched_file.last_stat_size,
-        "discovered watched_file bytes read" => watched_file.bytes_read,
-        "discovered watched_file bytes unread" => watched_file.bytes_unread,
-        "discovered watched_file path" => watched_file.path,
-        "found watched_file history" => old_watched_file.recent_state_history.join(', '),
-        "found watched_file size" => old_watched_file.last_stat_size,
-        "found watched_file bytes read" => old_watched_file.bytes_read,
-        "found watched_file bytes unread" => old_watched_file.bytes_unread,
-        "found watched_file path" => old_watched_file.path
+      existing_watched_file = sincedb_value.watched_file
+      logger.trace("----- >>>>> associate: watched file state", "state" => watched_file.state)
+      msg = "----------------- >> associate: the found sincedb_value has a watched_file - this is a rename, switching to discovered file"
+      logger.trace(msg)
+      msg = "----------------- >> associate: state before switch"
+      logger.trace(msg,
+        "this watched_file state" => watched_file.state,
+        "found watched_file state" => existing_watched_file.state,
+        "this watched_file size" => watched_file.last_stat_size,
+        "found watched_file size" => existing_watched_file.last_stat_size,
+        "this watched_file bytes read" => watched_file.bytes_read,
+        "found watched_file bytes read" => existing_watched_file.bytes_read,
+        "this watched_file filename" => watched_file.filename,
+        "found watched_file filename" => existing_watched_file.filename
       )
-      # the risk in deleting the sincedb record here is:
-      # 1. if the file is unread - none, a new record is created and the file is read.
-      # 2. if the inode was reused - none, a new record is created and the new content is read.
-      # 3. if the file has been partially read and the sincedb record holds that position - data duplication.
-      # we can't tell if we are in 2 or 3.
-      # It is less likely that a file is renamed into the glob and then appended-to, inode reuse is more likely.
-      delete(old_watched_file.sincedb_key)
+      sincedb_value.set_watched_file(watched_file)
+      watched_file.rotate_from(existing_watched_file)
+      msg = "----------------- >> associate: state after switch"
+      logger.trace(msg,
+        "this watched_file state" => watched_file.state,
+        "found watched_file state" => existing_watched_file.state,
+        "this watched_file size" => watched_file.last_stat_size,
+        "found watched_file size" => existing_watched_file.last_stat_size,
+        "this watched_file bytes read" => watched_file.bytes_read,
+        "found watched_file bytes read" => existing_watched_file.bytes_read,
+        "this watched_file filename" => watched_file.filename,
+        "found watched_file filename" => existing_watched_file.filename
+      )
+      true
     end
 
     def find(watched_file)
-      get(watched_file.sincedb_key).tap do |obj|
-        logger.debug("find: found = '#{!obj.nil?}', path: #{watched_file.path}")
-      end
+      get(watched_file.sincedb_key)
     end
 
     def member?(key)
@@ -162,6 +147,11 @@ module FileWatch
 
     def get(key)
       @sincedb[key]
+    end
+
+    def set(key, value)
+      @sincedb[key] = value
+      value
     end
 
     def delete(key)
@@ -184,9 +174,17 @@ module FileWatch
       @sincedb[key].set_watched_file(watched_file)
     end
 
-    def unset_watched_file(watched_file)
+    def watched_file_deleted(watched_file)
       return unless member?(watched_file.sincedb_key)
       get(watched_file.sincedb_key).unset_watched_file
+    end
+
+    def clear_watched_file(key)
+      @sincedb[key].clear_watched_file
+    end
+
+    def reading_completed(key)
+      @sincedb[key].reading_completed
     end
 
     def clear
@@ -195,11 +193,6 @@ module FileWatch
 
     def keys
       @sincedb.keys
-    end
-
-    def set(key, value)
-      @sincedb[key] = value
-      value
     end
 
     def watched_file_unset?(key)
@@ -227,28 +220,28 @@ module FileWatch
 
     def set_key_value(key, value)
       if @time_sdb_opened < value.last_changed_at_expires(@settings.sincedb_expiry_duration)
-        logger.debug("open: setting #{key.inspect} to #{value.inspect}")
+        logger.trace("open: setting #{key.inspect} to #{value.inspect}")
         set(key, value)
       else
-        logger.debug("open: record has expired, skipping: #{key.inspect} #{value.inspect}")
+        logger.trace("open: record has expired, skipping: #{key.inspect} #{value.inspect}")
       end
     end
 
     def sincedb_write(time = Time.now.to_i)
-      logger.debug("sincedb_write: to: #{path}")
+      logger.trace("sincedb_write: to: #{path}")
       begin
         @write_method.call
         @serializer.expired_keys.each do |key|
           @sincedb[key].unset_watched_file
           delete(key)
-          logger.debug("sincedb_write: cleaned", "key" => "'#{key}'")
+          logger.trace("sincedb_write: cleaned", "key" => "'#{key}'")
         end
         @sincedb_last_write = time
         @write_requested = false
       rescue Errno::EACCES
         # no file handles free perhaps
         # maybe it will work next time
-        logger.debug("sincedb_write: error: #{path}: #{$!}")
+        logger.trace("sincedb_write: error: #{path}: #{$!}")
       end
     end
 

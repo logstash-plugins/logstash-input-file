@@ -4,9 +4,9 @@ module FileWatch
   class WatchedFile
     include InodeMixin # see bootstrap.rb at `if LogStash::Environment.windows?`
 
-    attr_reader :bytes_read, :state, :file, :buffer, :recent_states, :bytes_unread, :pending_inode_count
-    attr_reader :path, :filestat, :accessed_at, :modified_at, :pathname, :previous_inode_size
-    attr_reader :sdb_key_v1, :last_stat_size, :listener, :read_loop_count, :read_chunk_size
+    attr_reader :bytes_read, :state, :file, :buffer, :recent_states, :bytes_unread
+    attr_reader :path, :accessed_at, :modified_at, :pathname, :filename
+    attr_reader :listener, :read_loop_count, :read_chunk_size
     attr_accessor :last_open_warning_at
 
     # this class represents a file that has been discovered
@@ -15,23 +15,104 @@ module FileWatch
       @settings = settings
       @pathname = Pathname.new(pathname) # given arg pathname might be a string or a Pathname object
       @path = @pathname.to_path
+      @filename = @pathname.basename.to_s
+      @stats = []
+      @stat_index = 0
+      full_state_reset(stat)
+      set_user_defined_read_loop
+      set_stat
+      set_accessed_at
+    end
+
+    def filestat
+      @stats[@stat_index]
+    end
+
+    def no_restat_reset
+      full_state_reset(@stats[0])
+    end
+
+    def full_state_reset(this_stat = nil)
+      if this_stat.nil?
+        begin
+          this_stat = pathname.stat
+        rescue Errno::ENOENT
+          delay_delete
+          return
+        end
+      end
       @bytes_read = 0 # tracks bytes read from the open file or initialized from a matched sincedb_value off disk.
       @bytes_unread = 0 # tracks bytes not yet read from the open file. So we can warn on shrink when unread bytes are seen.
-      @last_stat_size = 0
-      @previous_inode_size = 0
-      @pending_inode_count = 0
+      file_close
+      @stats[0] = this_stat
       @listener = nil
       @last_open_warning_at = nil
       # initial as true means we have not associated this watched_file with a previous sincedb value yet.
       # and we should read from the beginning if necessary
       @initial = true
       @recent_states = [] # keep last 8 states, managed in set_state
-      @state = :watched
       # the prepare_inode method is sourced from the mixed module above
-      @sdb_key_v1 = InodeStruct.new(*prepare_inode(path, stat))
+      @sdb_key_v1 = InodeStruct.new(*prepare_inode(path, this_stat))
+      watch
+    end
+
+    def rotate_from(other)
+      # move all state from other to this one
       set_user_defined_read_loop
-      set_stat(stat) # can change @last_stat_size
-      set_accessed_at
+      @file = other.file
+      @bytes_read = other.bytes_read
+      @bytes_unread = other.bytes_unread
+      @listener = nil
+      @initial = false
+      @recent_states = other.recent_states
+      @accessed_at = other.accessed_at
+      if !other.delayed_delete?
+        # we don't know if a file exists at the other.path yet
+        # so no reset
+        other.full_state_reset
+      end
+      watch
+    end
+
+    def file_at_path_found_again
+      path_stat = pathname.stat
+      restore_previous_state
+    end
+
+    def path_based_sincedb_key
+      InodeStruct.new(*prepare_inode(path, @stats[0]))
+    end
+
+    def rotate_as_initial_file
+      # rotation, when no sincedb record exists for new inode - we have never seen this inode before.
+      @bytes_read = 0 # tracks bytes read from the open file or initialized from a matched sincedb_value off disk.
+      @bytes_unread = 0 # tracks bytes not yet read from the open file. So we can warn on shrink when unread bytes are seen.
+      file_close
+      @last_open_warning_at = nil
+      # initial as true means we have not associated this watched_file with a previous sincedb value yet.
+      # and we should read from the beginning if necessary
+      @initial = true
+      @recent_states = [] # keep last 8 states, managed in set_state
+      # the prepare_inode method is sourced from the mixed module above
+      @sdb_key_v1 = InodeStruct.new(*prepare_inode(path, @stats[0]))
+      watch
+    end
+
+    def rotate_as_file
+      # rotation, when a sincedb record exists for new inode, but no watched file to rotate from
+      # probably caused by a deletion detected in the middle of the rename cascade
+      # RARE due to delayed_delete - there would have to be a large time span between the renames.
+      @bytes_read = 0 # tracks bytes read from the open file or initialized from a matched sincedb_value off disk.
+      @bytes_unread = 0 # tracks bytes not yet read from the open file. So we can warn on shrink when unread bytes are seen.
+      file_close
+      @last_open_warning_at = nil
+      # initial as true means we have not associated this watched_file with a previous sincedb value yet.
+      # and we should read from the beginning if necessary
+      @initial = false
+      @recent_states = [] # keep last 8 states, managed in set_state
+      # the prepare_inode method is sourced from the mixed module above
+      @sdb_key_v1 = InodeStruct.new(*prepare_inode(path, @stats[0]))
+      watch
     end
 
     def set_listener(observer)
@@ -69,15 +150,15 @@ module FileWatch
     def size_changed?
       # called from closed and ignored
       # before the last stat was taken file should be fully read.
-      @last_stat_size != @bytes_read
+      last_stat_size != @bytes_read
     end
 
     def all_read?
-      test_bytes_read(@last_stat_size)
+      test_bytes_read(last_stat_size)
     end
 
     def all_previous_bytes_read?
-      test_bytes_read(@previous_inode_size)
+      test_bytes_read(@stats[1].size)
     end
 
     def open
@@ -86,10 +167,13 @@ module FileWatch
 
     def file_add_opened(rubyfile)
       @file = rubyfile
+      @stat_index = 1
+      @stats[1] = @file.to_io.stat
       @buffer = BufferedTokenizer.new(@settings.delimiter) if @buffer.nil?
     end
 
     def file_close
+      @stat_index = 0
       return if @file.nil? || @file.closed?
       @file.close
       @file = nil
@@ -130,7 +214,7 @@ module FileWatch
         additional["delimiter"] = @settings.delimiter
         additional["read_position"] = @bytes_read
         additional["bytes_read_count"] = data.bytesize
-        additional["last_known_file_size"] = @last_stat_size
+        additional["last_known_file_size"] = last_stat_size
         additional["file_path"] = @path
       end
       BufferExtractResult.new(lines, warning, additional)
@@ -150,12 +234,8 @@ module FileWatch
       @bytes_read
     end
 
-    def update_path(_path)
-      @path = _path
-    end
-
-    def update_stat(st)
-      set_stat(st)
+    def rotation_in_progress
+      set_state :rotation_in_progress
     end
 
     def activate
@@ -164,7 +244,7 @@ module FileWatch
 
     def ignore
       set_state :ignored
-      @bytes_read = @filestat.size
+      @bytes_read = filestat.size
     end
 
     def close
@@ -185,6 +265,10 @@ module FileWatch
 
     def restore_previous_state
       set_state @recent_states.pop
+    end
+
+    def rotation_in_progress?
+      @state == :rotation_in_progress
     end
 
     def active?
@@ -227,33 +311,21 @@ module FileWatch
       active_stat_size > @bytes_read
     end
 
-    def new_inode_detected?
-      @pending_inode_count > 0
+    def rotation_detected?
+      return false if @stats[1].nil?
+      @stats[0].ino != @stats[1].ino
     end
 
     def restat
-      path_based_stat = pathname.stat
+      @stats[0] = pathname.stat
       if file_open?
-        set_stat(@file.to_io.stat)
-      else
-        set_stat(path_based_stat)
+        @stats[1] = @file.to_io.stat
       end
-      # check for a change in inode aka rotated file
-      if path_based_stat.ino.to_s != sincedb_key.inode
-        @previous_inode_size = @last_stat_size
-        @pending_inode_count = @pending_inode_count.succ
-      end
-    end
-
-    def set_sincedb_key_from_path_based_stat
-      set_stat(pathname.stat)
-      @sdb_key_v1 = InodeStruct.new(*prepare_inode(@path, @filestat))
-      @previous_inode_size = 0
-      @pending_inode_count = 0
+      set_stat
     end
 
     def set_depth_first_read_loop
-      @read_loop_count = FileWatch::FIXNUM_MAX
+      @read_loop_count = FileWatch::MAX_ITERATIONS
       @read_chunk_size = FileWatch::FILE_READ_SIZE
     end
 
@@ -263,7 +335,7 @@ module FileWatch
     end
 
     def reset_bytes_unread
-      # call from shrink
+      # called from shrink
       @bytes_unread = 0
     end
 
@@ -286,7 +358,7 @@ module FileWatch
       # (Time.now - stat.mtime) <- in jruby, this does int and float
       # conversions before the subtraction and returns a float.
       # so use all floats upfront
-      (Time.now.to_f - @modified_at) > @settings.ignore_older
+      (Time.now.to_f - modified_at) > @settings.ignore_older
     end
 
     def file_can_close?
@@ -294,12 +366,31 @@ module FileWatch
       (Time.now.to_f - @accessed_at) > @settings.close_older
     end
 
+    def details
+      detail = "@filename='#{filename}', @state='#{state}', @recent_states='#{@recent_states.join(',')}', "
+      detail.concat("@bytes_read='#{@bytes_read}', @bytes_unread='#{@bytes_unread}', last_stat_size='#{last_stat_size}', ")
+      detail.concat("file_open?=='#{file_open?}'")
+      "<FileWatch::WatchedFile: #{detail}, @sincedb_key='#{sincedb_key}'>"
+    end
+
+    def inspect
+      "\"<FileWatch::WatchedFile: @filename='#{filename}', @state='#{state}', @sincedb_key='#{sincedb_key}'>\""
+    end
+
     def to_s
       inspect
     end
 
     def active_stat_size
-      new_inode_detected? ? @previous_inode_size : @last_stat_size
+      rotation_detected? ? @stats[1].size : last_stat_size
+    end
+
+    def modified_at
+      filestat.mtime.to_f
+    end
+
+    def last_stat_size
+      filestat.size
     end
 
     private
@@ -308,23 +399,14 @@ module FileWatch
       size > 0 && size == bytes_read
     end
 
-    def set_stat(stat)
-      return if stat_unchanged?(stat)
-      @modified_at = stat.mtime.to_f
-      @last_stat_size = stat.size
+    def set_stat
       update_bytes_unread
-      @filestat = stat
     end
 
     def update_bytes_unread
       unread = active_stat_size - @bytes_read
       @bytes_unread = unread
       @bytes_unread = 0 if unread < 0
-    end
-
-    def stat_unchanged?(other)
-      return false if @filestat.nil?
-      @filestat.dev == other.dev && @filestat.ino == other.ino && @filestat.size == other.size && @filestat.mtime == other.mtime
     end
   end
 end

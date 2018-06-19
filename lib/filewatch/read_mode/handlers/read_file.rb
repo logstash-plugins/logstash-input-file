@@ -10,7 +10,8 @@ module FileWatch module ReadMode module Handlers
         watched_file.read_loop_count.times do
           begin
             result = watched_file.read_extract_lines # expect BufferExtractResult
-            logger.info(result.warning, result.additional) unless result.warning.empty?
+            logger.trace(result.warning, result.additional) unless result.warning.empty?
+            changed = true
             result.lines.each do |line|
               watched_file.listener.accept(line)
               # sincedb position is independent from the watched_file bytes_read
@@ -26,8 +27,9 @@ module FileWatch module ReadMode module Handlers
             watched_file.listener.accept(line) unless line.empty?
             watched_file.listener.eof
             watched_file.file_close
-            # unset_watched_file will set sincedb_value.position to be watched_file.bytes_read
-            sincedb_collection.unset_watched_file(watched_file)
+            key = watched_file.sincedb_key
+            sincedb_collection.reading_completed(key)
+            sincedb_collection.clear_watched_file(key)
             watched_file.listener.deleted
             watched_file.unwatch
             break

@@ -206,7 +206,7 @@ class File < LogStash::Inputs::Base
   # 1MB from each active file. See the option `max_open_files` for more info.
   # The default set internally is very large, 4611686018427387903. By default
   # the file is read to the end before moving to the next active file.
-  config :file_chunk_count, :validate => :number, :default => FileWatch::FIXNUM_MAX
+  config :file_chunk_count, :validate => :number, :default => FileWatch::MAX_ITERATIONS
 
   # Which attribute of a discovered file should be used to sort the discovered files.
   # Files can be sort by modified date or full path alphabetic.

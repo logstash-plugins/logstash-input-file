@@ -22,7 +22,7 @@ module FileWatch
         :delimiter => "\n",
         :file_chunk_size => FILE_READ_SIZE,
         :max_active => 4095,
-        :file_chunk_count => FIXNUM_MAX,
+        :file_chunk_count => MAX_ITERATIONS,
         :sincedb_clean_after => 14,
         :exclude => [],
         :stat_interval => 1,

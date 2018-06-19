@@ -11,7 +11,7 @@ module FileWatch
   # this is used in the read loop e.g.
   # @opts[:file_chunk_count].times do
   # where file_chunk_count defaults to this constant
-  FIXNUM_MAX = (2**(0.size * 8 - 2) - 1)
+  MAX_ITERATIONS = (2**(0.size * 8 - 2) - 2) / 32768
 
   require_relative "helper"
 

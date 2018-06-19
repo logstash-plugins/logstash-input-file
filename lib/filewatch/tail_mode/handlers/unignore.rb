@@ -12,7 +12,7 @@ module FileWatch module TailMode module Handlers
     def get_new_value_specifically(watched_file)
       # for file initially ignored their bytes_read was set to stat.size
       # use this value not the `start_new_files_at` for the position
-      # logger.debug("get_new_value_specifically", "watched_file" => watched_file.inspect)
+      # logger.trace("get_new_value_specifically", "watched_file" => watched_file.inspect)
       SincedbValue.new(watched_file.bytes_read).tap do |val|
         val.set_watched_file(watched_file)
       end

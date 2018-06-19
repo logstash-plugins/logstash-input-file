@@ -48,7 +48,7 @@ module FileWatch module ReadMode
     end
 
     def process_watched(watched_files)
-      logger.debug("Watched processing")
+      logger.trace("Watched processing")
       # Handles watched_files in the watched state.
       # for a slice of them:
       #   move to the active state
@@ -81,7 +81,7 @@ module FileWatch module ReadMode
     end
 
     def process_active(watched_files)
-      logger.debug("Active processing")
+      logger.trace("Active processing")
       # Handles watched_files in the active state.
       watched_files.select {|wf| wf.active? }.each do |watched_file|
         path = watched_file.path
@@ -109,7 +109,7 @@ module FileWatch module ReadMode
       # file has gone away or we can't read it anymore.
       watched_file.unwatch
       deletable_filepaths << watched_file.path
-      logger.debug("#{action} - stat failed: #{watched_file.path}, removing from collection")
+      logger.trace("#{action} - stat failed: #{watched_file.path}, removing from collection")
     end
 
     def common_error_reaction(path, error, action)
