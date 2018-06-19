@@ -71,7 +71,7 @@ module FileWatch
 
       context "when close_older is set" do
         let(:wait_before_quit) { 0.8 }
-        let(:opts) { super.merge(:close_older => 0.15, :max_active => 1, :stat_interval => 0.1) }
+        let(:opts) { super.merge(:close_older => 0.1, :max_active => 1, :stat_interval => 0.1) }
         it "opens both files" do
           actions.activate
           tailing.watch_this(watch_dir)

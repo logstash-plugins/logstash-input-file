@@ -27,6 +27,17 @@ end
 require 'filewatch/bootstrap'
 
 module FileWatch
+  class DummyIO
+    def stat
+      self
+    end
+    def ino
+      23456
+    end
+    def size
+      123123123123
+    end
+  end
 
   class DummyFileReader
     def initialize(read_size, iterations)
@@ -34,6 +45,7 @@ module FileWatch
       @iterations = iterations
       @closed = false
       @accumulated = 0
+      @io = DummyIO.new
     end
     def file_seek(*)
     end
@@ -42,6 +54,9 @@ module FileWatch
     end
     def closed?
       @closed
+    end
+    def to_io
+      @io
     end
     def sysread(amount)
       @accumulated += amount

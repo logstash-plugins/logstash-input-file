@@ -179,6 +179,10 @@ module FileWatch
       get(watched_file.sincedb_key).unset_watched_file
     end
 
+    def store_last_read(key, pos)
+      @sincedb[key].update_position(pos)
+    end
+
     def clear_watched_file(key)
       @sincedb[key].clear_watched_file
     end
