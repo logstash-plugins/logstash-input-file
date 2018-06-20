@@ -15,19 +15,6 @@ module FileWatch
 
   require_relative "helper"
 
-  module WindowsInode
-    def prepare_inode(path, stat)
-      fileId = Winhelper.identifier_from_path(path)
-      [fileId, 0, 0] # dev_* doesn't make sense on Windows
-    end
-  end
-
-  module UnixInode
-    def prepare_inode(path, stat)
-      [stat.ino.to_s, stat.dev_major, stat.dev_minor]
-    end
-  end
-
   jar_version = Pathname.new(__FILE__).dirname.join("../../JAR_VERSION").realpath.read.strip
 
   require "java"
@@ -38,10 +25,8 @@ module FileWatch
   if LogStash::Environment.windows?
     require_relative "winhelper"
     FileOpener = FileExt
-    InodeMixin = WindowsInode
   else
     FileOpener = ::File
-    InodeMixin = UnixInode
   end
 
   # Structs can be used as hash keys because they compare by value
@@ -62,6 +47,7 @@ module FileWatch
 
   require "logstash/util/buftok"
   require_relative "settings"
+  require_relative "generic_stat"
   require_relative "sincedb_value"
   require_relative "sincedb_record_serializer"
   require_relative "watched_files_collection"

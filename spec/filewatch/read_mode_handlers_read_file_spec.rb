@@ -12,7 +12,7 @@ module FileWatch
     let(:sdb_collection) { SincedbCollection.new(settings) }
     let(:directory) { Pathname.new(FIXTURE_DIR) }
     let(:pathname) { directory.join('uncompressed.log') }
-    let(:watched_file) { WatchedFile.new(pathname, pathname.stat, settings) }
+    let(:watched_file) { WatchedFile.new(pathname, GenericStat.new(pathname), settings) }
     let(:processor) { ReadMode::Processor.new(settings).add_watch(watch) }
     let(:file) { DummyFileReader.new(settings.file_chunk_size, 2) }
 

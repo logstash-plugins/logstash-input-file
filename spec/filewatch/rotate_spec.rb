@@ -57,31 +57,35 @@ module FileWatch
       FileUtils.rm_rf(directory)
     end
 
-    context "create + rename rotation: when a new logfile is renamed to a path we have seen before and the open file is fully read" do
+    context "create + rename rotation: when a new logfile is renamed to a path we have seen before and the open file is fully read, renamed outside glob" do
       subject { described_class.new(conf) }
       before do
         tailing.watch_this(watch_dir.to_path)
         RSpec::Sequencing
-          .run_after(0.25, "create file") do
+          .run_after(0.1, "create file") do
             file_path.open("wb") { |file|  file.write("#{line1}\n") }
           end
-          .then_after(0.25, "write a 'unfinished' line") do
+          .then_after(0.1, "write a 'unfinished' line") do
             file_path.open("ab") { |file|  file.write(line2) }
           end
-          .then_after(0.25, "rotate") do
+          .then_after(0.1, "<<< rotate") do
             tmpfile = directory.join("1.logtmp")
             tmpfile.open("wb") { |file|  file.write("\n#{line3}\n")}
             file_path.rename(directory.join("1.log.1"))
             FileUtils.mv(directory.join("1.logtmp").to_path, file_path.to_path)
           end
-          .then_after(0.45, "quit after a short time") do
+          .then_after(0.2, "quit after a short time") do
             tailing.quit
           end
       end
 
       it "content from both inodes are sent via the same stream" do
         tailing.subscribe(observer)
-        expect(observer.listener_for(full_file_path).lines).to eq([line1, line2, line3])
+        lines = observer.listener_for(full_file_path).lines
+        expect(lines.size).to eq(3)
+        expect(lines[0]).to eq(line1)
+        expect(lines[1]).to eq(line2)
+        expect(lines[2]).to eq(line3)
         expect(observer.listener_for(full_file_path).calls).to eq([:open, :accept, :open, :accept, :accept])
       end
     end
@@ -114,7 +118,10 @@ module FileWatch
         tailing.subscribe(observer)
         expect(observer.listener_for(second_file.to_path).lines).to be_empty
         expect(observer.listener_for(third_file.to_path).lines).to be_empty
-        expect(observer.listener_for(full_file_path).lines).to eq([line1, line2, line3])
+        lines = observer.listener_for(full_file_path).lines
+        expect(lines[0]).to eq(line1)
+        expect(lines[1]).to eq(line2)
+        expect(lines[2]).to eq(line3)
       end
     end
 

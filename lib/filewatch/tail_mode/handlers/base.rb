@@ -62,6 +62,7 @@ module FileWatch module TailMode module Handlers
         end
       end
       sincedb_collection.request_disk_flush if changed
+
     end
 
     def open_file(watched_file)
@@ -90,7 +91,7 @@ module FileWatch module TailMode module Handlers
     def add_or_update_sincedb_collection(watched_file)
       sincedb_value = @sincedb_collection.find(watched_file)
       if sincedb_value.nil?
-        add_new_value_sincedb_collection(watched_file)
+        sincedb_value = add_new_value_sincedb_collection(watched_file)
         watched_file.initial_completed
       elsif sincedb_value.watched_file == watched_file
         update_existing_sincedb_collection_value(watched_file, sincedb_value)
@@ -119,6 +120,7 @@ module FileWatch module TailMode module Handlers
           watched_file.rotate_from(existing_watched_file)
         end
       end
+      sincedb_value
     end
 
     def update_existing_sincedb_collection_value(watched_file, sincedb_value)
@@ -130,6 +132,7 @@ module FileWatch module TailMode module Handlers
       sincedb_value = get_new_value_specifically(watched_file)
       logger.trace("add_new_value_sincedb_collection: #{watched_file.filename}", "position" => sincedb_value.position)
       sincedb_collection.set(watched_file.sincedb_key, sincedb_value)
+      sincedb_value
     end
 
     def get_new_value_specifically(watched_file)

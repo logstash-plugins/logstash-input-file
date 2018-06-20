@@ -8,9 +8,9 @@ module FileWatch
 
     context 'Given two instances of the same file' do
       it 'their sincedb_keys should equate' do
-        wf_key1 = WatchedFile.new(pathname, pathname.stat, Settings.new).sincedb_key
+        wf_key1 = WatchedFile.new(pathname, GenericStat.new(pathname), Settings.new).sincedb_key
         hash_db = { wf_key1 => 42 }
-        wf_key2 = WatchedFile.new(pathname, pathname.stat, Settings.new).sincedb_key
+        wf_key2 = WatchedFile.new(pathname, GenericStat.new(pathname), Settings.new).sincedb_key
         expect(wf_key1).to eq(wf_key2)
         expect(wf_key1).to eql(wf_key2)
         expect(wf_key1.hash).to eq(wf_key2.hash)
@@ -20,7 +20,7 @@ module FileWatch
 
     context 'Given a barrage of state changes' do
       it 'only the previous N state changes are remembered' do
-        watched_file = WatchedFile.new(pathname, pathname.stat, Settings.new)
+        watched_file = WatchedFile.new(pathname, GenericStat.new(pathname), Settings.new)
         watched_file.ignore
         watched_file.watch
         watched_file.activate

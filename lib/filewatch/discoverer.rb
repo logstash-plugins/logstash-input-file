@@ -58,7 +58,7 @@ module FileWatch
         watched_file = @watched_files_collection.watched_file_by_path(file)
         if watched_file.nil?
           new_discovery = true
-          watched_file = WatchedFile.new(pathname, pathname.stat, @settings)
+          watched_file = WatchedFile.new(pathname, GenericStat.new(pathname), @settings)
           logger.trace("Discoverer new discovery: #{watched_file.path}, inode: #{watched_file.sincedb_key.inode}")
         end
         # if it already unwatched or its excluded then we can skip
