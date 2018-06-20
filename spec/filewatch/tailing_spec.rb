@@ -130,7 +130,7 @@ module FileWatch
       # it simulates that the user deleted the file
       # so when a stat is taken on the file an error is raised
       let(:quit_after) { 0.2 }
-      let(:stat)  { double("stat", :size => 100, :modified_at => Time.now.to_f, :identifier => nil, :inode => 234567, :to_inode_struct => InodeStruct.new("234567", 1, 5)) }
+      let(:stat)  { double("stat", :size => 100, :modified_at => Time.now.to_f, :identifier => nil, :inode => 234567, :inode_struct => InodeStruct.new("234567", 1, 5)) }
       let(:watched_file) { WatchedFile.new(file_path, stat, tailing.settings) }
 
       before do

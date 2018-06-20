@@ -62,7 +62,6 @@ module FileWatch module TailMode module Handlers
         end
       end
       sincedb_collection.request_disk_flush if changed
-
     end
 
     def open_file(watched_file)

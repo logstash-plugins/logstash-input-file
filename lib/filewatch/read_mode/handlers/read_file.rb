@@ -36,7 +36,7 @@ module FileWatch module ReadMode module Handlers
             watched_file.listener.error
             break
           rescue => e
-            logger.error("read_to_eof: general error reading #{watched_file.path} - error: #{e.inspect}")
+            logger.error("read_to_eof: general error reading file", "path" => watched_file.path, "error" => e.inspect, "backtrace" => e.backtrace.take(8))
             watched_file.listener.error
             break
           end

@@ -35,7 +35,7 @@ module FileWatch
     def full_state_reset(this_stat = nil)
       if this_stat.nil?
         begin
-          this_stat = GenericStat.new(pathname)
+          this_stat = PathStatClass.new(pathname)
         rescue Errno::ENOENT
           delay_delete
           return
@@ -53,7 +53,7 @@ module FileWatch
       @initial = true
       @recent_states = [] # keep last 8 states, managed in set_state
       # the prepare_inode method is sourced from the mixed module above
-      @sdb_key_v1 = filestat.to_inode_struct
+      @sdb_key_v1 = filestat.inode_struct
       watch
     end
 
@@ -80,7 +80,7 @@ module FileWatch
     end
 
     def path_based_sincedb_key
-      @stats[PATH_BASED_STAT].to_inode_struct
+      @stats[PATH_BASED_STAT].inode_struct
     end
 
     def rotate_as_initial_file
@@ -102,7 +102,7 @@ module FileWatch
       @initial = false
       @recent_states = [] # keep last 8 states, managed in set_state
       # the prepare_inode method is sourced from the mixed module above
-      @sdb_key_v1 = filestat.to_inode_struct
+      @sdb_key_v1 = filestat.inode_struct
       watch
     end
 
@@ -159,7 +159,7 @@ module FileWatch
     def file_add_opened(rubyfile)
       @file = rubyfile
       @stat_index = IO_BASED_STAT
-      @stats[IO_BASED_STAT] = GenericStat.new(pathname, @identifier, @file.to_io)
+      @stats[IO_BASED_STAT] = IOStatClass.new(@file.to_io).add_identifier(@stats[PATH_BASED_STAT].identifier)
       @buffer = BufferedTokenizer.new(@settings.delimiter) if @buffer.nil?
     end
 

@@ -4,9 +4,9 @@ require_relative 'spec_helper'
 module FileWatch
   describe WatchedFilesCollection do
     let(:time) { Time.now }
-    let(:stat1)  { double("stat1", :size => 98, :modified_at => time - 30, :identifier => nil, :inode => 234567, :to_inode_struct => InodeStruct.new("234567", 3, 2)) }
-    let(:stat2)  { double("stat2", :size => 99, :modified_at => time - 20, :identifier => nil, :inode => 234568, :to_inode_struct => InodeStruct.new("234568", 3, 2)) }
-    let(:stat3)  { double("stat3", :size => 100, :modified_at => time, :identifier => nil, :inode => 234569, :to_inode_struct => InodeStruct.new("234569", 3, 2)) }
+    let(:stat1)  { double("stat1", :size => 98, :modified_at => time - 30, :identifier => nil, :inode => 234567, :inode_struct => InodeStruct.new("234567", 3, 2)) }
+    let(:stat2)  { double("stat2", :size => 99, :modified_at => time - 20, :identifier => nil, :inode => 234568, :inode_struct => InodeStruct.new("234568", 3, 2)) }
+    let(:stat3)  { double("stat3", :size => 100, :modified_at => time, :identifier => nil, :inode => 234569, :inode_struct => InodeStruct.new("234569", 3, 2)) }
     let(:wf1) { WatchedFile.new("/var/log/z.log", stat1, Settings.new) }
     let(:wf2) { WatchedFile.new("/var/log/m.log", stat2, Settings.new) }
     let(:wf3) { WatchedFile.new("/var/log/a.log", stat3, Settings.new) }

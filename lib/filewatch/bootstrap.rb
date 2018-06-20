@@ -24,8 +24,17 @@ module FileWatch
 
   if LogStash::Environment.windows?
     require_relative "winhelper"
+    require_relative "stat/windows_path"
+    require_relative "stat/windows_io"
+
+    PathStatClass = Stat::WindowsPath
+    IOStatClass = Stat::WindowsIO
     FileOpener = FileExt
   else
+    require_relative "stat/generic"
+
+    PathStatClass = Stat::Generic
+    IOStatClass = Stat::Generic
     FileOpener = ::File
   end
 
@@ -47,7 +56,6 @@ module FileWatch
 
   require "logstash/util/buftok"
   require_relative "settings"
-  require_relative "generic_stat"
   require_relative "sincedb_value"
   require_relative "sincedb_record_serializer"
   require_relative "watched_files_collection"

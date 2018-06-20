@@ -37,6 +37,15 @@ module FileWatch
     def size
       123123123123
     end
+    def mtime
+      Time.now
+    end
+    def dev_major
+      1
+    end
+    def dev_minor
+      5
+    end
   end
 
   class DummyFileReader
