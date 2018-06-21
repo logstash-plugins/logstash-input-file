@@ -108,7 +108,7 @@ module FileWatch
       # are not yet in the delete phase, let this play out
       existing_watched_file = sincedb_value.watched_file
       logger.trace("----- >>>>> associate: watched file state", "state" => watched_file.state)
-      msg = "----------------- >> associate: the found sincedb_value has a watched_file - this is a rename, switching to discovered file"
+      msg = "----------------- >> associate: the found sincedb_value has a watched_file - this is a rename, claiming state from found watched_file"
       logger.trace(msg)
       msg = "----------------- >> associate: state before switch"
       logger.trace(msg,

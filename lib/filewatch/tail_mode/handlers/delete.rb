@@ -2,7 +2,7 @@
 
 module FileWatch module TailMode module Handlers
   class Delete < Base
-    DATA_LOSS_WARNING = "file deleted or renamed with unread bytes, however if the file is found it will be read from the last position"
+    DATA_LOSS_WARNING = "watched file path was deleted or rotated before all content was read, if the file is found again it will be read from the last position"
     def handle_specifically(watched_file)
       # TODO consider trying to find the renamed file - it will have the same inode.
       # Needs a rotate scheme rename hint from user e.g. "<name>-YYYY-MM-DD-N.<ext>" or "<name>.<ext>.N"

@@ -5,7 +5,6 @@ module FileWatch module TailMode module Handlers
     def handle_specifically(watched_file)
       sdbv = add_or_update_sincedb_collection(watched_file)
       watched_file.file_seek(watched_file.bytes_read)
-      logger.trace("reading to eof...", "file name" => watched_file.filename)
       read_to_eof(watched_file)
       logger.trace("handle_specifically: after read_to_eof", "watched file" => watched_file.details, "sincedb value" => sdbv)
     end

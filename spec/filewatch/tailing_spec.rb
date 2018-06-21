@@ -30,6 +30,7 @@ module FileWatch
       }
     end
     let(:observer) { TestObserver.new }
+    let(:listener1) { observer.listener_for(file_path) }
     let(:tailing) { ObservingTail.new(opts) }
 
     after do
@@ -61,9 +62,9 @@ module FileWatch
           tailing.watch_this(watch_dir)
           tailing.subscribe(observer)
           expect(tailing.settings.max_active).to eq(max)
-          file1_calls = observer.listener_for(file_path).calls
+          file1_calls = listener1.calls
           file2_calls = observer.listener_for(file_path2).calls
-          expect(observer.listener_for(file_path).lines).to eq(["line1", "line2"])
+          expect(listener1.lines).to eq(["line1", "line2"])
           expect(file1_calls).to eq([:open, :accept, :accept])
           expect(file2_calls).to be_empty
         end
@@ -77,7 +78,7 @@ module FileWatch
           tailing.watch_this(watch_dir)
           tailing.subscribe(observer)
           expect(tailing.settings.max_active).to eq(1)
-          filelistener_1 = observer.listener_for(file_path)
+          filelistener_1 = listener1
           filelistener_2 = observer.listener_for(file_path2)
           expect(filelistener_2.calls).to eq([:open, :accept, :accept, :timed_out])
           expect(filelistener_2.lines).to eq(["line-A", "line-B"])
@@ -100,8 +101,8 @@ module FileWatch
         actions.activate
         tailing.watch_this(watch_dir)
         tailing.subscribe(observer)
-        expect(observer.listener_for(file_path).calls).to eq([:open, :accept, :accept])
-        expect(observer.listener_for(file_path).lines).to eq(["line1", "line2"])
+        expect(listener1.calls).to eq([:open, :accept, :accept])
+        expect(listener1.lines).to eq(["line1", "line2"])
       end
     end
 
@@ -110,18 +111,17 @@ module FileWatch
       before do
         tailing.watch_this(watch_dir)
         RSpec::Sequencing
-          .run_after(0.25, "create file") do
+          .run_after(0.1, "create file") do
             File.open(file_path, "wb") { |file|  file.write("line1\nline2\n") }
-          end
-          .then_after(0.45, "quit after a short time") do
+            wait(0.5).for{listener1.lines.size}.to eq(2)
             tailing.quit
           end
       end
 
       it "the file is read" do
         tailing.subscribe(observer)
-        expect(observer.listener_for(file_path).calls).to eq([:open, :accept, :accept])
-        expect(observer.listener_for(file_path).lines).to eq(["line1", "line2"])
+        expect(listener1.calls).to eq([:open, :accept, :accept])
+        expect(listener1.lines).to eq(["line1", "line2"])
       end
     end
 
@@ -146,7 +146,7 @@ module FileWatch
           RSpec::Sequencing.run_after(quit_after, "quit") { tailing.quit }
           tailing.subscribe(observer)
           expect(tailing.watch.watched_files_collection).to be_empty
-          expect(observer.listener_for(file_path).calls).to eq([:delete])
+          expect(listener1.calls).to eq([:delete])
         end
       end
 
@@ -156,7 +156,7 @@ module FileWatch
           RSpec::Sequencing.run_after(quit_after, "quit") { tailing.quit }
           tailing.subscribe(observer)
           expect(tailing.watch.watched_files_collection).to be_empty
-          expect(observer.listener_for(file_path).calls).to eq([:delete])
+          expect(listener1.calls).to eq([:delete])
         end
       end
 
@@ -166,7 +166,7 @@ module FileWatch
           RSpec::Sequencing.run_after(quit_after, "quit") { tailing.quit }
           tailing.subscribe(observer)
           expect(tailing.watch.watched_files_collection).to be_empty
-          expect(observer.listener_for(file_path).calls).to eq([:delete])
+          expect(listener1.calls).to eq([:delete])
         end
       end
 
@@ -176,7 +176,7 @@ module FileWatch
           RSpec::Sequencing.run_after(quit_after, "quit") { tailing.quit }
           tailing.subscribe(observer)
           expect(tailing.watch.watched_files_collection).to be_empty
-          expect(observer.listener_for(file_path).calls).to eq([:delete])
+          expect(listener1.calls).to eq([:delete])
         end
       end
     end
@@ -194,16 +194,15 @@ module FileWatch
         .then_after(0.25, "truncate file and write new content") do
           File.truncate(file_path, 0)
           File.open(file_path, "wb") { |file|  file.write("lineA\nlineB\n") }
-        end
-        .then_after(0.25, "quit after a short time") do
+          wait(0.5).for{listener1.lines.size}.to eq(6)
           tailing.quit
         end
       end
 
       it "new changes to the shrunk file are read from the beginning" do
         tailing.subscribe(observer)
-        expect(observer.listener_for(file_path).calls).to eq([:open, :accept, :accept, :accept, :accept, :accept, :accept])
-        expect(observer.listener_for(file_path).lines).to eq(["line1", "line2", "line3", "line4", "lineA", "lineB"])
+        expect(listener1.calls).to eq([:open, :accept, :accept, :accept, :accept, :accept, :accept])
+        expect(listener1.lines).to eq(["line1", "line2", "line3", "line4", "lineA", "lineB"])
       end
     end
 
@@ -222,16 +221,15 @@ module FileWatch
           end
           .then_after(0.55, "then write to renamed file") do
             File.open(new_file_path, "ab") { |file|  file.write("line3\nline4\n") }
-          end
-          .then_after(0.45, "quit after a short time") do
+            wait(0.5).for{listener1.lines.size}.to eq(2)
             tailing.quit
           end
       end
 
       it "changes to the renamed file are not read" do
         tailing.subscribe(observer)
-        expect(observer.listener_for(file_path).calls).to eq([:open, :accept, :accept, :delete])
-        expect(observer.listener_for(file_path).lines).to eq(["line1", "line2"])
+        expect(listener1.calls).to eq([:open, :accept, :accept, :delete])
+        expect(listener1.lines).to eq(["line1", "line2"])
         expect(observer.listener_for(new_file_path).calls).to eq([])
         expect(observer.listener_for(new_file_path).lines).to eq([])
       end
@@ -240,6 +238,7 @@ module FileWatch
     context "when watching a directory with files and a file is renamed to match glob" do
       let(:new_file_path) { file_path + "2.log" }
       let(:opts) { super.merge(:close_older => 0) }
+      let(:listener2) { observer.listener_for(new_file_path) }
       before do
         RSpec::Sequencing
           .run("create file") do
@@ -251,20 +250,21 @@ module FileWatch
           .then_after(0.25, "rename file") do
             FileUtils.mv(file_path, new_file_path)
           end
-          .then("then write to renamed file") do
+          .then_after(0.1, "then write to renamed file") do
             File.open(new_file_path, "ab") { |file|  file.write("line3\nline4\n") }
           end
-          .then_after(0.55, "quit after a short time") do
+          .then_after(0.1, "quit") do
+            wait(0.5).for{listener2.lines.size}.to eq(2)
             tailing.quit
           end
       end
 
       it "the first set of lines are not re-read" do
         tailing.subscribe(observer)
-        expect(observer.listener_for(file_path).lines).to eq(["line1", "line2"])
-        expect(observer.listener_for(file_path).calls).to eq([:open, :accept, :accept, :timed_out, :delete])
-        expect(observer.listener_for(new_file_path).lines).to eq(["line3", "line4"])
-        expect(observer.listener_for(new_file_path).calls).to eq([:open, :accept, :accept, :timed_out])
+        expect(listener1.lines).to eq(["line1", "line2"])
+        expect(listener1.calls).to eq([:open, :accept, :accept, :timed_out, :delete])
+        expect(listener2.lines).to eq(["line3", "line4"])
+        expect(listener2.calls).to eq([:open, :accept, :accept, :timed_out])
       end
     end
 
@@ -279,16 +279,15 @@ module FileWatch
           end
           .then_after(0.45, "append more lines to the file") do
             File.open(file_path, "ab") { |file|  file.write("line3\nline4\n") }
-          end
-          .then_after(0.45, "quit after a short time") do
+            wait(0.5).for{listener1.lines.size}.to eq(4)
             tailing.quit
           end
       end
 
       it "appended lines are read after an EOF" do
         tailing.subscribe(observer)
-        expect(observer.listener_for(file_path).calls).to eq([:open, :accept, :accept, :accept, :accept])
-        expect(observer.listener_for(file_path).lines).to eq(["line1", "line2", "line3", "line4"])
+        expect(listener1.calls).to eq([:open, :accept, :accept, :accept, :accept])
+        expect(listener1.lines).to eq(["line1", "line2", "line3", "line4"])
       end
     end
 
@@ -309,8 +308,8 @@ module FileWatch
 
       it "lines are read and the file times out" do
         tailing.subscribe(observer)
-        expect(observer.listener_for(file_path).calls).to eq([:open, :accept, :accept, :timed_out])
-        expect(observer.listener_for(file_path).lines).to eq(["line1", "line2"])
+        expect(listener1.calls).to eq([:open, :accept, :accept, :timed_out])
+        expect(listener1.lines).to eq(["line1", "line2"])
       end
     end
 
@@ -334,8 +333,8 @@ module FileWatch
 
       it "all lines are read" do
         tailing.subscribe(observer)
-        expect(observer.listener_for(file_path).calls).to eq([:open, :accept, :accept, :timed_out, :open, :accept, :accept, :timed_out])
-        expect(observer.listener_for(file_path).lines).to eq(["line1", "line2", "line3", "line4"])
+        expect(listener1.calls).to eq([:open, :accept, :accept, :timed_out, :open, :accept, :accept, :timed_out])
+        expect(listener1.lines).to eq(["line1", "line2", "line3", "line4"])
       end
     end
 
@@ -355,8 +354,8 @@ module FileWatch
 
       it "no files are read" do
         tailing.subscribe(observer)
-        expect(observer.listener_for(file_path).calls).to eq([])
-        expect(observer.listener_for(file_path).lines).to eq([])
+        expect(listener1.calls).to eq([])
+        expect(listener1.lines).to eq([])
       end
     end
 
@@ -387,7 +386,7 @@ module FileWatch
 
       it "files are read correctly" do
         tailing.subscribe(observer)
-        expect(observer.listener_for(file_path).lines.size).to eq(32)
+        expect(listener1.lines.size).to eq(32)
         expect(observer.listener_for(file_path2).calls).to eq([:delete])
         expect(observer.listener_for(file_path2).lines).to eq([])
         expect(observer.listener_for(file_path3).calls).to eq([:open, :accept, :timed_out])
@@ -412,8 +411,8 @@ module FileWatch
 
       it "reads lines normally" do
         tailing.subscribe(observer)
-        expect(observer.listener_for(file_path).calls).to eq([:open, :accept, :accept, :timed_out])
-        expect(observer.listener_for(file_path).lines).to eq(["line1", "line2"])
+        expect(listener1.calls).to eq([:open, :accept, :accept, :timed_out])
+        expect(listener1.lines).to eq(["line1", "line2"])
       end
     end
 
@@ -433,8 +432,8 @@ module FileWatch
 
       it "no files are read" do
         tailing.subscribe(observer)
-        expect(observer.listener_for(file_path).calls).to eq([])
-        expect(observer.listener_for(file_path).lines).to eq([])
+        expect(listener1.calls).to eq([])
+        expect(listener1.lines).to eq([])
       end
     end
 
@@ -457,8 +456,8 @@ module FileWatch
 
       it "reads the added lines only" do
         tailing.subscribe(observer)
-        expect(observer.listener_for(file_path).lines).to eq(["line3", "line4"])
-        expect(observer.listener_for(file_path).calls).to eq([:open, :accept, :accept, :timed_out])
+        expect(listener1.lines).to eq(["line3", "line4"])
+        expect(listener1.calls).to eq([:open, :accept, :accept, :timed_out])
       end
     end
 
@@ -479,8 +478,8 @@ module FileWatch
 
       it "the file is opened, data is read, but no lines are found, the file times out" do
         tailing.subscribe(observer)
-        expect(observer.listener_for(file_path).calls).to eq([:open, :timed_out])
-        expect(observer.listener_for(file_path).lines).to eq([])
+        expect(listener1.calls).to eq([:open, :timed_out])
+        expect(listener1.lines).to eq([])
         sincedb_record_fields = File.read(sincedb_path).split(" ")
         position_field_index = 3
         # tailing, no delimiter, we are expecting one, if it grows we read from the start.

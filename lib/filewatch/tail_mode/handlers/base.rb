@@ -31,6 +31,7 @@ module FileWatch module TailMode module Handlers
     private
 
     def read_to_eof(watched_file)
+      logger.trace("reading...", "amount" => watched_file.read_bytesize_description, "filename" => watched_file.filename)
       changed = false
       # from a real config (has 102 file inputs)
       # -- This cfg creates a file input for every log file to create a dedicated file pointer and read all file simultaneously

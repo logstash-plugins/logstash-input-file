@@ -203,7 +203,7 @@ module FileWatch module TailMode
           # keep buffer contents if any
           logger.trace(">>> Active - inode change detected, set to rotation_in_progress", "path" => path)
           watched_file.rotation_in_progress
-          if watched_file.all_previous_bytes_read?
+          if watched_file.all_open_file_bytes_read?
             logger.trace(">>> Active - inode change detected and file is fully read")
           else
             # rotated file but original opened file is not fully read
@@ -265,7 +265,7 @@ module FileWatch module TailMode
           all_ok = false
         end
       rescue => e
-        logger.error("#{action} - other error #{path}: (#{error.message}, #{error.backtrace.take(8).inspect})")
+        logger.error("#{action} - other error #{watched_file.path}: (#{e.message}, #{e.backtrace.take(8).inspect})")
         all_ok = false
       end
       all_ok

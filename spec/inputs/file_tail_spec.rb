@@ -429,15 +429,15 @@ describe LogStash::Inputs::File do
         expect(lsof_proc.call).to eq("")
         # first run processes the file and records sincedb progress
         run_thread_proc.call
-        wait(1).for{lsof_proc.call.scan(file_path).size}.to eq(1)
+        wait(1.25).for{lsof_proc.call.scan(file_path).size}.to eq(1)
         # second run quits the first run
         # sees the file has not changed size and does not open it
         run_thread_proc.call
-        wait(1).for{lsof_proc.call.scan(file_path).size}.to eq(0)
+        wait(1.25).for{lsof_proc.call.scan(file_path).size}.to eq(0)
         # truncate and write less than before
         File.open(file_path, "w"){ |fd| fd.puts('baz'); fd.fsync }
         # sees the file has changed size and does open it
-        wait(1).for{lsof_proc.call.scan(file_path).size}.to eq(1)
+        wait(1.25).for{lsof_proc.call.scan(file_path).size}.to eq(1)
       end
     end
 

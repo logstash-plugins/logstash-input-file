@@ -7,7 +7,7 @@ module FileWatch
 
     attr_reader :bytes_read, :state, :file, :buffer, :recent_states, :bytes_unread
     attr_reader :path, :accessed_at, :modified_at, :pathname, :filename
-    attr_reader :listener, :read_loop_count, :read_chunk_size
+    attr_reader :listener, :read_loop_count, :read_chunk_size, :stats, :read_bytesize_description
     attr_accessor :last_open_warning_at
 
     # this class represents a file that has been discovered
@@ -20,6 +20,7 @@ module FileWatch
       @stats = []
       @stat_index = PATH_BASED_STAT
       full_state_reset(stat)
+      watch
       set_user_defined_read_loop
       set_accessed_at
     end
@@ -54,13 +55,13 @@ module FileWatch
       @recent_states = [] # keep last 8 states, managed in set_state
       # the prepare_inode method is sourced from the mixed module above
       @sdb_key_v1 = filestat.inode_struct
-      watch
+      watch if active?
     end
 
     def rotate_from(other)
       # move all state from other to this one
       set_user_defined_read_loop
-      @file = other.file
+      file_close
       @bytes_read = other.bytes_read
       @bytes_unread = other.bytes_unread
       @listener = nil
@@ -75,14 +76,6 @@ module FileWatch
       watch
     end
 
-    def file_at_path_found_again
-      restore_previous_state
-    end
-
-    def path_based_sincedb_key
-      @stats[PATH_BASED_STAT].inode_struct
-    end
-
     def rotate_as_initial_file
       # rotation, when no sincedb record exists for new inode - we have never seen this inode before.
       rotate_as_file
@@ -95,15 +88,23 @@ module FileWatch
       # RARE due to delayed_delete - there would have to be a large time span between the renames.
       @bytes_read = 0 # tracks bytes read from the open file or initialized from a matched sincedb_value off disk.
       @bytes_unread = 0 # tracks bytes not yet read from the open file. So we can warn on shrink when unread bytes are seen.
-      file_close
       @last_open_warning_at = nil
       # initial as true means we have not associated this watched_file with a previous sincedb value yet.
       # and we should read from the beginning if necessary
       @initial = false
       @recent_states = [] # keep last 8 states, managed in set_state
-      # the prepare_inode method is sourced from the mixed module above
+      @stats[PATH_BASED_STAT] = PathStatClass.new(pathname)
+      reopen
       @sdb_key_v1 = filestat.inode_struct
       watch
+    end
+
+    def file_at_path_found_again
+      restore_previous_state
+    end
+
+    def path_based_sincedb_key
+      @stats[PATH_BASED_STAT].inode_struct
     end
 
     def set_listener(observer)
@@ -148,8 +149,15 @@ module FileWatch
       test_bytes_read(last_stat_size)
     end
 
-    def all_previous_bytes_read?
+    def all_open_file_bytes_read?
       test_bytes_read(@stats[IO_BASED_STAT].size)
+    end
+
+    def reopen
+      if file_open?
+        file_close
+        open
+      end
     end
 
     def open
@@ -318,11 +326,13 @@ module FileWatch
     def set_depth_first_read_loop
       @read_loop_count = FileWatch::MAX_ITERATIONS
       @read_chunk_size = FileWatch::FILE_READ_SIZE
+      @read_bytesize_description = "All"
     end
 
     def set_user_defined_read_loop
       @read_loop_count = @settings.file_chunk_count
       @read_chunk_size = @settings.file_chunk_size
+      @read_bytesize_description = @read_loop_count == FileWatch::MAX_ITERATIONS ? "All" : (@read_loop_count * @read_chunk_size).to_s
     end
 
     def reset_bytes_unread
@@ -387,7 +397,7 @@ module FileWatch
     private
 
     def test_bytes_read(size)
-      size > 0 && size == bytes_read
+      bytes_read >= size
     end
 
     def update_bytes_unread

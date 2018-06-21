@@ -35,7 +35,7 @@ module FileWatch
     let(:directory) { Pathname.new(Stud::Temporary.directory) }
     let(:watch_dir) { directory.join("*.log") }
     let(:file_path) { directory.join("1.log") }
-    let(:full_file_path) { file_path.to_path}
+    let(:file1_path) { file_path.to_path }
     let(:max)   { 4095 }
     let(:stat_interval) { 0.01 }
     let(:discover_interval) { 1 }
@@ -59,6 +59,8 @@ module FileWatch
 
     context "create + rename rotation: when a new logfile is renamed to a path we have seen before and the open file is fully read, renamed outside glob" do
       subject { described_class.new(conf) }
+      let(:listener1) { observer.listener_for(file1_path) }
+      let(:listener2) { observer.listener_for(second_file.to_path) }
       before do
         tailing.watch_this(watch_dir.to_path)
         RSpec::Sequencing
@@ -72,21 +74,19 @@ module FileWatch
             tmpfile = directory.join("1.logtmp")
             tmpfile.open("wb") { |file|  file.write("\n#{line3}\n")}
             file_path.rename(directory.join("1.log.1"))
-            FileUtils.mv(directory.join("1.logtmp").to_path, file_path.to_path)
-          end
-          .then_after(0.2, "quit after a short time") do
+            FileUtils.mv(directory.join("1.logtmp").to_path, file1_path)
+            wait(0.5).for{listener1.lines.size}.to eq(3)
             tailing.quit
           end
       end
 
       it "content from both inodes are sent via the same stream" do
         tailing.subscribe(observer)
-        lines = observer.listener_for(full_file_path).lines
-        expect(lines.size).to eq(3)
+        lines = listener1.lines
         expect(lines[0]).to eq(line1)
         expect(lines[1]).to eq(line2)
         expect(lines[2]).to eq(line3)
-        expect(observer.listener_for(full_file_path).calls).to eq([:open, :accept, :open, :accept, :accept])
+        expect(listener1.calls).to eq([:open, :accept, :accept, :accept])
       end
     end
 
@@ -94,6 +94,8 @@ module FileWatch
       subject { described_class.new(conf) }
       let(:second_file) { directory.join("2.log") }
       let(:third_file) { directory.join("3.log") }
+      let(:listener1) { observer.listener_for(file1_path) }
+      let(:listener2) { observer.listener_for(second_file.to_path) }
       before do
         tailing.watch_this(watch_dir.to_path)
         RSpec::Sequencing
@@ -108,17 +110,16 @@ module FileWatch
             second_file.rename(third_file)
             file_path.rename(second_file)
             file_path.open("wb") { |file|  file.write("#{line3}\n") }
-          end
-          .then_after(0.1, "quit after a short time") do
+            wait(0.5).for{listener1.lines.size}.to eq(3)
             tailing.quit
           end
       end
 
       it "content from both inodes are sent via the same stream" do
         tailing.subscribe(observer)
-        expect(observer.listener_for(second_file.to_path).lines).to be_empty
+        expect(listener2.lines).to be_empty
         expect(observer.listener_for(third_file.to_path).lines).to be_empty
-        lines = observer.listener_for(full_file_path).lines
+        lines = observer.listener_for(file1_path).lines
         expect(lines[0]).to eq(line1)
         expect(lines[1]).to eq(line2)
         expect(lines[2]).to eq(line3)
@@ -128,13 +129,9 @@ module FileWatch
     context "create + rename rotation: a two file rename cascade in slow motion" do
       subject { described_class.new(conf) }
       let(:second_file) { directory.join("2.log") }
+      let(:listener1) { observer.listener_for(file1_path) }
+      let(:listener2) { observer.listener_for(second_file.to_path) }
       before do
-        # line3file = directory.join("2.log")
-        # line3file.open("wb") { |file| file.write("#{line3}\n") }
-        # # synthesize a sincedb record
-        # stat = line3file.stat
-        # record = [stat.ino.to_s, stat.dev_major.to_s, stat.dev_minor.to_s, stat.size.to_s, stat.mtime.to_f.to_s, line3file]
-        # File.open(sincedb_path, "wb") { |file| file.puts(record.join(" ")) }
         tailing.watch_this(watch_dir.to_path)
         RSpec::Sequencing
           .run_after(0.1, "create original - write line 1, 66 bytes") do
@@ -151,23 +148,26 @@ module FileWatch
           end
           .then_after(0.02, "<<<<<<<<<<<<<<   write line 3 to original, 47 bytes") do
             file_path.open("wb") { |file|  file.write("#{line3}\n") }
-          end
-          .then_after(0.1, "quit after a short time") do
+            wait(0.5).for{listener1.lines.size}.to eq(3)
             tailing.quit
           end
       end
 
       it "content from both inodes are sent via the same stream AND content from the rotated file is not read again" do
         tailing.subscribe(observer)
-        expect(observer.listener_for(second_file.to_path).lines).to be_empty
-        # expect(observer.listener_for(full_file_path).calls).to eq([:open, :accept, :delete, :open, :accept, :delete, :open, :accept])
-        expect(observer.listener_for(full_file_path).lines).to eq([line1, line2, line3])
+        expect(listener2.calls.select{|sym| sym == :accept}).to be_empty
+        expect(listener2.lines).to be_empty
+        lines = listener1.lines
+        expect(lines[0]).to eq(line1)
+        expect(lines[1]).to eq(line2)
+        expect(lines[2]).to eq(line3)
       end
     end
 
     context "create + rename rotation: a two file rename cascade in normal speed" do
       subject { described_class.new(conf) }
       let(:second_file) { directory.join("2.log") }
+      let(:listener1) { observer.listener_for(file1_path) }
       before do
         tailing.watch_this(watch_dir.to_path)
         RSpec::Sequencing
@@ -181,25 +181,29 @@ module FileWatch
           .then_after(0.1, "<<<<<<<<<<<<<<   rename to 2.log again") do
             file_path.rename(second_file)
             file_path.open("wb") { |file|  file.write("#{line3}\n") }
-          end
-          .then_after(0.1, "quit after a short time") do
+            wait(0.5).for{listener1.lines.size}.to eq(3)
             tailing.quit
           end
       end
 
       it "content from both inodes are sent via the same stream AND content from the rotated file is not read again" do
         tailing.subscribe(observer)
+        expect(observer.listener_for(second_file.to_path).calls.select{|sym| sym == :accept}).to be_empty
         expect(observer.listener_for(second_file.to_path).lines).to be_empty
-        # expect(observer.listener_for(full_file_path).calls).to eq([:open, :accept, :delete, :open, :accept, :delete, :open, :accept])
-        expect(observer.listener_for(full_file_path).lines).to eq([line1, line2, line3])
+        lines = listener1.lines
+        expect(lines[0]).to eq(line1)
+        expect(lines[1]).to eq(line2)
+        expect(lines[2]).to eq(line3)
       end
     end
+
     context "create + rename rotation: when a new logfile is renamed to a path we have seen before but not all content from the previous the file is read" do
       let(:opts) { super.merge(
           :file_chunk_size => line1.bytesize.succ,
           :file_chunk_count => 1
         ) }
       subject { described_class.new(conf) }
+      let(:listener1) { observer.listener_for(file1_path) }
       before do
         tailing.watch_this(watch_dir.to_path)
         RSpec::Sequencing
@@ -208,51 +212,49 @@ module FileWatch
               65.times{file.puts(line1)}
             end
           end
-          .then_after(0.25, "rotate") do
+          .then_after(0.2, "rotate") do
             tmpfile = directory.join("1.logtmp")
             tmpfile.open("wb") { |file|  file.puts(line1)}
             file_path.rename(directory.join("1.log.1"))
             tmpfile.rename(directory.join("1.log"))
-          end
-          .then_after(0.5, "quit given enough time to finish all the reading") do
+            wait(0.5).for{listener1.lines.size}.to eq(66)
             tailing.quit
           end
       end
 
       it "content from both inodes are sent via the same stream" do
         tailing.subscribe(observer)
-        expected_calls = ([:accept] * 65).unshift(:open).push(:open, :accept)
-        expected_lines = [line1] * 66
-        expect(observer.listener_for(full_file_path).lines).to eq(expected_lines)
-        expect(observer.listener_for(full_file_path).calls).to eq(expected_calls)
+        expected_calls = ([:accept] * 66).unshift(:open)
+        expect(listener1.lines.uniq).to eq([line1])
+        expect(listener1.calls).to eq(expected_calls)
         expect(sincedb_path.readlines.size).to eq(2)
       end
     end
 
     context "copy + truncate rotation: when a logfile is copied to a new path and truncated and the open file is fully read" do
       subject { described_class.new(conf) }
+      let(:listener1) { observer.listener_for(file1_path) }
       before do
         tailing.watch_this(watch_dir.to_path)
         RSpec::Sequencing
-          .run_after(0.25, "create file") do
+          .run_after(0.2, "create file") do
             file_path.open("wb") { |file|  file.puts(line1); file.puts(line2) }
           end
-          .then_after(0.5, "rotate") do
-            FileUtils.cp(file_path.to_path, directory.join("1.log.1").to_path)
+          .then_after(0.2, "rotate") do
+            FileUtils.cp(file1_path, directory.join("1.log.1").to_path)
             file_path.truncate(0)
           end
-          .then_after(0.25, "write to truncated file") do
+          .then_after(0.2, "write to truncated file") do
             file_path.open("wb") { |file|  file.puts(line3) }
-          end
-          .then_after(0.45, "quit after a short time") do
+            wait(0.5).for{listener1.lines.size}.to eq(3)
             tailing.quit
           end
       end
 
       it "content is read correctly" do
         tailing.subscribe(observer)
-        expect(observer.listener_for(full_file_path).lines).to eq([line1, line2, line3])
-        expect(observer.listener_for(full_file_path).calls).to eq([:open, :accept, :accept, :accept])
+        expect(listener1.lines).to eq([line1, line2, line3])
+        expect(listener1.calls).to eq([:open, :accept, :accept, :accept])
       end
     end
 
@@ -262,36 +264,35 @@ module FileWatch
           :file_chunk_count => 1
         ) }
       subject { described_class.new(conf) }
+      let(:listener1) { observer.listener_for(file1_path) }
       before do
         tailing.watch_this(watch_dir.to_path)
         RSpec::Sequencing
-          .run_after(0.25, "create file") do
+          .run_after(0.1, "create file") do
             file_path.open("wb") { |file|  65.times{file.puts(line1)} }
           end
-          .then_after(0.25, "rotate") do
-            FileUtils.cp(file_path.to_path, directory.join("1.log.1").to_path)
+          .then_after(0.1, "rotate") do
+            FileUtils.cp(file1_path, directory.join("1.log.1").to_path)
             file_path.truncate(0)
           end
-          .then_after(0.1, "write to truncated file") do
+          .then_after(0.2, "write to truncated file") do
             file_path.open("wb") { |file|  file.puts(line3) }
-          end
-          .then_after(0.25, "quit after a short time") do
+            wait(0.5).for{listener1.lines.last}.to eq(line3)
             tailing.quit
           end
       end
 
       it "unread content before the truncate is lost" do
         tailing.subscribe(observer)
-        lines = observer.listener_for(full_file_path).lines
-        expect(lines.size).to be < 66
-        expect(lines.last).to eq(line3)
+        expect(listener1.lines.size).to be < 66
       end
     end
 
     context "? rotation: when an active file is renamed inside the glob and the reading does not lag" do
       let(:file2) { directory.join("2.log") }
-      # let(:discover_interval) { 1 }
       subject { described_class.new(conf) }
+      let(:listener1) { observer.listener_for(file1_path) }
+      let(:listener2) { observer.listener_for(file2.to_path) }
       before do
         tailing.watch_this(watch_dir.to_path)
         RSpec::Sequencing
@@ -299,31 +300,33 @@ module FileWatch
             file_path.open("wb") { |file|  file.puts(line1); file.puts(line2) }
           end
           .then_after(0.1, "rename") do
-            FileUtils.mv(file_path.to_path, file2.to_path)
+            FileUtils.mv(file1_path, file2.to_path)
           end
           .then_after(0.1, "write to renamed file") do
             file2.open("ab") { |file|  file.puts(line3) }
+            wait(0.75).for{listener1.lines.size + listener2.lines.size}.to eq(66)
           end
-          .then_after(0.2, "quit after a short time") do
+          .then_after(0.1, "quit") do
             tailing.quit
           end
       end
 
       it "content is read correctly, the renamed file is not reread from scratch" do
         tailing.subscribe(observer)
-        expect(observer.listener_for(file_path.to_path).lines).to eq([line1, line2])
-        expect(observer.listener_for(file2.to_path).lines).to eq([line3])
+        expect(listener1.lines).to eq([line1, line2])
+        expect(listener2.lines).to eq([line3])
       end
     end
 
     context "? rotation: when an active file is renamed inside the glob and the reading lags behind" do
-      # let(:discover_interval) { 1 }
       let(:opts) { super.merge(
           :file_chunk_size => line1.bytesize.succ,
           :file_chunk_count => 2
         ) }
       let(:file2) { directory.join("2.log") }
       subject { described_class.new(conf) }
+      let(:listener1) { observer.listener_for(file1_path) }
+      let(:listener2) { observer.listener_for(file2.to_path) }
       before do
         tailing.watch_this(watch_dir.to_path)
         RSpec::Sequencing
@@ -331,32 +334,31 @@ module FileWatch
             file_path.open("wb") { |file| 65.times{file.puts(line1)} }
           end
           .then_after(0.1, "rename") do
-            FileUtils.mv(file_path.to_path, file2.to_path)
+            FileUtils.mv(file1_path, file2.to_path)
           end
           .then_after(0.1, "write to renamed file") do
             file2.open("ab") { |file|  file.puts(line3) }
+            wait(1.25).for{listener1.lines.size + listener2.lines.size}.to eq(66)
           end
-          .then_after(0.75, "quit after a short time") do
+          .then_after(0.1, "quit") do
             tailing.quit
           end
       end
 
       it "content is read correctly, the renamed file is not reread from scratch" do
         tailing.subscribe(observer)
-        lines = observer.listener_for(full_file_path).lines + observer.listener_for(file2.to_path).lines
-        expect(lines.size).to eq(66)
-        expect(lines.last).to eq(line3)
+        expect(listener2.lines.last).to eq(line3)
       end
     end
 
     context "? rotation: when a not active file is rotated outside the glob before the file is read" do
-      # let(:discover_interval) { 1 }
       let(:opts) { super.merge(
           :close_older => 3600,
           :max_active => 1
         ) }
       let(:file2) { directory.join("2.log") }
       let(:file3) { directory.join("2.log.1") }
+      let(:listener1) { observer.listener_for(file1_path) }
       subject { described_class.new(conf) }
       before do
         tailing.watch_this(watch_dir.to_path)
@@ -367,16 +369,15 @@ module FileWatch
           end
           .then_after(0.1, "rename") do
             FileUtils.mv(file2.to_path, file3.to_path)
+            wait(1.25).for{listener1.lines.size}.to eq(66)
           end
-          .then_after(0.75, "quit after a short time") do
+          .then_after(0.1, "quit") do
             tailing.quit
           end
       end
 
       it "file 1 content is read correctly, the renamed file 2 is not read at all" do
         tailing.subscribe(observer)
-        lines = observer.listener_for(full_file_path).lines
-        expect(lines.size).to eq(65)
         expect(observer.listener_for(file2.to_path).lines.size).to eq(0)
         expect(observer.listener_for(file3.to_path).lines.size).to eq(0)
       end
