@@ -53,8 +53,14 @@ module FileWatch
     let(:line2) { "Line 2 - Proin ut orci lobortis, congue diam in, dictum est." }
     let(:line3) { "Line 3 - Sed vestibulum accumsan sollicitudin." }
 
+    before do
+      directory
+      wait(1.0).for{Dir.exist?(directory)}.to eq(true)
+    end
+
     after do
       FileUtils.rm_rf(directory)
+      wait(1.0).for{Dir.exist?(directory)}.to eq(false)
     end
 
     context "create + rename rotation: when a new logfile is renamed to a path we have seen before and the open file is fully read, renamed outside glob" do
@@ -64,18 +70,20 @@ module FileWatch
       before do
         tailing.watch_this(watch_dir.to_path)
         RSpec::Sequencing
-          .run_after(0.1, "create file") do
+          .run_after(0.25, "create file") do
             file_path.open("wb") { |file|  file.write("#{line1}\n") }
           end
-          .then_after(0.1, "write a 'unfinished' line") do
+          .then_after(0.25, "write a 'unfinished' line") do
             file_path.open("ab") { |file|  file.write(line2) }
           end
-          .then_after(0.1, "<<< rotate") do
+          .then_after(0.25, "<<< rotate") do
             tmpfile = directory.join("1.logtmp")
             tmpfile.open("wb") { |file|  file.write("\n#{line3}\n")}
             file_path.rename(directory.join("1.log.1"))
             FileUtils.mv(directory.join("1.logtmp").to_path, file1_path)
             wait(0.5).for{listener1.lines.size}.to eq(3)
+          end
+          .then_after(0.1, "quit") do
             tailing.quit
           end
       end
@@ -99,18 +107,20 @@ module FileWatch
       before do
         tailing.watch_this(watch_dir.to_path)
         RSpec::Sequencing
-          .run_after(0.1, "create file") do
+          .run_after(0.25, "create file") do
             file_path.open("wb") { |file|  file.write("#{line1}\n") }
           end
-          .then_after(0.1, "<<<<<<<<<<<<<<   rotate 1") do
+          .then_after(0.25, "<<<<<<<<<<<<<<   rotate 1") do
             file_path.rename(second_file)
             file_path.open("wb") { |file|  file.write("#{line2}\n") }
           end
-          .then_after(0.1, "<<<<<<<<<<<<<<   rotate 2") do
+          .then_after(0.25, "<<<<<<<<<<<<<<   rotate 2") do
             second_file.rename(third_file)
             file_path.rename(second_file)
             file_path.open("wb") { |file|  file.write("#{line3}\n") }
             wait(0.5).for{listener1.lines.size}.to eq(3)
+          end
+          .then_after(0.1, "quit") do
             tailing.quit
           end
       end
@@ -134,21 +144,23 @@ module FileWatch
       before do
         tailing.watch_this(watch_dir.to_path)
         RSpec::Sequencing
-          .run_after(0.1, "create original - write line 1, 66 bytes") do
+          .run_after(0.25, "create original - write line 1, 66 bytes") do
             file_path.open("wb") { |file|  file.write("#{line1}\n") }
           end
-          .then_after(0.1, "<<<<<<<<<<<<<<   rename to 2.log") do
+          .then_after(0.25, "<<<<<<<<<<<<<<   rename to 2.log") do
             file_path.rename(second_file)
           end
           .then_after(0.02, "<<<<<<<<<<<<<<   write line 2 to original, 61 bytes") do
             file_path.open("wb") { |file|  file.write("#{line2}\n") }
           end
-          .then_after(0.1, "<<<<<<<<<<<<<<   rename to 2.log again") do
+          .then_after(0.25, "<<<<<<<<<<<<<<   rename to 2.log again") do
             file_path.rename(second_file)
           end
           .then_after(0.02, "<<<<<<<<<<<<<<   write line 3 to original, 47 bytes") do
             file_path.open("wb") { |file|  file.write("#{line3}\n") }
             wait(0.5).for{listener1.lines.size}.to eq(3)
+          end
+          .then_after(0.1, "quit") do
             tailing.quit
           end
       end
@@ -171,17 +183,19 @@ module FileWatch
       before do
         tailing.watch_this(watch_dir.to_path)
         RSpec::Sequencing
-          .run_after(0.1, "create original - write line 1, 66 bytes") do
+          .run_after(0.25, "create original - write line 1, 66 bytes") do
             file_path.open("wb") { |file|  file.write("#{line1}\n") }
           end
-          .then_after(0.1, "<<<<<<<<<<<<<<   rename to 2.log") do
+          .then_after(0.25, "<<<<<<<<<<<<<<   rename to 2.log") do
             file_path.rename(second_file)
             file_path.open("wb") { |file|  file.write("#{line2}\n") }
           end
-          .then_after(0.1, "<<<<<<<<<<<<<<   rename to 2.log again") do
+          .then_after(0.25, "<<<<<<<<<<<<<<   rename to 2.log again") do
             file_path.rename(second_file)
             file_path.open("wb") { |file|  file.write("#{line3}\n") }
             wait(0.5).for{listener1.lines.size}.to eq(3)
+          end
+          .then_after(0.1, "quit") do
             tailing.quit
           end
       end
@@ -207,17 +221,19 @@ module FileWatch
       before do
         tailing.watch_this(watch_dir.to_path)
         RSpec::Sequencing
-          .run_after(0.1, "create file") do
+          .run_after(0.25, "create file") do
             file_path.open("wb") do |file|
               65.times{file.puts(line1)}
             end
           end
-          .then_after(0.2, "rotate") do
+          .then_after(0.25, "rotate") do
             tmpfile = directory.join("1.logtmp")
             tmpfile.open("wb") { |file|  file.puts(line1)}
             file_path.rename(directory.join("1.log.1"))
             tmpfile.rename(directory.join("1.log"))
             wait(0.5).for{listener1.lines.size}.to eq(66)
+          end
+          .then_after(0.1, "quit") do
             tailing.quit
           end
       end
@@ -237,16 +253,18 @@ module FileWatch
       before do
         tailing.watch_this(watch_dir.to_path)
         RSpec::Sequencing
-          .run_after(0.2, "create file") do
+          .run_after(0.25, "create file") do
             file_path.open("wb") { |file|  file.puts(line1); file.puts(line2) }
           end
-          .then_after(0.2, "rotate") do
+          .then_after(0.25, "rotate") do
             FileUtils.cp(file1_path, directory.join("1.log.1").to_path)
             file_path.truncate(0)
           end
-          .then_after(0.2, "write to truncated file") do
+          .then_after(0.25, "write to truncated file") do
             file_path.open("wb") { |file|  file.puts(line3) }
             wait(0.5).for{listener1.lines.size}.to eq(3)
+          end
+          .then_after(0.1, "quit") do
             tailing.quit
           end
       end
@@ -268,16 +286,18 @@ module FileWatch
       before do
         tailing.watch_this(watch_dir.to_path)
         RSpec::Sequencing
-          .run_after(0.1, "create file") do
+          .run_after(0.25, "create file") do
             file_path.open("wb") { |file|  65.times{file.puts(line1)} }
           end
-          .then_after(0.1, "rotate") do
+          .then_after(0.25, "rotate") do
             FileUtils.cp(file1_path, directory.join("1.log.1").to_path)
             file_path.truncate(0)
           end
-          .then_after(0.2, "write to truncated file") do
+          .then_after(0.25, "write to truncated file") do
             file_path.open("wb") { |file|  file.puts(line3) }
             wait(0.5).for{listener1.lines.last}.to eq(line3)
+          end
+          .then_after(0.1, "quit") do
             tailing.quit
           end
       end
@@ -296,13 +316,13 @@ module FileWatch
       before do
         tailing.watch_this(watch_dir.to_path)
         RSpec::Sequencing
-          .run_after(0.1, "create file") do
+          .run_after(0.25, "create file") do
             file_path.open("wb") { |file|  file.puts(line1); file.puts(line2) }
           end
-          .then_after(0.1, "rename") do
+          .then_after(0.25, "rename") do
             FileUtils.mv(file1_path, file2.to_path)
           end
-          .then_after(0.1, "write to renamed file") do
+          .then_after(0.25, "write to renamed file") do
             file2.open("ab") { |file|  file.puts(line3) }
             wait(0.75).for{listener1.lines.size + listener2.lines.size}.to eq(66)
           end
@@ -330,13 +350,13 @@ module FileWatch
       before do
         tailing.watch_this(watch_dir.to_path)
         RSpec::Sequencing
-          .run_after(0.1, "create file") do
+          .run_after(0.25, "create file") do
             file_path.open("wb") { |file| 65.times{file.puts(line1)} }
           end
-          .then_after(0.1, "rename") do
+          .then_after(0.25, "rename") do
             FileUtils.mv(file1_path, file2.to_path)
           end
-          .then_after(0.1, "write to renamed file") do
+          .then_after(0.25, "write to renamed file") do
             file2.open("ab") { |file|  file.puts(line3) }
             wait(1.25).for{listener1.lines.size + listener2.lines.size}.to eq(66)
           end
@@ -363,11 +383,11 @@ module FileWatch
       before do
         tailing.watch_this(watch_dir.to_path)
         RSpec::Sequencing
-          .run_after(0.1, "create file") do
+          .run_after(0.25, "create file") do
             file_path.open("wb") { |file| 65.times{file.puts(line1)} }
             file2.open("wb")     { |file| 65.times{file.puts(line1)} }
           end
-          .then_after(0.1, "rename") do
+          .then_after(0.25, "rename") do
             FileUtils.mv(file2.to_path, file3.to_path)
             wait(1.25).for{listener1.lines.size}.to eq(66)
           end

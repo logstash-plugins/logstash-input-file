@@ -33,8 +33,14 @@ module FileWatch
     let(:listener1) { observer.listener_for(file_path) }
     let(:tailing) { ObservingTail.new(opts) }
 
+    before do
+      directory
+      wait(1.0).for{Dir.exist?(directory)}.to eq(true)
+    end
+
     after do
       FileUtils.rm_rf(directory)
+      wait(1.0).for{Dir.exist?(directory)}.to eq(false)
     end
 
     describe "max open files (set to 1)" do
@@ -114,6 +120,8 @@ module FileWatch
           .run_after(0.1, "create file") do
             File.open(file_path, "wb") { |file|  file.write("line1\nline2\n") }
             wait(0.5).for{listener1.lines.size}.to eq(2)
+          end
+          .then_after(0.1, "quit") do
             tailing.quit
           end
       end
@@ -195,6 +203,8 @@ module FileWatch
           File.truncate(file_path, 0)
           File.open(file_path, "wb") { |file|  file.write("lineA\nlineB\n") }
           wait(0.5).for{listener1.lines.size}.to eq(6)
+        end
+        .then_after(0.1, "quit") do
           tailing.quit
         end
       end
@@ -222,6 +232,8 @@ module FileWatch
           .then_after(0.55, "then write to renamed file") do
             File.open(new_file_path, "ab") { |file|  file.write("line3\nline4\n") }
             wait(0.5).for{listener1.lines.size}.to eq(2)
+          end
+          .then_after(0.1, "quit") do
             tailing.quit
           end
       end
@@ -253,8 +265,10 @@ module FileWatch
           .then_after(0.1, "then write to renamed file") do
             File.open(new_file_path, "ab") { |file|  file.write("line3\nline4\n") }
           end
-          .then_after(0.1, "quit") do
+          .then_after(0.1, "wait for lines") do
             wait(0.5).for{listener2.lines.size}.to eq(2)
+          end
+          .then_after(0.1, "quit") do
             tailing.quit
           end
       end
@@ -280,6 +294,8 @@ module FileWatch
           .then_after(0.45, "append more lines to the file") do
             File.open(file_path, "ab") { |file|  file.write("line3\nline4\n") }
             wait(0.5).for{listener1.lines.size}.to eq(4)
+          end
+          .then_after(0.1, "quit") do
             tailing.quit
           end
       end
@@ -301,7 +317,10 @@ module FileWatch
           .then("start watching before file ages more than close_older") do
             tailing.watch_this(watch_dir)
           end
-          .then_after(2.1, "quit after allowing time to close the file") do
+          .then_after(0.1, "wait for lines") do
+            wait(0.5).for{listener1.lines.size}.to eq(2)
+          end
+          .then_after(1.1, "quit after allowing time to close the file") do
             tailing.quit
           end
       end
@@ -326,7 +345,10 @@ module FileWatch
           .then_after(2.1, "append more lines to file after file ages more than close_older") do
             File.open(file_path, "ab") { |file|  file.write("line3\nline4\n") }
           end
-          .then_after(2.1, "quit after allowing time to close the file") do
+          .then_after(0.1, "wait for lines") do
+            wait(0.5).for{listener1.lines.size}.to eq(4)
+          end
+          .then_after(1.1, "quit after allowing time to close the file") do
             tailing.quit
           end
       end
@@ -395,7 +417,7 @@ module FileWatch
     end
 
     context "when ignore_older is less than close_older and all files are not expired" do
-      let(:opts) { super.merge(:ignore_older => 1, :close_older => 1.5) }
+      let(:opts) { super.merge(:ignore_older => 1, :close_older => 1.1) }
       before do
         RSpec::Sequencing
           .run("create file") do
@@ -404,7 +426,10 @@ module FileWatch
           .then("start watching before file age reaches ignore_older") do
             tailing.watch_this(watch_dir)
           end
-          .then_after(1.75, "quit after allowing time to close the file") do
+          .then_after(0.1, "wait for lines") do
+            wait(0.75).for{listener1.lines.size}.to eq(2)
+          end
+          .then_after(1.2, "quit after allowing time to close the file") do
             tailing.quit
           end
       end
@@ -449,7 +474,10 @@ module FileWatch
           .then_after(0.15, "append more lines to file after file ages more than ignore_older") do
             File.open(file_path, "ab") { |file|  file.write("line3\nline4\n") }
           end
-          .then_after(1.25, "quit after allowing time to close the file") do
+          .then_after(0.1, "wait for lines") do
+            wait(0.75).for{listener1.lines.size}.to eq(2)
+          end
+          .then_after(1.1, "quit after allowing time to close the file") do
             tailing.quit
           end
       end
