@@ -33,8 +33,6 @@ module FileWatch
     end
 
     let(:directory) { Pathname.new(Stud::Temporary.directory) }
-    let(:watch_dir) { directory.join("*.log") }
-    let(:file_path) { directory.join("1.log") }
     let(:file1_path) { file_path.to_path }
     let(:max)   { 4095 }
     let(:stat_interval) { 0.01 }
@@ -64,6 +62,8 @@ module FileWatch
     end
 
     context "create + rename rotation: when a new logfile is renamed to a path we have seen before and the open file is fully read, renamed outside glob" do
+      let(:watch_dir) { directory.join("*A.log") }
+      let(:file_path) { directory.join("1A.log") }
       subject { described_class.new(conf) }
       let(:listener1) { observer.listener_for(file1_path) }
       let(:listener2) { observer.listener_for(second_file.to_path) }
@@ -99,9 +99,11 @@ module FileWatch
     end
 
     context "create + rename rotation: a multiple file rename cascade" do
+      let(:watch_dir) { directory.join("*B.log") }
+      let(:file_path) { directory.join("1B.log") }
       subject { described_class.new(conf) }
-      let(:second_file) { directory.join("2.log") }
-      let(:third_file) { directory.join("3.log") }
+      let(:second_file) { directory.join("2B.log") }
+      let(:third_file) { directory.join("3B.log") }
       let(:listener1) { observer.listener_for(file1_path) }
       let(:listener2) { observer.listener_for(second_file.to_path) }
       before do
@@ -137,8 +139,10 @@ module FileWatch
     end
 
     context "create + rename rotation: a two file rename cascade in slow motion" do
+      let(:watch_dir) { directory.join("*C.log") }
+      let(:file_path) { directory.join("1C.log") }
       subject { described_class.new(conf) }
-      let(:second_file) { directory.join("2.log") }
+      let(:second_file) { directory.join("2C.log") }
       let(:listener1) { observer.listener_for(file1_path) }
       let(:listener2) { observer.listener_for(second_file.to_path) }
       before do
@@ -177,8 +181,10 @@ module FileWatch
     end
 
     context "create + rename rotation: a two file rename cascade in normal speed" do
+      let(:watch_dir) { directory.join("*D.log") }
+      let(:file_path) { directory.join("1D.log") }
       subject { described_class.new(conf) }
-      let(:second_file) { directory.join("2.log") }
+      let(:second_file) { directory.join("2D.log") }
       let(:listener1) { observer.listener_for(file1_path) }
       before do
         tailing.watch_this(watch_dir.to_path)
@@ -216,6 +222,8 @@ module FileWatch
           :file_chunk_size => line1.bytesize.succ,
           :file_chunk_count => 1
         ) }
+      let(:watch_dir) { directory.join("*E.log") }
+      let(:file_path) { directory.join("1E.log") }
       subject { described_class.new(conf) }
       let(:listener1) { observer.listener_for(file1_path) }
       before do
@@ -227,10 +235,10 @@ module FileWatch
             end
           end
           .then_after(0.25, "rotate") do
-            tmpfile = directory.join("1.logtmp")
+            tmpfile = directory.join("1E.logtmp")
             tmpfile.open("wb") { |file|  file.puts(line1)}
-            file_path.rename(directory.join("1.log.1"))
-            tmpfile.rename(directory.join("1.log"))
+            file_path.rename(directory.join("1E.log.1"))
+            tmpfile.rename(directory.join("1E.log"))
             wait(0.5).for{listener1.lines.size}.to eq(66)
           end
           .then_after(0.1 * WAIT_MULTIPLIER, "quit") do
@@ -248,6 +256,8 @@ module FileWatch
     end
 
     context "copy + truncate rotation: when a logfile is copied to a new path and truncated and the open file is fully read" do
+      let(:watch_dir) { directory.join("*F.log") }
+      let(:file_path) { directory.join("1F.log") }
       subject { described_class.new(conf) }
       let(:listener1) { observer.listener_for(file1_path) }
       before do
@@ -257,7 +267,7 @@ module FileWatch
             file_path.open("wb") { |file|  file.puts(line1); file.puts(line2) }
           end
           .then_after(0.25, "rotate") do
-            FileUtils.cp(file1_path, directory.join("1.log.1").to_path)
+            FileUtils.cp(file1_path, directory.join("1F.log.1").to_path)
             file_path.truncate(0)
           end
           .then_after(0.25, "write to truncated file") do
@@ -281,6 +291,8 @@ module FileWatch
           :file_chunk_size => line1.bytesize.succ,
           :file_chunk_count => 1
         ) }
+      let(:watch_dir) { directory.join("*G.log") }
+      let(:file_path) { directory.join("1G.log") }
       subject { described_class.new(conf) }
       let(:listener1) { observer.listener_for(file1_path) }
       before do
@@ -290,7 +302,7 @@ module FileWatch
             file_path.open("wb") { |file|  65.times{file.puts(line1)} }
           end
           .then_after(0.25, "rotate") do
-            FileUtils.cp(file1_path, directory.join("1.log.1").to_path)
+            FileUtils.cp(file1_path, directory.join("1G.log.1").to_path)
             file_path.truncate(0)
           end
           .then_after(0.25, "write to truncated file") do
@@ -309,7 +321,9 @@ module FileWatch
     end
 
     context "? rotation: when an active file is renamed inside the glob and the reading does not lag" do
-      let(:file2) { directory.join("2.log") }
+      let(:watch_dir) { directory.join("*H.log") }
+      let(:file_path) { directory.join("1H.log") }
+      let(:file2) { directory.join("2H.log") }
       subject { described_class.new(conf) }
       let(:listener1) { observer.listener_for(file1_path) }
       let(:listener2) { observer.listener_for(file2.to_path) }
@@ -343,7 +357,9 @@ module FileWatch
           :file_chunk_size => line1.bytesize.succ,
           :file_chunk_count => 2
         ) }
-      let(:file2) { directory.join("2.log") }
+      let(:watch_dir) { directory.join("*I.log") }
+      let(:file_path) { directory.join("1I.log") }
+      let(:file2) { directory.join("2I.log") }
       subject { described_class.new(conf) }
       let(:listener1) { observer.listener_for(file1_path) }
       let(:listener2) { observer.listener_for(file2.to_path) }
@@ -376,8 +392,10 @@ module FileWatch
           :close_older => 3600,
           :max_active => 1
         ) }
-      let(:file2) { directory.join("2.log") }
-      let(:file3) { directory.join("2.log.1") }
+      let(:watch_dir) { directory.join("*J.log") }
+      let(:file_path) { directory.join("1J.log") }
+      let(:file2) { directory.join("2J.log") }
+      let(:file3) { directory.join("2J.log.1") }
       let(:listener1) { observer.listener_for(file1_path) }
       subject { described_class.new(conf) }
       before do

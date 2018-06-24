@@ -170,7 +170,7 @@ module FileWatch
   end
 end
 
-WAIT_MULTIPLIER = ENV["TRAVIS"] ? 7.5 : 1.0
+WAIT_MULTIPLIER = ENV["TRAVIS"] ? 4.0 : 1.0
 
 ENV["LOG_AT"].tap do |level|
   LogStash::Logging::Logger::configure_logging(level) unless level.nil?
