@@ -398,7 +398,7 @@ describe LogStash::Inputs::File do
       end
     end
 
-    context "when #run is called multiple times", :unix => true do
+    context "when #run is called multiple times", :unix => true, :lsof => true do
       let(:file_path)    { "#{tmpdir_path}/a.log" }
       let(:buffer)       { [] }
       let(:run_thread_proc) do

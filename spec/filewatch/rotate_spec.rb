@@ -67,8 +67,7 @@ module FileWatch
       subject { described_class.new(conf) }
       let(:listener1) { observer.listener_for(file1_path) }
       let(:listener2) { observer.listener_for(second_file.to_path) }
-      before do
-        tailing.watch_this(watch_dir.to_path)
+      let(:actions) do
         RSpec::Sequencing
           .run_after(0.25, "create file") do
             file_path.open("wb") { |file|  file.write("#{line1}\n") }
@@ -89,6 +88,8 @@ module FileWatch
       end
 
       it "content from both inodes are sent via the same stream" do
+        actions.activate
+        tailing.watch_this(watch_dir.to_path)
         tailing.subscribe(observer)
         lines = listener1.lines
         expect(lines[0]).to eq(line1)
@@ -106,8 +107,7 @@ module FileWatch
       let(:third_file) { directory.join("3B.log") }
       let(:listener1) { observer.listener_for(file1_path) }
       let(:listener2) { observer.listener_for(second_file.to_path) }
-      before do
-        tailing.watch_this(watch_dir.to_path)
+      let(:actions) do
         RSpec::Sequencing
           .run_after(0.25, "create file") do
             file_path.open("wb") { |file|  file.write("#{line1}\n") }
@@ -128,6 +128,8 @@ module FileWatch
       end
 
       it "content from both inodes are sent via the same stream" do
+        actions.activate
+        tailing.watch_this(watch_dir.to_path)
         tailing.subscribe(observer)
         expect(listener2.lines).to be_empty
         expect(observer.listener_for(third_file.to_path).lines).to be_empty
@@ -145,8 +147,7 @@ module FileWatch
       let(:second_file) { directory.join("2C.log") }
       let(:listener1) { observer.listener_for(file1_path) }
       let(:listener2) { observer.listener_for(second_file.to_path) }
-      before do
-        tailing.watch_this(watch_dir.to_path)
+      let(:actions) do
         RSpec::Sequencing
           .run_after(0.25, "create original - write line 1, 66 bytes") do
             file_path.open("wb") { |file|  file.write("#{line1}\n") }
@@ -170,6 +171,8 @@ module FileWatch
       end
 
       it "content from both inodes are sent via the same stream AND content from the rotated file is not read again" do
+        actions.activate
+        tailing.watch_this(watch_dir.to_path)
         tailing.subscribe(observer)
         expect(listener2.calls.select{|sym| sym == :accept}).to be_empty
         expect(listener2.lines).to be_empty
@@ -186,8 +189,7 @@ module FileWatch
       subject { described_class.new(conf) }
       let(:second_file) { directory.join("2D.log") }
       let(:listener1) { observer.listener_for(file1_path) }
-      before do
-        tailing.watch_this(watch_dir.to_path)
+      let(:actions) do
         RSpec::Sequencing
           .run_after(0.25, "create original - write line 1, 66 bytes") do
             file_path.open("wb") { |file|  file.write("#{line1}\n") }
@@ -207,6 +209,8 @@ module FileWatch
       end
 
       it "content from both inodes are sent via the same stream AND content from the rotated file is not read again" do
+        actions.activate
+        tailing.watch_this(watch_dir.to_path)
         tailing.subscribe(observer)
         expect(observer.listener_for(second_file.to_path).calls.select{|sym| sym == :accept}).to be_empty
         expect(observer.listener_for(second_file.to_path).lines).to be_empty
@@ -226,8 +230,7 @@ module FileWatch
       let(:file_path) { directory.join("1E.log") }
       subject { described_class.new(conf) }
       let(:listener1) { observer.listener_for(file1_path) }
-      before do
-        tailing.watch_this(watch_dir.to_path)
+      let(:actions) do
         RSpec::Sequencing
           .run_after(0.25, "create file") do
             file_path.open("wb") do |file|
@@ -247,6 +250,8 @@ module FileWatch
       end
 
       it "content from both inodes are sent via the same stream" do
+        actions.activate
+        tailing.watch_this(watch_dir.to_path)
         tailing.subscribe(observer)
         expected_calls = ([:accept] * 66).unshift(:open)
         expect(listener1.lines.uniq).to eq([line1])
@@ -260,8 +265,7 @@ module FileWatch
       let(:file_path) { directory.join("1F.log") }
       subject { described_class.new(conf) }
       let(:listener1) { observer.listener_for(file1_path) }
-      before do
-        tailing.watch_this(watch_dir.to_path)
+      let(:actions) do
         RSpec::Sequencing
           .run_after(0.25, "create file") do
             file_path.open("wb") { |file|  file.puts(line1); file.puts(line2) }
@@ -280,6 +284,8 @@ module FileWatch
       end
 
       it "content is read correctly" do
+        actions.activate
+        tailing.watch_this(watch_dir.to_path)
         tailing.subscribe(observer)
         expect(listener1.lines).to eq([line1, line2, line3])
         expect(listener1.calls).to eq([:open, :accept, :accept, :accept])
@@ -295,8 +301,7 @@ module FileWatch
       let(:file_path) { directory.join("1G.log") }
       subject { described_class.new(conf) }
       let(:listener1) { observer.listener_for(file1_path) }
-      before do
-        tailing.watch_this(watch_dir.to_path)
+      let(:actions) do
         RSpec::Sequencing
           .run_after(0.25, "create file") do
             file_path.open("wb") { |file|  65.times{file.puts(line1)} }
@@ -315,6 +320,8 @@ module FileWatch
       end
 
       it "unread content before the truncate is lost" do
+        actions.activate
+        tailing.watch_this(watch_dir.to_path)
         tailing.subscribe(observer)
         expect(listener1.lines.size).to be < 66
       end
@@ -327,8 +334,7 @@ module FileWatch
       subject { described_class.new(conf) }
       let(:listener1) { observer.listener_for(file1_path) }
       let(:listener2) { observer.listener_for(file2.to_path) }
-      before do
-        tailing.watch_this(watch_dir.to_path)
+      let(:actions) do
         RSpec::Sequencing
           .run_after(0.25, "create file") do
             file_path.open("wb") { |file|  file.puts(line1); file.puts(line2) }
@@ -346,6 +352,8 @@ module FileWatch
       end
 
       it "content is read correctly, the renamed file is not reread from scratch" do
+        actions.activate
+        tailing.watch_this(watch_dir.to_path)
         tailing.subscribe(observer)
         expect(listener1.lines).to eq([line1, line2])
         expect(listener2.lines).to eq([line3])
@@ -363,8 +371,7 @@ module FileWatch
       subject { described_class.new(conf) }
       let(:listener1) { observer.listener_for(file1_path) }
       let(:listener2) { observer.listener_for(file2.to_path) }
-      before do
-        tailing.watch_this(watch_dir.to_path)
+      let(:actions) do
         RSpec::Sequencing
           .run_after(0.25, "create file") do
             file_path.open("wb") { |file| 65.times{file.puts(line1)} }
@@ -382,6 +389,8 @@ module FileWatch
       end
 
       it "content is read correctly, the renamed file is not reread from scratch" do
+        actions.activate
+        tailing.watch_this(watch_dir.to_path)
         tailing.subscribe(observer)
         expect(listener2.lines.last).to eq(line3)
       end
@@ -398,8 +407,7 @@ module FileWatch
       let(:file3) { directory.join("2J.log.1") }
       let(:listener1) { observer.listener_for(file1_path) }
       subject { described_class.new(conf) }
-      before do
-        tailing.watch_this(watch_dir.to_path)
+      let(:actions) do
         RSpec::Sequencing
           .run_after(0.25, "create file") do
             file_path.open("wb") { |file| 65.times{file.puts(line1)} }
@@ -415,6 +423,8 @@ module FileWatch
       end
 
       it "file 1 content is read correctly, the renamed file 2 is not read at all" do
+        actions.activate
+        tailing.watch_this(watch_dir.to_path)
         tailing.subscribe(observer)
         expect(observer.listener_for(file2.to_path).lines.size).to eq(0)
         expect(observer.listener_for(file3.to_path).lines.size).to eq(0)

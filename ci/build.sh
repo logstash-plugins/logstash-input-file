@@ -17,6 +17,6 @@ else
     echo "Running default build scripts in: `pwd`/ci/build.sh"
     bundle install
     bundle exec rake vendor
-    LOG_AT=WARN bundle exec rspec -fd spec --tag ~rotations
-    LOG_AT=TRACE bundle exec rspec -fd spec --tag rotations
+    LOG_AT=WARN bundle exec rspec -fd --tag ~rotations --tag ~lsof spec
+    LOG_AT=TRACE bundle exec rspec -fd --tag rotations spec
 fi
