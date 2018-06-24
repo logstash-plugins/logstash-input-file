@@ -22,7 +22,7 @@ require 'filewatch/observing_tail'
 # exist, then they are renamed to app.log.2, app.log.3 etc. respectively.
 
 module FileWatch
-  describe Watch do
+  describe Watch, :rotations => true do
     before(:all) do
       @thread_abort = Thread.abort_on_exception
       Thread.abort_on_exception = true
@@ -83,7 +83,7 @@ module FileWatch
             FileUtils.mv(directory.join("1.logtmp").to_path, file1_path)
             wait(0.5).for{listener1.lines.size}.to eq(3)
           end
-          .then_after(0.1, "quit") do
+          .then_after(0.1 * WAIT_MULTIPLIER, "quit") do
             tailing.quit
           end
       end
@@ -120,7 +120,7 @@ module FileWatch
             file_path.open("wb") { |file|  file.write("#{line3}\n") }
             wait(0.5).for{listener1.lines.size}.to eq(3)
           end
-          .then_after(0.1, "quit") do
+          .then_after(0.1 * WAIT_MULTIPLIER, "quit") do
             tailing.quit
           end
       end
@@ -160,7 +160,7 @@ module FileWatch
             file_path.open("wb") { |file|  file.write("#{line3}\n") }
             wait(0.5).for{listener1.lines.size}.to eq(3)
           end
-          .then_after(0.1, "quit") do
+          .then_after(0.1 * WAIT_MULTIPLIER, "quit") do
             tailing.quit
           end
       end
@@ -195,7 +195,7 @@ module FileWatch
             file_path.open("wb") { |file|  file.write("#{line3}\n") }
             wait(0.5).for{listener1.lines.size}.to eq(3)
           end
-          .then_after(0.1, "quit") do
+          .then_after(0.1 * WAIT_MULTIPLIER, "quit") do
             tailing.quit
           end
       end
@@ -233,7 +233,7 @@ module FileWatch
             tmpfile.rename(directory.join("1.log"))
             wait(0.5).for{listener1.lines.size}.to eq(66)
           end
-          .then_after(0.1, "quit") do
+          .then_after(0.1 * WAIT_MULTIPLIER, "quit") do
             tailing.quit
           end
       end
@@ -264,7 +264,7 @@ module FileWatch
             file_path.open("wb") { |file|  file.puts(line3) }
             wait(0.5).for{listener1.lines.size}.to eq(3)
           end
-          .then_after(0.1, "quit") do
+          .then_after(0.1 * WAIT_MULTIPLIER, "quit") do
             tailing.quit
           end
       end
@@ -297,7 +297,7 @@ module FileWatch
             file_path.open("wb") { |file|  file.puts(line3) }
             wait(0.5).for{listener1.lines.last}.to eq(line3)
           end
-          .then_after(0.1, "quit") do
+          .then_after(0.1 * WAIT_MULTIPLIER, "quit") do
             tailing.quit
           end
       end
@@ -326,7 +326,7 @@ module FileWatch
             file2.open("ab") { |file|  file.puts(line3) }
             wait(0.75).for{listener1.lines.size + listener2.lines.size}.to eq(66)
           end
-          .then_after(0.1, "quit") do
+          .then_after(0.1 * WAIT_MULTIPLIER, "quit") do
             tailing.quit
           end
       end
@@ -360,7 +360,7 @@ module FileWatch
             file2.open("ab") { |file|  file.puts(line3) }
             wait(1.25).for{listener1.lines.size + listener2.lines.size}.to eq(66)
           end
-          .then_after(0.1, "quit") do
+          .then_after(0.1 * WAIT_MULTIPLIER, "quit") do
             tailing.quit
           end
       end
@@ -391,7 +391,7 @@ module FileWatch
             FileUtils.mv(file2.to_path, file3.to_path)
             wait(1.25).for{listener1.lines.size}.to eq(66)
           end
-          .then_after(0.1, "quit") do
+          .then_after(0.1 * WAIT_MULTIPLIER, "quit") do
             tailing.quit
           end
       end
