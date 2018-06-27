@@ -71,11 +71,10 @@ module FileWatch
         logger.trace("associate: unmatched")
         return true
       end
-      logger.trace("associate: found sincedb record", "sincedb key" => watched_file.sincedb_key,"sincedb_value" => sincedb_value)
+      logger.trace("associate: found sincedb record", "filename" => watched_file.filename, "sincedb key" => watched_file.sincedb_key,"sincedb_value" => sincedb_value)
       if sincedb_value.watched_file.nil?
         # not associated
         if sincedb_value.path_in_sincedb.nil?
-          # old v1 record, assume its the same file
           handle_association(sincedb_value, watched_file)
           logger.trace("associate: inode matched but no path in sincedb")
           return true
@@ -92,11 +91,11 @@ module FileWatch
         # treat as a new file, a new value will be added when the file is opened
         sincedb_value.clear_watched_file
         delete(watched_file.sincedb_key)
-        logger.trace("associate: matched but allocated to another - #{sincedb_value}")
+        logger.trace("associate: matched but allocated to another")
         return true
       end
       if sincedb_value.watched_file.equal?(watched_file) # pointer equals
-        logger.trace("associate: already associated - #{sincedb_value}, for path: #{watched_file.path}")
+        logger.trace("associate: already associated")
         return true
       end
       # sincedb_value.watched_file is not this discovered watched_file but they have the same key (inode)
@@ -107,33 +106,8 @@ module FileWatch
       #   after the original is deleted
       # are not yet in the delete phase, let this play out
       existing_watched_file = sincedb_value.watched_file
-      logger.trace("----- >>>>> associate: watched file state", "state" => watched_file.state)
-      msg = "----------------- >> associate: the found sincedb_value has a watched_file - this is a rename, claiming state from found watched_file"
-      logger.trace(msg)
-      msg = "----------------- >> associate: state before switch"
-      logger.trace(msg,
-        "this watched_file state" => watched_file.state,
-        "found watched_file state" => existing_watched_file.state,
-        "this watched_file size" => watched_file.last_stat_size,
-        "found watched_file size" => existing_watched_file.last_stat_size,
-        "this watched_file bytes read" => watched_file.bytes_read,
-        "found watched_file bytes read" => existing_watched_file.bytes_read,
-        "this watched_file filename" => watched_file.filename,
-        "found watched_file filename" => existing_watched_file.filename
-      )
-      sincedb_value.set_watched_file(watched_file)
-      watched_file.rotate_from(existing_watched_file)
-      msg = "----------------- >> associate: state after switch"
-      logger.trace(msg,
-        "this watched_file state" => watched_file.state,
-        "found watched_file state" => existing_watched_file.state,
-        "this watched_file size" => watched_file.last_stat_size,
-        "found watched_file size" => existing_watched_file.last_stat_size,
-        "this watched_file bytes read" => watched_file.bytes_read,
-        "found watched_file bytes read" => existing_watched_file.bytes_read,
-        "this watched_file filename" => watched_file.filename,
-        "found watched_file filename" => existing_watched_file.filename
-      )
+      logger.trace("----------------- >> associate: the found sincedb_value has a watched_file - this is a rename", "this watched_file details" => watched_file.details, "other watched_file details" => existing_watched_file.details)
+      watched_file.rotation_in_progress
       true
     end
 
@@ -219,7 +193,10 @@ module FileWatch
       watched_file.update_bytes_read(sincedb_value.position)
       sincedb_value.set_watched_file(watched_file)
       watched_file.initial_completed
-      watched_file.ignore if watched_file.all_read?
+      if watched_file.all_read?
+        watched_file.ignore
+        logger.trace("handle_association ignoring .....", "watched file" => watched_file.details, "sincedb value" => sincedb_value)
+      end
     end
 
     def set_key_value(key, value)

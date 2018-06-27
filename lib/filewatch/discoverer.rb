@@ -49,20 +49,20 @@ module FileWatch
 
     def discover_files(path)
       fileset = Dir.glob(path).select{|f| File.file?(f) && !File.symlink?(f)}
-      logger.trace("Discoverer found files, count: #{fileset.size}")
-      rotated_paths = []
+      logger.trace("discover_files",  "count" => fileset.size)
       fileset.each do |file|
-        logger.trace("Discoverer found file, path: #{file}")
         pathname = Pathname.new(file)
         new_discovery = false
         watched_file = @watched_files_collection.watched_file_by_path(file)
         if watched_file.nil?
           new_discovery = true
           watched_file = WatchedFile.new(pathname, PathStatClass.new(pathname), @settings)
-          logger.trace("Discoverer new discovery: #{watched_file.path}, inode: #{watched_file.sincedb_key.inode}")
+
         end
         # if it already unwatched or its excluded then we can skip
         next if watched_file.unwatched? || can_exclude?(watched_file, new_discovery)
+
+        logger.trace("discover_files handling:", "new discovery"=> new_discovery, "watched_file details" => watched_file.details)
 
         if new_discovery
           # initially when the sincedb collection is filled with records from the persistence file
@@ -80,7 +80,7 @@ module FileWatch
               # because, normally, a newly discovered file will
               # have a watched_file size of zero
               # they are still added to the collection so we know they are there for the next periodic discovery
-              watched_file.ignore
+              watched_file.ignore_as_unread
             end
             # now add the discovered file to the watched_files collection and adjust the sincedb collections
             @watched_files_collection.add(watched_file)

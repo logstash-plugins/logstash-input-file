@@ -45,7 +45,6 @@ module FileWatch
       @bytes_read = 0 # tracks bytes read from the open file or initialized from a matched sincedb_value off disk.
       @bytes_unread = 0 # tracks bytes not yet read from the open file. So we can warn on shrink when unread bytes are seen.
       file_close
-      @identifier = this_stat.identifier
       @stats[PATH_BASED_STAT] = this_stat
       @listener = nil
       @last_open_warning_at = nil
@@ -55,7 +54,7 @@ module FileWatch
       @recent_states = [] # keep last 8 states, managed in set_state
       # the prepare_inode method is sourced from the mixed module above
       @sdb_key_v1 = filestat.inode_struct
-      watch if active?
+      watch if active? || @state.nil?
     end
 
     def rotate_from(other)
@@ -73,7 +72,10 @@ module FileWatch
         # so no reset
         other.full_state_reset
       end
-      watch
+      @stat_index = PATH_BASED_STAT
+      @stats[PATH_BASED_STAT] = PathStatClass.new(pathname)
+      @sdb_key_v1 = filestat.inode_struct
+      ignore
     end
 
     def rotate_as_initial_file
@@ -82,18 +84,19 @@ module FileWatch
       @initial = true
     end
 
-    def rotate_as_file
+    def rotate_as_file(bytes_read = 0)
       # rotation, when a sincedb record exists for new inode, but no watched file to rotate from
       # probably caused by a deletion detected in the middle of the rename cascade
       # RARE due to delayed_delete - there would have to be a large time span between the renames.
-      @bytes_read = 0 # tracks bytes read from the open file or initialized from a matched sincedb_value off disk.
+      @bytes_read = bytes_read # tracks bytes read from the open file or initialized from a matched sincedb_value off disk.
       @bytes_unread = 0 # tracks bytes not yet read from the open file. So we can warn on shrink when unread bytes are seen.
       @last_open_warning_at = nil
       # initial as true means we have not associated this watched_file with a previous sincedb value yet.
       # and we should read from the beginning if necessary
       @initial = false
       @recent_states = [] # keep last 8 states, managed in set_state
-      @stats[PATH_BASED_STAT] = PathStatClass.new(pathname)
+      @stat_index = PATH_BASED_STAT
+      @stats[@stat_index] = PathStatClass.new(pathname)
       reopen
       @sdb_key_v1 = filestat.inode_struct
       watch
@@ -243,6 +246,10 @@ module FileWatch
 
     def ignore
       set_state :ignored
+    end
+
+    def ignore_as_unread
+      ignore
       @bytes_read = filestat.size
     end
 
@@ -311,8 +318,12 @@ module FileWatch
     end
 
     def rotation_detected?
-      return false if @stats[IO_BASED_STAT].nil?
-      @stats[PATH_BASED_STAT].inode != @stats[IO_BASED_STAT].inode
+      if file_open?
+        return false if @stats[IO_BASED_STAT].nil?
+        @stats[PATH_BASED_STAT].inode != @stats[IO_BASED_STAT].inode
+      else
+        path_based_sincedb_key != sincedb_key
+      end
     end
 
     def restat
@@ -342,7 +353,7 @@ module FileWatch
 
     def set_state(value)
       @recent_states.shift if @recent_states.size == 8
-      @recent_states << @state
+      @recent_states << @state unless @state.nil?
       @state = value
     end
 
@@ -368,7 +379,7 @@ module FileWatch
     end
 
     def details
-      detail = "@filename='#{filename}', @state='#{state}', @recent_states='#{@recent_states.join(',')}', "
+      detail = "@filename='#{filename}', @state='#{state}', @recent_states='#{@recent_states.inspect}', "
       detail.concat("@bytes_read='#{@bytes_read}', @bytes_unread='#{@bytes_unread}', last_stat_size='#{last_stat_size}', ")
       detail.concat("file_open?=='#{file_open?}'")
       "<FileWatch::WatchedFile: #{detail}, @sincedb_key='#{sincedb_key}'>"

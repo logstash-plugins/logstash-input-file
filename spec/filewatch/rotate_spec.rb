@@ -22,21 +22,12 @@ require 'filewatch/observing_tail'
 # exist, then they are renamed to app.log.2, app.log.3 etc. respectively.
 
 module FileWatch
-  describe Watch, :rotations => true do
-    before(:all) do
-      @thread_abort = Thread.abort_on_exception
-      Thread.abort_on_exception = true
-    end
-
-    after(:all) do
-      Thread.abort_on_exception = @thread_abort
-    end
-
+  describe Watch do
     let(:directory) { Pathname.new(Stud::Temporary.directory) }
     let(:file1_path) { file_path.to_path }
     let(:max)   { 4095 }
     let(:stat_interval) { 0.01 }
-    let(:discover_interval) { 1 }
+    let(:discover_interval) { 15 }
     let(:start_new_files_at) { :beginning }
     let(:sincedb_path) { directory.join("tailing.sdb") }
     let(:opts) do
@@ -75,14 +66,16 @@ module FileWatch
           .then_after(0.25, "write a 'unfinished' line") do
             file_path.open("ab") { |file|  file.write(line2) }
           end
-          .then_after(0.25, "<<< rotate") do
+          .then_after(0.25, "rotate once") do
             tmpfile = directory.join("1.logtmp")
             tmpfile.open("wb") { |file|  file.write("\n#{line3}\n")}
             file_path.rename(directory.join("1.log.1"))
             FileUtils.mv(directory.join("1.logtmp").to_path, file1_path)
-            wait(0.5).for{listener1.lines.size}.to eq(3)
           end
-          .then_after(0.1 * WAIT_MULTIPLIER, "quit") do
+          .then("wait for expectation") do
+            wait(2).for{listener1.calls}.to eq([:open, :accept, :accept, :accept])
+          end
+          .then("quit") do
             tailing.quit
           end
       end
@@ -91,11 +84,12 @@ module FileWatch
         actions.activate
         tailing.watch_this(watch_dir.to_path)
         tailing.subscribe(observer)
+        actions.assert_no_errors
+        actions.assert_no_errors
         lines = listener1.lines
         expect(lines[0]).to eq(line1)
         expect(lines[1]).to eq(line2)
         expect(lines[2]).to eq(line3)
-        expect(listener1.calls).to eq([:open, :accept, :accept, :accept])
       end
     end
 
@@ -107,22 +101,25 @@ module FileWatch
       let(:third_file) { directory.join("3B.log") }
       let(:listener1) { observer.listener_for(file1_path) }
       let(:listener2) { observer.listener_for(second_file.to_path) }
+      let(:listener3) { observer.listener_for(third_file.to_path) }
       let(:actions) do
         RSpec::Sequencing
           .run_after(0.25, "create file") do
             file_path.open("wb") { |file|  file.write("#{line1}\n") }
           end
-          .then_after(0.25, "<<<<<<<<<<<<<<   rotate 1") do
+          .then_after(0.25, "rotate 1 - line1(66) is in 2B.log, line2(61) is in 1B.log") do
             file_path.rename(second_file)
             file_path.open("wb") { |file|  file.write("#{line2}\n") }
           end
-          .then_after(0.25, "<<<<<<<<<<<<<<   rotate 2") do
+          .then_after(0.25, "rotate 2 - line1(66) is in 3B.log, line2(61) is in 2B.log, line3(47) is in 1B.log") do
             second_file.rename(third_file)
             file_path.rename(second_file)
             file_path.open("wb") { |file|  file.write("#{line3}\n") }
-            wait(0.5).for{listener1.lines.size}.to eq(3)
           end
-          .then_after(0.1 * WAIT_MULTIPLIER, "quit") do
+          .then("wait for expectations to be met") do
+            wait(0.75).for{listener1.lines.size == 3 && listener3.lines.empty? && listener2.lines.empty?}.to eq(true)
+          end
+          .then("quit") do
             tailing.quit
           end
       end
@@ -131,18 +128,18 @@ module FileWatch
         actions.activate
         tailing.watch_this(watch_dir.to_path)
         tailing.subscribe(observer)
-        expect(listener2.lines).to be_empty
-        expect(observer.listener_for(third_file.to_path).lines).to be_empty
-        lines = observer.listener_for(file1_path).lines
-        expect(lines[0]).to eq(line1)
-        expect(lines[1]).to eq(line2)
-        expect(lines[2]).to eq(line3)
+        actions.assert_no_errors
+        actions.assert_no_errors
+        expect(listener1.lines[0]).to eq(line1)
+        expect(listener1.lines[1]).to eq(line2)
+        expect(listener1.lines[2]).to eq(line3)
       end
     end
 
     context "create + rename rotation: a two file rename cascade in slow motion" do
       let(:watch_dir) { directory.join("*C.log") }
       let(:file_path) { directory.join("1C.log") }
+      let(:stat_interval) { 0.01 }
       subject { described_class.new(conf) }
       let(:second_file) { directory.join("2C.log") }
       let(:listener1) { observer.listener_for(file1_path) }
@@ -152,20 +149,22 @@ module FileWatch
           .run_after(0.25, "create original - write line 1, 66 bytes") do
             file_path.open("wb") { |file|  file.write("#{line1}\n") }
           end
-          .then_after(0.25, "<<<<<<<<<<<<<<   rename to 2.log") do
+          .then_after(0.25, "rename to 2.log") do
             file_path.rename(second_file)
           end
-          .then_after(0.02, "<<<<<<<<<<<<<<   write line 2 to original, 61 bytes") do
+          .then_after(0.25, "write line 2 to original, 61 bytes") do
             file_path.open("wb") { |file|  file.write("#{line2}\n") }
           end
-          .then_after(0.25, "<<<<<<<<<<<<<<   rename to 2.log again") do
+          .then_after(0.25, "rename to 2.log again") do
             file_path.rename(second_file)
           end
-          .then_after(0.02, "<<<<<<<<<<<<<<   write line 3 to original, 47 bytes") do
+          .then_after(0.25, "write line 3 to original, 47 bytes") do
             file_path.open("wb") { |file|  file.write("#{line3}\n") }
-            wait(0.5).for{listener1.lines.size}.to eq(3)
           end
-          .then_after(0.1 * WAIT_MULTIPLIER, "quit") do
+          .then("wait for expectations to be met") do
+            wait(1).for{listener1.lines.size == 3 && listener2.lines.empty?}.to eq(true)
+          end
+          .then("quit") do
             tailing.quit
           end
       end
@@ -174,12 +173,10 @@ module FileWatch
         actions.activate
         tailing.watch_this(watch_dir.to_path)
         tailing.subscribe(observer)
-        expect(listener2.calls.select{|sym| sym == :accept}).to be_empty
-        expect(listener2.lines).to be_empty
-        lines = listener1.lines
-        expect(lines[0]).to eq(line1)
-        expect(lines[1]).to eq(line2)
-        expect(lines[2]).to eq(line3)
+        actions.assert_no_errors
+        expect(listener1.lines[0]).to eq(line1)
+        expect(listener1.lines[1]).to eq(line2)
+        expect(listener1.lines[2]).to eq(line3)
       end
     end
 
@@ -189,21 +186,24 @@ module FileWatch
       subject { described_class.new(conf) }
       let(:second_file) { directory.join("2D.log") }
       let(:listener1) { observer.listener_for(file1_path) }
+      let(:listener2) { observer.listener_for(second_file.to_path) }
       let(:actions) do
         RSpec::Sequencing
           .run_after(0.25, "create original - write line 1, 66 bytes") do
             file_path.open("wb") { |file|  file.write("#{line1}\n") }
           end
-          .then_after(0.25, "<<<<<<<<<<<<<<   rename to 2.log") do
+          .then_after(0.25, "rename to 2.log") do
             file_path.rename(second_file)
             file_path.open("wb") { |file|  file.write("#{line2}\n") }
           end
-          .then_after(0.25, "<<<<<<<<<<<<<<   rename to 2.log again") do
+          .then_after(0.25, "rename to 2.log again") do
             file_path.rename(second_file)
             file_path.open("wb") { |file|  file.write("#{line3}\n") }
-            wait(0.5).for{listener1.lines.size}.to eq(3)
           end
-          .then_after(0.1 * WAIT_MULTIPLIER, "quit") do
+          .then("wait for expectations to be met") do
+            wait(0.5).for{listener1.lines.size == 3 && listener2.lines.empty?}.to eq(true)
+          end
+          .then("quit") do
             tailing.quit
           end
       end
@@ -212,12 +212,10 @@ module FileWatch
         actions.activate
         tailing.watch_this(watch_dir.to_path)
         tailing.subscribe(observer)
-        expect(observer.listener_for(second_file.to_path).calls.select{|sym| sym == :accept}).to be_empty
-        expect(observer.listener_for(second_file.to_path).lines).to be_empty
-        lines = listener1.lines
-        expect(lines[0]).to eq(line1)
-        expect(lines[1]).to eq(line2)
-        expect(lines[2]).to eq(line3)
+        actions.assert_no_errors
+        expect(listener1.lines[0]).to eq(line1)
+        expect(listener1.lines[1]).to eq(line2)
+        expect(listener1.lines[2]).to eq(line3)
       end
     end
 
@@ -242,9 +240,11 @@ module FileWatch
             tmpfile.open("wb") { |file|  file.puts(line1)}
             file_path.rename(directory.join("1E.log.1"))
             tmpfile.rename(directory.join("1E.log"))
+          end
+          .then("wait for expectations to be met") do
             wait(0.5).for{listener1.lines.size}.to eq(66)
           end
-          .then_after(0.1 * WAIT_MULTIPLIER, "quit") do
+          .then("quit") do
             tailing.quit
           end
       end
@@ -253,6 +253,7 @@ module FileWatch
         actions.activate
         tailing.watch_this(watch_dir.to_path)
         tailing.subscribe(observer)
+        actions.assert_no_errors
         expected_calls = ([:accept] * 66).unshift(:open)
         expect(listener1.lines.uniq).to eq([line1])
         expect(listener1.calls).to eq(expected_calls)
@@ -276,9 +277,11 @@ module FileWatch
           end
           .then_after(0.25, "write to truncated file") do
             file_path.open("wb") { |file|  file.puts(line3) }
+          end
+          .then("wait for expectations to be met") do
             wait(0.5).for{listener1.lines.size}.to eq(3)
           end
-          .then_after(0.1 * WAIT_MULTIPLIER, "quit") do
+          .then("quit") do
             tailing.quit
           end
       end
@@ -287,6 +290,7 @@ module FileWatch
         actions.activate
         tailing.watch_this(watch_dir.to_path)
         tailing.subscribe(observer)
+        actions.assert_no_errors
         expect(listener1.lines).to eq([line1, line2, line3])
         expect(listener1.calls).to eq([:open, :accept, :accept, :accept])
       end
@@ -312,9 +316,11 @@ module FileWatch
           end
           .then_after(0.25, "write to truncated file") do
             file_path.open("wb") { |file|  file.puts(line3) }
+          end
+          .then("wait for expectations to be met") do
             wait(0.5).for{listener1.lines.last}.to eq(line3)
           end
-          .then_after(0.1 * WAIT_MULTIPLIER, "quit") do
+          .then("quit") do
             tailing.quit
           end
       end
@@ -323,6 +329,7 @@ module FileWatch
         actions.activate
         tailing.watch_this(watch_dir.to_path)
         tailing.subscribe(observer)
+        actions.assert_no_errors
         expect(listener1.lines.size).to be < 66
       end
     end
@@ -344,9 +351,11 @@ module FileWatch
           end
           .then_after(0.25, "write to renamed file") do
             file2.open("ab") { |file|  file.puts(line3) }
-            wait(0.75).for{listener1.lines.size + listener2.lines.size}.to eq(66)
           end
-          .then_after(0.1 * WAIT_MULTIPLIER, "quit") do
+          .then("wait for expectations to be met") do
+            wait(0.75).for{listener1.lines.size + listener2.lines.size}.to eq(3)
+          end
+          .then("quit") do
             tailing.quit
           end
       end
@@ -355,6 +364,7 @@ module FileWatch
         actions.activate
         tailing.watch_this(watch_dir.to_path)
         tailing.subscribe(observer)
+        actions.assert_no_errors
         expect(listener1.lines).to eq([line1, line2])
         expect(listener2.lines).to eq([line3])
       end
@@ -381,9 +391,11 @@ module FileWatch
           end
           .then_after(0.25, "write to renamed file") do
             file2.open("ab") { |file|  file.puts(line3) }
+          end
+          .then("wait for expectations to be met") do
             wait(1.25).for{listener1.lines.size + listener2.lines.size}.to eq(66)
           end
-          .then_after(0.1 * WAIT_MULTIPLIER, "quit") do
+          .then("quit") do
             tailing.quit
           end
       end
@@ -392,6 +404,7 @@ module FileWatch
         actions.activate
         tailing.watch_this(watch_dir.to_path)
         tailing.subscribe(observer)
+        actions.assert_no_errors
         expect(listener2.lines.last).to eq(line3)
       end
     end
@@ -406,6 +419,8 @@ module FileWatch
       let(:file2) { directory.join("2J.log") }
       let(:file3) { directory.join("2J.log.1") }
       let(:listener1) { observer.listener_for(file1_path) }
+      let(:listener2) { observer.listener_for(file2.to_path) }
+      let(:listener3) { observer.listener_for(file3.to_path) }
       subject { described_class.new(conf) }
       let(:actions) do
         RSpec::Sequencing
@@ -415,9 +430,11 @@ module FileWatch
           end
           .then_after(0.25, "rename") do
             FileUtils.mv(file2.to_path, file3.to_path)
-            wait(1.25).for{listener1.lines.size}.to eq(66)
           end
-          .then_after(0.1 * WAIT_MULTIPLIER, "quit") do
+          .then("wait for expectations to be met") do
+            wait(1.25).for{listener1.lines.size}.to eq(65)
+          end
+          .then("quit") do
             tailing.quit
           end
       end
@@ -426,8 +443,9 @@ module FileWatch
         actions.activate
         tailing.watch_this(watch_dir.to_path)
         tailing.subscribe(observer)
-        expect(observer.listener_for(file2.to_path).lines.size).to eq(0)
-        expect(observer.listener_for(file3.to_path).lines.size).to eq(0)
+        actions.assert_no_errors
+        expect(listener2.lines.size).to eq(0)
+        expect(listener3.lines.size).to eq(0)
       end
     end
   end

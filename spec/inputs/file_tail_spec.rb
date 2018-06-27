@@ -180,13 +180,14 @@ describe LogStash::Inputs::File do
   end
 
   describe "testing with new, register, run and stop" do
+    let(:suffix)       { "A" }
     let(:conf)         { Hash.new }
     let(:mlconf)       { Hash.new }
     let(:events)       { Array.new }
     let(:mlcodec)      { LogStash::Codecs::Multiline.new(mlconf) }
     let(:codec)        { FileInput::CodecTracer.new }
     let(:tmpfile_path) { Stud::Temporary.pathname }
-    let(:sincedb_path) { Stud::Temporary.pathname }
+    let(:sincedb_path) { ::File.join(tmpdir_path, "sincedb-#{suffix}") }
     let(:tmpdir_path)  { Stud::Temporary.directory }
 
     after :each do
@@ -312,12 +313,13 @@ describe LogStash::Inputs::File do
 
     context "when wildcard path and a multiline codec is specified" do
       subject { described_class.new(conf) }
-
+      let(:suffix)       { "B" }
       before do
         mlconf.update("pattern" => "^\s", "what" => "previous")
         conf.update(
               "type" => "blah",
               "path" => "#{tmpdir_path}/*.log",
+              "start_position" => "beginning",
               "sincedb_path" => sincedb_path,
               "stat_interval" => 0.05,
               "codec" => mlcodec,
@@ -327,6 +329,7 @@ describe LogStash::Inputs::File do
       end
 
       it "collects separate multiple line events from each file" do
+        subject
         actions = RSpec::Sequencing
           .run_after(0.1, "create files") do
             File.open("#{tmpdir_path}/A.log", "wb") do |fd|
@@ -340,34 +343,32 @@ describe LogStash::Inputs::File do
               fd.puts("  line1.3-of-z")
             end
           end
-          .then_after(0.2, "assert both files are mapped as identities and stop") do
-            expect(subject.codec.identity_count).to eq(2)
+          .then("assert both files are mapped as identities and stop") do
+            wait(2).for {subject.codec.identity_count}.to eq(2)
           end
-          .then_after(0.1, "stop") do
+          .then("stop") do
             subject.stop
-          end
-          .then_after(0.2 , "stop flushes both events") do
-            expect(events.size).to eq(2)
-            e1, e2 = events
-            e1_message = e1.get("message")
-            e2_message = e2.get("message")
-
-            # can't assume File A will be read first
-            if e1_message.start_with?('line1.1-of-z')
-              expect(e1.get("path")).to match(/z.log/)
-              expect(e2.get("path")).to match(/A.log/)
-              expect(e1_message).to eq("line1.1-of-z#{TEST_FILE_DELIMITER}  line1.2-of-z#{TEST_FILE_DELIMITER}  line1.3-of-z")
-              expect(e2_message).to eq("line1.1-of-a#{TEST_FILE_DELIMITER}  line1.2-of-a#{TEST_FILE_DELIMITER}  line1.3-of-a")
-            else
-              expect(e1.get("path")).to match(/A.log/)
-              expect(e2.get("path")).to match(/z.log/)
-              expect(e1_message).to eq("line1.1-of-a#{TEST_FILE_DELIMITER}  line1.2-of-a#{TEST_FILE_DELIMITER}  line1.3-of-a")
-              expect(e2_message).to eq("line1.1-of-z#{TEST_FILE_DELIMITER}  line1.2-of-z#{TEST_FILE_DELIMITER}  line1.3-of-z")
-            end
           end
         subject.run(events)
         # wait for actions to complete
-        actions.value
+        actions.assert_no_errors
+        expect(events.size).to eq(2)
+        e1, e2 = events
+        e1_message = e1.get("message")
+        e2_message = e2.get("message")
+
+        # can't assume File A will be read first
+        if e1_message.start_with?('line1.1-of-z')
+          expect(e1.get("path")).to match(/z.log/)
+          expect(e2.get("path")).to match(/A.log/)
+          expect(e1_message).to eq("line1.1-of-z#{TEST_FILE_DELIMITER}  line1.2-of-z#{TEST_FILE_DELIMITER}  line1.3-of-z")
+          expect(e2_message).to eq("line1.1-of-a#{TEST_FILE_DELIMITER}  line1.2-of-a#{TEST_FILE_DELIMITER}  line1.3-of-a")
+        else
+          expect(e1.get("path")).to match(/A.log/)
+          expect(e2.get("path")).to match(/z.log/)
+          expect(e1_message).to eq("line1.1-of-a#{TEST_FILE_DELIMITER}  line1.2-of-a#{TEST_FILE_DELIMITER}  line1.3-of-a")
+          expect(e2_message).to eq("line1.1-of-z#{TEST_FILE_DELIMITER}  line1.2-of-z#{TEST_FILE_DELIMITER}  line1.3-of-z")
+        end
       end
 
       context "if auto_flush is enabled on the multiline codec" do
@@ -382,18 +383,19 @@ describe LogStash::Inputs::File do
                 fd.puts("  line1.3-of-a")
               end
             end
-            .then_after(0.75, "wait for auto_flush") do
-              e1 = events.first
-              e1_message = e1.get("message")
-              expect(e1["path"]).to match(/a.log/)
-              expect(e1_message).to eq("line1.1-of-a#{TEST_FILE_DELIMITER}  line1.2-of-a#{TEST_FILE_DELIMITER}  line1.3-of-a")
+            .then("wait for auto_flush") do
+              wait(2).for{events.size}.to eq(1)
             end
             .then("stop") do
               subject.stop
             end
           subject.run(events)
           # wait for actions to complete
-          actions.value
+          actions.assert_no_errors
+          e1 = events.first
+          e1_message = e1.get("message")
+          expect(e1_message).to eq("line1.1-of-a#{TEST_FILE_DELIMITER}  line1.2-of-a#{TEST_FILE_DELIMITER}  line1.3-of-a")
+          expect(e1.get("path")).to match(/A.log$/)
         end
       end
     end
@@ -466,32 +468,29 @@ describe LogStash::Inputs::File do
                 "stat_interval" => 0.1,
                 "max_open_files" => 1,
                 "start_position" => "beginning",
+                "file_sort_by" => "path",
                 "delimiter" => TEST_FILE_DELIMITER)
           subject.register
         end
         it "collects line events from only one file" do
           actions = RSpec::Sequencing
-            .run_after(0.2, "assert one identity is mapped") do
-              expect(subject.codec.identity_count).to eq(1)
+            .run("assert one identity is mapped") do
+              wait(0.4).for{subject.codec.identity_count}.to be > 0
             end
-            .then_after(0.1, "stop") do
+            .then("stop") do
               subject.stop
             end
-            .then_after(0.1, "stop flushes last event") do
-              expect(events.size).to eq(2)
-              e1, e2 = events
-              if Dir.glob("#{tmpdir_path}/*.log").first =~ %r{a\.log}
-                #linux and OSX have different retrieval order
-                expect(e1.get("message")).to eq("line1-of-a")
-                expect(e2.get("message")).to eq("line2-of-a")
-              else
-                expect(e1.get("message")).to eq("line1-of-z")
-                expect(e2.get("message")).to eq("line2-of-z")
-              end
+            .then("stop flushes last event") do
+              wait(0.4).for{events.size}.to eq(4)
             end
           subject.run(events)
           # wait for actions future value
-          actions.value
+          actions.assert_no_errors
+          e1, e2, e3, e4 = events
+          expect(e1.get("message")).to eq("line1-of-a")
+          expect(e2.get("message")).to eq("line2-of-a")
+          expect(e3.get("message")).to eq("line1-of-z")
+          expect(e4.get("message")).to eq("line2-of-z")
         end
       end
 
@@ -505,35 +504,30 @@ describe LogStash::Inputs::File do
                 "max_open_files" => 1,
                 "close_older" => 0.5,
                 "start_position" => "beginning",
+                "file_sort_by" => "path",
                 "delimiter" => TEST_FILE_DELIMITER)
           subject.register
         end
 
         it "collects line events from both files" do
           actions = RSpec::Sequencing
-            .run_after(0.2, "assert both identities are mapped and the first two events are built") do
-              expect(subject.codec.identity_count).to eq(2)
-              expect(events.size).to eq(2)
+            .run("assert both identities are mapped and the first two events are built") do
+              wait(0.2).for{subject.codec.identity_count == 2 && events.size > 1}.to eq(true)
             end
-            .then_after(0.8, "wait for close to flush last event of each identity") do
-              expect(events.size).to eq(4)
-              if Dir.glob("#{tmpdir_path}/*.log").first =~ %r{a\.log}
-                #linux and OSX have different retrieval order
-                e1, e2, e3, e4 = events
-              else
-                e3, e4, e1, e2 = events
-              end
-              expect(e1.get("message")).to eq("line1-of-a")
-              expect(e2.get("message")).to eq("line2-of-a")
-              expect(e3.get("message")).to eq("line1-of-z")
-              expect(e4.get("message")).to eq("line2-of-z")
+            .then("wait for close to flush last event of each identity") do
+              wait(0.8).for{events.size}.to eq(4)
             end
             .then_after(0.1, "stop") do
               subject.stop
             end
           subject.run(events)
           # wait for actions future value
-          actions.value
+          actions.assert_no_errors
+          e1, e2, e3, e4 = events
+          expect(e1.get("message")).to eq("line1-of-a")
+          expect(e2.get("message")).to eq("line2-of-a")
+          expect(e3.get("message")).to eq("line1-of-z")
+          expect(e4.get("message")).to eq("line2-of-z")
         end
       end
     end

@@ -105,7 +105,7 @@ module FileWatch module TailMode module Handlers
         # detected a rotation, Discoverer can't handle this because this watched file is not a new discovery.
         # we must handle it here, by transferring state and have the sincedb value track this watched file
         # rotate_as_file and rotate_from will switch the sincedb key to the inode that the path is now pointing to
-        # and pickup the sincdb_value from before.
+        # and pickup the sincedb_value from before.
         msg = "add_or_update_sincedb_collection: the found sincedb_value has a watched_file - this is a rename, switching inode to this watched file"
         logger.trace(msg)
         existing_watched_file = sincedb_value.watched_file

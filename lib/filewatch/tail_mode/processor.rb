@@ -78,7 +78,10 @@ module FileWatch module TailMode
       # if its size changed it is put into the watched state
       watched_files.select {|wf| wf.closed? }.each do |watched_file|
         common_restat_with_delay(watched_file, "Closed") do
-          if watched_file.size_changed?
+          if watched_file.rotation_detected?
+            logger.trace("-------------------- >>>>> process_closed - rotation_detected", "watched_file details" => watched_file.details, "new sincedb key" => watched_file.path_based_sincedb_key)
+            watched_file.rotation_in_progress
+          elsif watched_file.size_changed?
             # if the closed file changed, move it to the watched state
             # not to active state because we want to respect the active files window.
             watched_file.watch
@@ -96,7 +99,10 @@ module FileWatch module TailMode
       #   invoke unignore
       watched_files.select {|wf| wf.ignored? }.each do |watched_file|
         common_restat_with_delay(watched_file, "Ignored") do
-          if watched_file.size_changed?
+          if watched_file.rotation_detected?
+            logger.trace("-------------------- >>>>> process_ignored - rotation_detected", "watched_file details" => watched_file.details, "new sincedb key" => watched_file.path_based_sincedb_key)
+            watched_file.rotation_in_progress
+          elsif watched_file.size_changed?
             watched_file.watch
             unignore(watched_file)
           end
@@ -132,32 +138,7 @@ module FileWatch module TailMode
       if !rotation_set.empty?
         logger.trace(">>> Rotation In Progress ....")
         rotation_set.each do |watched_file|
-          # log each for now
-          sdb_value = @sincedb_collection.find(watched_file)
-          potential_key = watched_file.path_based_sincedb_key
-          potential_sdb_value =  @sincedb_collection.get(potential_key)
-          logger.trace(">>> Rotation In Progress", "watched_file" => watched_file.details, "found_sdb_value" => sdb_value, "potential_key" => potential_key, "potential_sdb_value" => potential_sdb_value)
-          if potential_sdb_value.nil?
-            if sdb_value.nil?
-              logger.trace("---------- >>> Rotation In Progress: rotating as new file, no potential sincedb value AND no found sincedb value")
-              watched_file.rotate_as_initial_file
-            else
-              logger.trace("---------- >>>> Rotation In Progress: rotating as existing file, no potential sincedb value BUT found sincedb value")
-              sdb_value.clear_watched_file
-              watched_file.rotate_as_file
-            end
-          else
-            other_watched_file = potential_sdb_value.watched_file
-            potential_sdb_value.set_watched_file(watched_file)
-            if other_watched_file.nil?
-              logger.trace("---------- >>>> Rotation In Progress: rotating as existing file WITH potential sincedb value")
-              watched_file.rotate_as_file
-              watched_file.update_bytes_read(potential_sdb_value.position)
-            else
-              logger.trace("---------- >>>> Rotation In Progress: rotating from...", "this watched_file details" => watched_file.details, "other watched_file details" => other_watched_file.details)
-              watched_file.rotate_from(other_watched_file)
-            end
-          end
+          common_rotation_detection(watched_file)
         end
       end
       logger.trace("Watched processing")
@@ -190,18 +171,12 @@ module FileWatch module TailMode
       watched_files.select {|wf| wf.active? }.each do |watched_file|
         break if watch.quit?
         path = watched_file.filename
-        logger.trace("Active - info",
-          "sincedb_key" => watched_file.sincedb_key,
-          "size" => watched_file.last_stat_size,
-          "active size" => watched_file.active_stat_size,
-          "read" => watched_file.bytes_read,
-          "unread" => watched_file.bytes_unread,
-          "filename" => path)
+        logger.trace("Active - info", "watched_file" => watched_file.details)
         # when the file is open, all size based tests are driven from the open file not the path
         if watched_file.rotation_detected?
           # rotated with a new inode and is fully read
           # keep buffer contents if any
-          logger.trace(">>> Active - inode change detected, set to rotation_in_progress", "path" => path)
+          logger.trace(">>> Active - inode change detected, set to rotation_in_progress", "filename" => watched_file.filename)
           watched_file.rotation_in_progress
           if watched_file.all_open_file_bytes_read?
             logger.trace(">>> Active - inode change detected and file is fully read")
@@ -236,6 +211,41 @@ module FileWatch module TailMode
           watched_file.close
         end
       end
+    end
+
+    def common_rotation_detection(watched_file)
+      current_key = watched_file.sincedb_key
+      sdb_value = @sincedb_collection.get(current_key)
+      potential_key = watched_file.path_based_sincedb_key
+      potential_sdb_value =  @sincedb_collection.get(potential_key)
+      logger.trace(">>> Rotation In Progress", "watched_file" => watched_file.details, "found_sdb_value" => sdb_value, "potential_key" => potential_key, "potential_sdb_value" => potential_sdb_value)
+      if potential_sdb_value.nil?
+        if sdb_value.nil?
+          logger.trace("---------- >>> Rotation In Progress: rotating as initial file, no potential sincedb value AND no found sincedb value")
+          watched_file.rotate_as_initial_file
+        else
+          logger.trace("---------- >>>> Rotation In Progress: rotating as existing file, no potential sincedb value BUT found sincedb value")
+          watched_file.rotate_as_file
+          sdb_value.clear_watched_file
+        end
+        new_sdb_value = SincedbValue.new(0)
+        new_sdb_value.set_watched_file(watched_file)
+        @sincedb_collection.set(potential_key, new_sdb_value)
+      else
+        other_watched_file = potential_sdb_value.watched_file
+        if other_watched_file.nil?
+          logger.trace("---------- >>>> Rotation In Progress: rotating as existing file WITH potential sincedb value that does not have a watched file reference !!!!!!!!!!!!!!!!!")
+          watched_file.rotate_as_file(potential_sdb_value.position)
+          sdb_value.clear_watched_file unless sdb_value.nil?
+          potential_sdb_value.set_watched_file(watched_file)
+        else
+          logger.trace("---------- >>>> Rotation In Progress: rotating from...", "this watched_file details" => watched_file.details, "other watched_file details" => other_watched_file.details)
+          watched_file.rotate_from(other_watched_file)
+          sdb_value.clear_watched_file unless sdb_value.nil?
+          potential_sdb_value.set_watched_file(watched_file)
+        end
+      end
+      logger.trace("---------- >>>> Rotation In Progress: after handling rotation", "this watched_file details" => watched_file.details, "sincedb_value" => (potential_sdb_value || sdb_value))
     end
 
     def common_restat_with_delay(watched_file, action, &block)
