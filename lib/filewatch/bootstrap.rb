@@ -25,16 +25,11 @@ module FileWatch
   if LogStash::Environment.windows?
     require_relative "winhelper"
     require_relative "stat/windows_path"
-    require_relative "stat/windows_io"
-
     PathStatClass = Stat::WindowsPath
-    IOStatClass = Stat::WindowsIO
     FileOpener = FileExt
   else
     require_relative "stat/generic"
-
     PathStatClass = Stat::Generic
-    IOStatClass = Stat::Generic
     FileOpener = ::File
   end
 

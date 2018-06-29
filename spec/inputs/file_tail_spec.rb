@@ -191,6 +191,7 @@ describe LogStash::Inputs::File do
     let(:tmpdir_path)  { Stud::Temporary.directory }
 
     after :each do
+      sleep(0.1) until subject.completely_stopped?
       FileUtils.rm_rf(sincedb_path)
     end
 

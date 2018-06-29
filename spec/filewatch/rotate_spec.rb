@@ -81,10 +81,9 @@ module FileWatch
       end
 
       it "content from both inodes are sent via the same stream" do
-        actions.activate
+        actions.activate_quietly
         tailing.watch_this(watch_dir.to_path)
         tailing.subscribe(observer)
-        actions.assert_no_errors
         actions.assert_no_errors
         lines = listener1.lines
         expect(lines[0]).to eq(line1)
@@ -125,10 +124,9 @@ module FileWatch
       end
 
       it "content from both inodes are sent via the same stream" do
-        actions.activate
+        actions.activate_quietly
         tailing.watch_this(watch_dir.to_path)
         tailing.subscribe(observer)
-        actions.assert_no_errors
         actions.assert_no_errors
         expect(listener1.lines[0]).to eq(line1)
         expect(listener1.lines[1]).to eq(line2)
@@ -170,7 +168,7 @@ module FileWatch
       end
 
       it "content from both inodes are sent via the same stream AND content from the rotated file is not read again" do
-        actions.activate
+        actions.activate_quietly
         tailing.watch_this(watch_dir.to_path)
         tailing.subscribe(observer)
         actions.assert_no_errors
@@ -209,7 +207,7 @@ module FileWatch
       end
 
       it "content from both inodes are sent via the same stream AND content from the rotated file is not read again" do
-        actions.activate
+        actions.activate_quietly
         tailing.watch_this(watch_dir.to_path)
         tailing.subscribe(observer)
         actions.assert_no_errors
@@ -250,7 +248,7 @@ module FileWatch
       end
 
       it "content from both inodes are sent via the same stream" do
-        actions.activate
+        actions.activate_quietly
         tailing.watch_this(watch_dir.to_path)
         tailing.subscribe(observer)
         actions.assert_no_errors
@@ -287,7 +285,7 @@ module FileWatch
       end
 
       it "content is read correctly" do
-        actions.activate
+        actions.activate_quietly
         tailing.watch_this(watch_dir.to_path)
         tailing.subscribe(observer)
         actions.assert_no_errors
@@ -326,7 +324,7 @@ module FileWatch
       end
 
       it "unread content before the truncate is lost" do
-        actions.activate
+        actions.activate_quietly
         tailing.watch_this(watch_dir.to_path)
         tailing.subscribe(observer)
         actions.assert_no_errors
@@ -361,7 +359,7 @@ module FileWatch
       end
 
       it "content is read correctly, the renamed file is not reread from scratch" do
-        actions.activate
+        actions.activate_quietly
         tailing.watch_this(watch_dir.to_path)
         tailing.subscribe(observer)
         actions.assert_no_errors
@@ -401,7 +399,7 @@ module FileWatch
       end
 
       it "content is read correctly, the renamed file is not reread from scratch" do
-        actions.activate
+        actions.activate_quietly
         tailing.watch_this(watch_dir.to_path)
         tailing.subscribe(observer)
         actions.assert_no_errors
@@ -440,7 +438,7 @@ module FileWatch
       end
 
       it "file 1 content is read correctly, the renamed file 2 is not read at all" do
-        actions.activate
+        actions.activate_quietly
         tailing.watch_this(watch_dir.to_path)
         tailing.subscribe(observer)
         actions.assert_no_errors

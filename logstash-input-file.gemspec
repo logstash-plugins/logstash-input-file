@@ -23,7 +23,14 @@ Gem::Specification.new do |s|
   s.add_runtime_dependency "logstash-core-plugin-api", ">= 1.60", "<= 2.99"
 
   s.add_runtime_dependency 'logstash-codec-plain'
-  s.add_runtime_dependency 'addressable'
+
+  if RUBY_VERSION.start_with?("1")
+    s.add_runtime_dependency 'rake', '~> 12.2.0'
+    s.add_runtime_dependency 'addressable', '~> 2.4.0'
+  else
+    s.add_runtime_dependency 'addressable'
+  end
+
   s.add_runtime_dependency 'logstash-codec-multiline', ['~> 3.0']
 
   s.add_development_dependency 'stud', ['~> 0.0.19']

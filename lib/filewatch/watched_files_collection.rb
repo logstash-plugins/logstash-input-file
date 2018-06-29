@@ -6,8 +6,8 @@ module FileWatch
       @sort_by = settings.file_sort_by # "last_modified" | "path"
       @sort_direction = settings.file_sort_direction # "asc" | "desc"
       @sort_method = method("#{@sort_by}_#{@sort_direction}".to_sym)
-      @files = []
-      @pointers = {}
+      @files = Concurrent::Array.new
+      @pointers = Concurrent::Hash.new
     end
 
     def add(watched_file)

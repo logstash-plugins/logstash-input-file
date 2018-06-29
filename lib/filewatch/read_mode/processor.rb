@@ -39,13 +39,13 @@ module FileWatch module ReadMode
       @read_zip_file.handle(watched_file)
     end
 
-    def process_closed(watched_files)
-      # do not process watched_files in the closed state.
+    def process_all_states(watched_files)
+      process_watched(watched_files)
+      return if watch.quit?
+      process_active(watched_files)
     end
 
-    def process_ignored(watched_files)
-      # do not process watched_files in the ignored state.
-    end
+    private
 
     def process_watched(watched_files)
       logger.trace("Watched processing")

@@ -68,7 +68,7 @@ module FileWatch
       context "when max_active is 1" do
         let(:suffix) { "A" }
         it "without close_older set, opens only 1 file" do
-          actions.activate
+          actions.activate_quietly
           tailing.watch_this(watch_dir)
           tailing.subscribe(observer)
           actions.assert_no_errors
@@ -84,7 +84,7 @@ module FileWatch
         let(:opts) { super.merge(:close_older => 0.1, :max_active => 1, :stat_interval => 0.1) }
         let(:suffix) { "B" }
         it "opens both files" do
-          actions.activate
+          actions.activate_quietly
           tailing.watch_this(watch_dir)
           tailing.subscribe(observer)
           actions.assert_no_errors
@@ -109,7 +109,7 @@ module FileWatch
 
       it "the file is read" do
         File.open(file_path, "wb") { |file|  file.write("line1\nline2\n") }
-        actions.activate
+        actions.activate_quietly
         tailing.watch_this(watch_dir)
         tailing.subscribe(observer)
         actions.assert_no_errors
@@ -135,7 +135,7 @@ module FileWatch
       end
 
       it "the file is read" do
-        actions.activate
+        actions.activate_quietly
         tailing.watch_this(watch_dir)
         tailing.subscribe(observer)
         actions.assert_no_errors
@@ -222,7 +222,7 @@ module FileWatch
       end
 
       it "new changes to the shrunk file are read from the beginning" do
-        actions.activate
+        actions.activate_quietly
         tailing.subscribe(observer)
         actions.assert_no_errors
         expect(listener1.calls).to eq([:open, :accept, :accept, :accept, :accept, :accept, :accept])
@@ -254,7 +254,7 @@ module FileWatch
       end
 
       it "changes to the renamed file are not read" do
-        actions.activate
+        actions.activate_quietly
         tailing.subscribe(observer)
         actions.assert_no_errors
         expect(listener1.calls).to eq([:open, :accept, :accept, :delete])
@@ -291,7 +291,7 @@ module FileWatch
       end
 
       it "the first set of lines are not re-read" do
-        actions.activate
+        actions.activate_quietly
         tailing.subscribe(observer)
         actions.assert_no_errors
         expect(listener1.lines).to eq(["line1", "line2"])
@@ -321,7 +321,7 @@ module FileWatch
       end
 
       it "appended lines are read after an EOF" do
-        actions.activate
+        actions.activate_quietly
         tailing.subscribe(observer)
         actions.assert_no_errors
         expect(listener1.calls).to eq([:open, :accept, :accept, :accept, :accept])
@@ -346,7 +346,7 @@ module FileWatch
       end
 
       it "lines are read and the file times out" do
-        actions.activate
+        actions.activate_quietly
         tailing.subscribe(observer)
         actions.assert_no_errors
         expect(listener1.lines).to eq(["line1", "line2"])
@@ -376,7 +376,7 @@ module FileWatch
       end
 
       it "all lines are read" do
-        actions.activate
+        actions.activate_quietly
         tailing.subscribe(observer)
         actions.assert_no_errors
         expect(listener1.lines).to eq(["line1", "line2", "line3", "line4"])
@@ -399,7 +399,7 @@ module FileWatch
       end
 
       it "no files are read" do
-        actions.activate
+        actions.activate_quietly
         tailing.subscribe(observer)
         expect(listener1.calls).to eq([])
         expect(listener1.lines).to eq([])
@@ -423,17 +423,21 @@ module FileWatch
           .then_after(0.2, "watch") do
             tailing.watch_this(watch_dir)
           end
-          .then_after(0.1, "done...") do
+          .then_after(0.1, "rename file 2") do
             FileUtils.mv(file_path2, file_path3)
-            wait(0.75).for do
+          end
+          .then("wait") do
+            wait(2).for do
               listener1.lines.size == 32 && listener2.calls == [:delete] && listener3.calls == [:open, :accept, :timed_out]
             end.to eq(true)
+          end
+          .then("quit") do
             tailing.quit
           end
       end
 
       it "files are read correctly" do
-        actions.activate
+        actions.activate_quietly
         tailing.subscribe(observer)
         actions.assert_no_errors
         expect(listener2.lines).to eq([])
@@ -455,13 +459,13 @@ module FileWatch
           .then("wait for lines") do
             wait(1.5).for{listener1.calls}.to eq([:open, :accept, :accept, :timed_out])
           end
-          .then("quit after allowing time to close the file") do
+          .then("quit") do
             tailing.quit
           end
       end
 
       it "reads lines normally" do
-        actions.activate
+        actions.activate_quietly
         tailing.subscribe(observer)
         actions.assert_no_errors
         expect(listener1.lines).to eq(["line1", "line2"])
@@ -486,7 +490,7 @@ module FileWatch
       end
 
       it "no files are read" do
-        actions.activate
+        actions.activate_quietly
         tailing.subscribe(observer)
         expect(listener1.calls).to eq([])
         expect(listener1.lines).to eq([])
@@ -515,7 +519,7 @@ module FileWatch
       end
 
       it "reads the added lines only" do
-        actions.activate
+        actions.activate_quietly
         tailing.subscribe(observer)
         actions.assert_no_errors
         expect(listener1.lines).to eq(["line3", "line4"])
@@ -542,7 +546,7 @@ module FileWatch
       end
 
       it "the file is opened, data is read, but no lines are found, the file times out" do
-        actions.activate
+        actions.activate_quietly
         tailing.subscribe(observer)
         actions.assert_no_errors
         expect(listener1.lines).to eq([])

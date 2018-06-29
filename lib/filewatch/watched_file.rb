@@ -7,7 +7,7 @@ module FileWatch
 
     attr_reader :bytes_read, :state, :file, :buffer, :recent_states, :bytes_unread
     attr_reader :path, :accessed_at, :modified_at, :pathname, :filename
-    attr_reader :listener, :read_loop_count, :read_chunk_size, :stats, :read_bytesize_description
+    attr_reader :listener, :read_loop_count, :read_chunk_size, :stat, :read_bytesize_description
     attr_accessor :last_open_warning_at
 
     # this class represents a file that has been discovered
@@ -17,20 +17,14 @@ module FileWatch
       @pathname = Pathname.new(pathname) # given arg pathname might be a string or a Pathname object
       @path = @pathname.to_path
       @filename = @pathname.basename.to_s
-      @stats = []
-      @stat_index = PATH_BASED_STAT
       full_state_reset(stat)
       watch
       set_user_defined_read_loop
       set_accessed_at
     end
 
-    def filestat
-      @stats[@stat_index]
-    end
-
     def no_restat_reset
-      full_state_reset(@stats[PATH_BASED_STAT])
+      full_state_reset(@stat)
     end
 
     def full_state_reset(this_stat = nil)
@@ -45,7 +39,7 @@ module FileWatch
       @bytes_read = 0 # tracks bytes read from the open file or initialized from a matched sincedb_value off disk.
       @bytes_unread = 0 # tracks bytes not yet read from the open file. So we can warn on shrink when unread bytes are seen.
       file_close
-      @stats[PATH_BASED_STAT] = this_stat
+      set_stat(this_stat)
       @listener = nil
       @last_open_warning_at = nil
       # initial as true means we have not associated this watched_file with a previous sincedb value yet.
@@ -53,7 +47,6 @@ module FileWatch
       @initial = true
       @recent_states = [] # keep last 8 states, managed in set_state
       # the prepare_inode method is sourced from the mixed module above
-      @sdb_key_v1 = filestat.inode_struct
       watch if active? || @state.nil?
     end
 
@@ -72,10 +65,14 @@ module FileWatch
         # so no reset
         other.full_state_reset
       end
-      @stat_index = PATH_BASED_STAT
-      @stats[PATH_BASED_STAT] = PathStatClass.new(pathname)
-      @sdb_key_v1 = filestat.inode_struct
+      set_stat PathStatClass.new(pathname)
       ignore
+    end
+
+    def set_stat(stat)
+      @stat = stat
+      @size = @stat.size
+      @sdb_key_v1 = @stat.inode_struct
     end
 
     def rotate_as_initial_file
@@ -95,19 +92,62 @@ module FileWatch
       # and we should read from the beginning if necessary
       @initial = false
       @recent_states = [] # keep last 8 states, managed in set_state
-      @stat_index = PATH_BASED_STAT
-      @stats[@stat_index] = PathStatClass.new(pathname)
+      set_stat(PathStatClass.new(pathname))
       reopen
-      @sdb_key_v1 = filestat.inode_struct
       watch
+    end
+
+    def stat_sincedb_key
+      @stat.inode_struct
+    end
+
+    def rotation_detected?
+      stat_sincedb_key != sincedb_key
+    end
+
+    def restat
+      @stat.restat
+      if rotation_detected?
+        # switch to new state now
+        rotation_in_progress
+      else
+        @size = @stat.size
+        update_bytes_unread
+      end
+    end
+
+    def modified_at
+      @stat.modified_at
+    end
+
+    def last_stat_size
+      @stat.size
+    end
+
+    def current_size
+      @size
+    end
+
+    def shrunk?
+      @size < @bytes_read
+    end
+
+    def grown?
+      @size > @bytes_read
+    end
+
+    def size_changed?
+      # called from closed and ignored
+      # before the last stat was taken file should be fully read.
+      @size != @bytes_read
+    end
+
+    def all_read?
+      @bytes_read >= @size
     end
 
     def file_at_path_found_again
       restore_previous_state
-    end
-
-    def path_based_sincedb_key
-      @stats[PATH_BASED_STAT].inode_struct
     end
 
     def set_listener(observer)
@@ -142,20 +182,6 @@ module FileWatch
       @path.end_with?('.gz','.gzip')
     end
 
-    def size_changed?
-      # called from closed and ignored
-      # before the last stat was taken file should be fully read.
-      last_stat_size != @bytes_read
-    end
-
-    def all_read?
-      test_bytes_read(last_stat_size)
-    end
-
-    def all_open_file_bytes_read?
-      test_bytes_read(@stats[IO_BASED_STAT].size)
-    end
-
     def reopen
       if file_open?
         file_close
@@ -169,13 +195,10 @@ module FileWatch
 
     def file_add_opened(rubyfile)
       @file = rubyfile
-      @stat_index = IO_BASED_STAT
-      @stats[IO_BASED_STAT] = IOStatClass.new(@file.to_io).add_identifier(@stats[PATH_BASED_STAT].identifier)
       @buffer = BufferedTokenizer.new(@settings.delimiter) if @buffer.nil?
     end
 
     def file_close
-      @stat_index = PATH_BASED_STAT
       return if @file.nil? || @file.closed?
       @file.close
       @file = nil
@@ -250,7 +273,7 @@ module FileWatch
 
     def ignore_as_unread
       ignore
-      @bytes_read = filestat.size
+      @bytes_read = @size
     end
 
     def close
@@ -309,31 +332,6 @@ module FileWatch
       !@settings.ignore_older.nil?
     end
 
-    def shrunk?
-      active_stat_size < @bytes_read
-    end
-
-    def grown?
-      active_stat_size > @bytes_read
-    end
-
-    def rotation_detected?
-      if file_open?
-        return false if @stats[IO_BASED_STAT].nil?
-        @stats[PATH_BASED_STAT].inode != @stats[IO_BASED_STAT].inode
-      else
-        path_based_sincedb_key != sincedb_key
-      end
-    end
-
-    def restat
-      @stats[PATH_BASED_STAT].restat
-      if file_open?
-        @stats[IO_BASED_STAT].restat
-      end
-      update_bytes_unread
-    end
-
     def set_depth_first_read_loop
       @read_loop_count = FileWatch::MAX_ITERATIONS
       @read_chunk_size = FileWatch::FILE_READ_SIZE
@@ -381,7 +379,7 @@ module FileWatch
     def details
       detail = "@filename='#{filename}', @state='#{state}', @recent_states='#{@recent_states.inspect}', "
       detail.concat("@bytes_read='#{@bytes_read}', @bytes_unread='#{@bytes_unread}', last_stat_size='#{last_stat_size}', ")
-      detail.concat("file_open?=='#{file_open?}'")
+      detail.concat("@current_size='#{current_size}', file_open?=='#{file_open?}'")
       "<FileWatch::WatchedFile: #{detail}, @sincedb_key='#{sincedb_key}'>"
     end
 
@@ -393,28 +391,11 @@ module FileWatch
       inspect
     end
 
-    def active_stat_size
-      rotation_detected? ? @stats[PATH_BASED_STAT].size : last_stat_size
-    end
-
-    def modified_at
-      filestat.modified_at
-    end
-
-    def last_stat_size
-      filestat.size
-    end
-
     private
 
-    def test_bytes_read(size)
-      bytes_read >= size
-    end
-
     def update_bytes_unread
-      unread = active_stat_size - @bytes_read
-      @bytes_unread = unread
-      @bytes_unread = 0 if unread < 0
+      unread = current_size - @bytes_read
+      @bytes_unread = unread < 0 ? 0 : unread
     end
   end
 end

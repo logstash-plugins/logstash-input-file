@@ -195,7 +195,7 @@ module FileWatch
       watched_file.initial_completed
       if watched_file.all_read?
         watched_file.ignore
-        logger.trace("handle_association ignoring .....", "watched file" => watched_file.details, "sincedb value" => sincedb_value)
+        logger.trace("handle_association fully read, ignoring.....", "watched file" => watched_file.details, "sincedb value" => sincedb_value)
       end
     end
 

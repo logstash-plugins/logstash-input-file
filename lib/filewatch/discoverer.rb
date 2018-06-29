@@ -10,8 +10,8 @@ module FileWatch
     include LogStash::Util::Loggable
 
     def initialize(watched_files_collection, sincedb_collection, settings)
-      @watching = []
-      @exclude = []
+      @watching = Concurrent::Array.new
+      @exclude = Concurrent::Array.new
       @watched_files_collection = watched_files_collection
       @sincedb_collection = sincedb_collection
       @settings = settings

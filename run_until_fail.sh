@@ -1,4 +1,4 @@
 while true
 do
-  LOG_AT=TRACE bundle exec rspec --fail-fast -fd ./spec || break
+  LOG_AT=ERROR bundle exec rspec -fd --fail-fast --tag ~lsof ./spec || break
 done

@@ -312,7 +312,13 @@ class File < LogStash::Inputs::Base
       end
     end
     @codec = LogStash::Codecs::IdentityMapCodec.new(@codec)
+    @completely_stopped = Concurrent::AtomicBoolean.new
   end # def register
+
+  def completely_stopped?
+    # to synchronise after(:each) blocks in tests that remove the sincedb file before atomic_write completes
+    @completely_stopped.true?
+  end
 
   def listener_for(path)
     # path is the identity
@@ -333,6 +339,7 @@ class File < LogStash::Inputs::Base
     @watcher.subscribe(self) # halts here until quit is called
     # last action of the subscribe call is to write the sincedb
     exit_flush
+    @completely_stopped.make_true
   end # def run
 
   def post_process_this(event)

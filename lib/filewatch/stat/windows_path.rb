@@ -7,21 +7,17 @@ module FileWatch module Stat
 
     def initialize(source)
       @source = source
+      @inode = Winhelper.identifier_from_path(@source.to_path)
       @dev_major = 0
       @dev_minor = 0
       # in windows the dev hi and low are in the identifier
+      @inode_struct = InodeStruct.new(@inode, @dev_major, @dev_minor)
       restat
     end
 
-    def add_identifier(identifier) self; end
-
     def restat
-      @inner_stat = @source.stat
-      @identifier = Winhelper.identifier_from_path(@source.to_path)
-      @inode = @identifier
       @modified_at = @inner_stat.mtime.to_f
       @size = @inner_stat.size
-      @inode_struct = InodeStruct.new(@inode, @dev_major, @dev_minor)
     end
 
     def windows?
