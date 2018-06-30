@@ -3,7 +3,7 @@ require "stud/temporary"
 require "fileutils"
 
 if Gem.win_platform?
-  require "lib/filewatch/winhelper"
+  require "filewatch/winhelper"
 
   describe Winhelper do
     let(:path) { Stud::Temporary.file.path }
