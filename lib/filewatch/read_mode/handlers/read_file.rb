@@ -6,6 +6,7 @@ module FileWatch module ReadMode module Handlers
       if open_file(watched_file)
         add_or_update_sincedb_collection(watched_file) unless sincedb_collection.member?(watched_file.sincedb_key)
         changed = false
+        logger.trace("reading...", "amount" => watched_file.read_bytesize_description, "filename" => watched_file.filename)
         watched_file.read_loop_count.times do
           break if quit?
           begin

@@ -16,6 +16,7 @@ module FileWatch module Stat
     end
 
     def restat
+      @inner_stat = @source.stat
       @modified_at = @inner_stat.mtime.to_f
       @size = @inner_stat.size
     end

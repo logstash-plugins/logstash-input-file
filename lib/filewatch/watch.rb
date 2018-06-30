@@ -73,7 +73,7 @@ module FileWatch
 
     def quit
       @quit.make_true
-    end # def quit
+    end
 
     def quit?
       @quit.true?
