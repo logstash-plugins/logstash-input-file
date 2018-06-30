@@ -147,7 +147,7 @@ module FileWatch module TailMode
     end
 
     def process_rotation_in_progress(watched_files)
-      logger.trace(">>> Rotation In Progress ....")
+      logger.trace("Rotation In Progress processing")
       watched_files.select {|wf| wf.rotation_in_progress?}.each do |watched_file|
         if !watched_file.all_read?
           if watched_file.file_open?

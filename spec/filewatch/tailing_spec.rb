@@ -230,7 +230,7 @@ module FileWatch
       end
     end
 
-    context "when watching a directory with files and a file is renamed to not match glob" do
+    context "when watching a directory with files and a file is renamed to not match glob", :unix => true do
       let(:suffix) { "G" }
       let(:new_file_path) { file_path + ".old" }
       let(:actions) do
@@ -264,7 +264,7 @@ module FileWatch
       end
     end
 
-    context "when watching a directory with files and a file is renamed to match glob" do
+    context "when watching a directory with files and a file is renamed to match glob", :unix => true do
       let(:suffix) { "H" }
       let(:opts) { super.merge(:close_older => 0) }
       let(:listener2) { observer.listener_for(file_path2) }
@@ -276,7 +276,10 @@ module FileWatch
           .then_after(0.15, "start watching after files are written") do
             tailing.watch_this(watch_dir)
           end
-          .then_after(0.25, "rename file") do
+          .then("wait") do
+            wait(0.5).for{listener1.calls.last}.to eq(:timed_out)
+          end
+          .then("rename file") do
             FileUtils.mv(file_path, file_path2)
           end
           .then_after(0.1, "then write to renamed file") do
@@ -406,7 +409,7 @@ module FileWatch
       end
     end
 
-    context "when a file is renamed before it gets activated" do
+    context "when a file is renamed before it gets activated", :unix => true do
       let(:max) { 1 }
       let(:opts) { super.merge(:file_chunk_count => 8, :file_chunk_size => 6, :close_older => 0.1, :discover_interval => 6) }
       let(:suffix) { "M" }

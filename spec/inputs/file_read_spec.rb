@@ -14,16 +14,18 @@ FILE_DELIMITER = LogStash::Environment.windows? ? "\r\n" : "\n"
 describe LogStash::Inputs::File do
   describe "'read' mode testing with input(conf) do |pipeline, queue|" do
     it "should start at the beginning of an existing file and delete the file when done" do
-      tmpfile_path = Stud::Temporary.pathname
-      sincedb_path = Stud::Temporary.pathname
+      directory = Stud::Temporary.directory
+      tmpfile_path = ::File.join(directory, "1.log")
+      sincedb_path = ::File.join(directory, "readmode_sincedb.txt")
+      path_path = ::File.join(directory, "*.log")
 
       conf = <<-CONFIG
         input {
           file {
-            type => "blah"
-            path => "#{tmpfile_path}"
+            id => "blah"
+            path => "#{path_path}"
             sincedb_path => "#{sincedb_path}"
-            delimiter => "#{FILE_DELIMITER}"
+            delimiter => "|"
             mode => "read"
             file_completed_action => "delete"
           }
@@ -31,8 +33,7 @@ describe LogStash::Inputs::File do
       CONFIG
 
       File.open(tmpfile_path, "a") do |fd|
-        fd.puts("hello")
-        fd.puts("world")
+        fd.write("hello|world")
         fd.fsync
       end
 
@@ -63,7 +64,6 @@ describe LogStash::Inputs::File do
             type => "blah"
             path => "#{tmpfile_path}"
             sincedb_path => "#{sincedb_path}"
-            delimiter => "#{FILE_DELIMITER}"
             mode => "read"
             file_completed_action => "log"
             file_completed_log_path => "#{log_completed_path}"
@@ -87,9 +87,10 @@ describe LogStash::Inputs::File do
 
       it "the file is read and the path is logged to the `file_completed_log_path` file" do
         tmpfile_path = fixture_dir.join("unc*.log")
-        sincedb_path = Stud::Temporary.pathname
+        directory = Stud::Temporary.directory
+        sincedb_path = ::File.join(directory, "readmode_B_sincedb.txt")
         FileInput.make_fixture_current(file_path.to_path)
-        log_completed_path = Stud::Temporary.pathname
+        log_completed_path = ::File.join(directory, "B_completed.txt")
 
         conf = <<-CONFIG
         input {
@@ -97,7 +98,6 @@ describe LogStash::Inputs::File do
             type => "blah"
             path => "#{tmpfile_path}"
             sincedb_path => "#{sincedb_path}"
-            delimiter => "#{FILE_DELIMITER}"
             mode => "read"
             file_completed_action => "log"
             file_completed_log_path => "#{log_completed_path}"
@@ -106,12 +106,12 @@ describe LogStash::Inputs::File do
         CONFIG
 
         events = input(conf) do |pipeline, queue|
+          wait(0.5).for{IO.read(log_completed_path)}.to match(/uncompressed\.log/)
           2.times.collect { queue.pop }
         end
 
         expect(events[0].get("message")).to start_with("2010-03-12   23:51")
         expect(events[1].get("message")).to start_with("2010-03-12   23:51")
-        expect(IO.read(log_completed_path)).to eq(file_path.to_s + "\n")
       end
     end
 
@@ -130,7 +130,6 @@ describe LogStash::Inputs::File do
             type => "blah"
             path => "#{tmpfile_path}"
             sincedb_path => "#{sincedb_path}"
-            delimiter => "#{FILE_DELIMITER}"
             mode => "read"
             file_completed_action => "log"
             file_completed_log_path => "#{log_completed_path}"

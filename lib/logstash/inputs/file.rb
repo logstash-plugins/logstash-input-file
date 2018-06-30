@@ -361,7 +361,7 @@ class File < LogStash::Inputs::Base
   end
 
   def stop
-    if @watcher
+    unless @watcher.nil?
       @codec.close
       @watcher.quit
     end

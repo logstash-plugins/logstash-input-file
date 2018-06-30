@@ -49,7 +49,7 @@ module FileInput
       @tracer.push [:close, true]
     end
     def clone
-      self.class.new
+      self #.class.new.tap{|val| @clones << val}
     end
   end
 end

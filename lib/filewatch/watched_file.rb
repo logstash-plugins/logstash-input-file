@@ -378,13 +378,13 @@ module FileWatch
 
     def details
       detail = "@filename='#{filename}', @state='#{state}', @recent_states='#{@recent_states.inspect}', "
-      detail.concat("@bytes_read='#{@bytes_read}', @bytes_unread='#{@bytes_unread}', last_stat_size='#{last_stat_size}', ")
-      detail.concat("@current_size='#{current_size}', file_open?=='#{file_open?}'")
+      detail.concat("@bytes_read='#{@bytes_read}', @bytes_unread='#{@bytes_unread}', current_size='#{current_size}', ")
+      detail.concat("last_stat_size='#{last_stat_size}', file_open?=='#{file_open?}'")
       "<FileWatch::WatchedFile: #{detail}, @sincedb_key='#{sincedb_key}'>"
     end
 
     def inspect
-      "\"<FileWatch::WatchedFile: @filename='#{filename}', @state='#{state}', @sincedb_key='#{sincedb_key}'>\""
+      "\"<FileWatch::WatchedFile: @filename='#{filename}', @state='#{state}', @sincedb_key='#{sincedb_key}, size=#{@size}>\""
     end
 
     def to_s

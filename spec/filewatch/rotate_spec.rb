@@ -22,7 +22,7 @@ require 'filewatch/observing_tail'
 # exist, then they are renamed to app.log.2, app.log.3 etc. respectively.
 
 module FileWatch
-  describe Watch do
+  describe Watch, :unix => true do
     let(:directory) { Pathname.new(Stud::Temporary.directory) }
     let(:file1_path) { file_path.to_path }
     let(:max)   { 4095 }
