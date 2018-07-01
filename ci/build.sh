@@ -17,5 +17,5 @@ else
     echo "Running default build scripts in: `pwd`/ci/build.sh"
     bundle install
     bundle exec rake vendor
-    bundle exec rspec --tag ~lsof spec
+    bundle exec rspec --tag ~unix spec
 fi
