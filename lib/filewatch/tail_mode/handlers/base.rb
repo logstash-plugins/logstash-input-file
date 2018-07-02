@@ -136,7 +136,7 @@ module FileWatch module TailMode module Handlers
     end
 
     def get_new_value_specifically(watched_file)
-      position = @settings.start_new_files_at == :beginning ? 0 : watched_file.last_stat_size
+      position = watched_file.position_for_new_sincedb_value
       value = SincedbValue.new(position)
       value.set_watched_file(watched_file)
       watched_file.update_bytes_read(position)

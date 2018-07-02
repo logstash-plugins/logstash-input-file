@@ -5,15 +5,6 @@ require 'filewatch/observing_tail'
 
 module FileWatch
   describe Watch do
-    # before(:all) do
-    #   @thread_abort = Thread.abort_on_exception
-    #   Thread.abort_on_exception = true
-    # end
-    #
-    # after(:all) do
-    #   Thread.abort_on_exception = @thread_abort
-    # end
-
     let(:directory) { Stud::Temporary.directory }
     let(:watch_dir)  { ::File.join(directory, "*#{suffix}.log") }
     let(:file_path)  { ::File.join(directory, "1#{suffix}.log") }

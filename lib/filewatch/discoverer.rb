@@ -21,13 +21,13 @@ module FileWatch
     def add_path(path)
       return if @watching.member?(path)
       @watching << path
-      discover_files(path)
+      discover_files_new_path(path)
       self
     end
 
     def discover
       @watching.each do |path|
-        discover_files(path)
+        discover_files_ongoing(path)
       end
     end
 
@@ -47,7 +47,15 @@ module FileWatch
       false
     end
 
-    def discover_files(path)
+    def discover_files_new_path(path)
+      discover_any_files(path, false)
+    end
+
+    def discover_files_ongoing(path)
+      discover_any_files(path, true)
+    end
+
+    def discover_any_files(path, ongoing)
       fileset = Dir.glob(path).select{|f| File.file?(f) && !File.symlink?(f)}
       logger.trace("discover_files",  "count" => fileset.size)
       fileset.each do |file|
@@ -57,7 +65,6 @@ module FileWatch
         if watched_file.nil?
           new_discovery = true
           watched_file = WatchedFile.new(pathname, PathStatClass.new(pathname), @settings)
-
         end
         # if it already unwatched or its excluded then we can skip
         next if watched_file.unwatched? || can_exclude?(watched_file, new_discovery)
@@ -65,6 +72,7 @@ module FileWatch
         logger.trace("discover_files handling:", "new discovery"=> new_discovery, "watched_file details" => watched_file.details)
 
         if new_discovery
+          watched_file.initial_completed if ongoing
           # initially when the sincedb collection is filled with records from the persistence file
           # each value is not associated with a watched file
           # a sincedb_value can be:

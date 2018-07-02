@@ -120,6 +120,16 @@ module FileWatch
       @stat.modified_at
     end
 
+    def position_for_new_sincedb_value
+      if @initial
+        # this file was found in first discovery
+        @settings.start_new_files_at == :beginning ? 0 : last_stat_size
+      else
+        # always start at the beginning if found after first discovery
+        0
+      end
+    end
+
     def last_stat_size
       @stat.size
     end
