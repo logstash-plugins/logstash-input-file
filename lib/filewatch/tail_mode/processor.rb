@@ -234,7 +234,6 @@ module FileWatch module TailMode
       watched_files.select {|wf| wf.active? }.each do |watched_file|
         break if watch.quit?
         path = watched_file.filename
-        logger.trace("Active - info ------", "watched_file" => watched_file.details)
         if watched_file.grown?
           logger.trace("Active - file grew: #{path}: new size is #{watched_file.last_stat_size}, bytes read #{watched_file.bytes_read}")
           grow(watched_file)
@@ -247,6 +246,7 @@ module FileWatch module TailMode
           shrink(watched_file)
         else
           # same size, do nothing
+          logger.trace("Active - no change", "watched_file" => watched_file.details)
         end
         # can any active files be closed to make way for waiting files?
         if watched_file.file_closable?
