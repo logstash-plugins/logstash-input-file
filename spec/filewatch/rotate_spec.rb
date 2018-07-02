@@ -410,7 +410,8 @@ module FileWatch
     context "? rotation: when a not active file is rotated outside the glob before the file is read" do
       let(:opts) { super.merge(
           :close_older => 3600,
-          :max_active => 1
+          :max_active => 1,
+          :file_sort_by => "path"
         ) }
       let(:watch_dir) { directory.join("*J.log") }
       let(:file_path) { directory.join("1J.log") }

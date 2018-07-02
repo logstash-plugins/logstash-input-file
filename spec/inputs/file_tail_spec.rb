@@ -23,8 +23,9 @@ describe LogStash::Inputs::File do
     end
 
     let(:directory)    { Stud::Temporary.directory }
+    let(:sincedb_dir)  { Stud::Temporary.directory }
     let(:tmpfile_path) { ::File.join(directory, "#{name}.txt") }
-    let(:sincedb_path) { ::File.join(directory, "readmode_#{name}_sincedb.txt") }
+    let(:sincedb_path) { ::File.join(sincedb_dir, "readmode_#{name}_sincedb.txt") }
     let(:path_path)    { ::File.join(directory, "*.txt") }
 
     context "for an existing file" do
@@ -65,6 +66,7 @@ describe LogStash::Inputs::File do
               path => "#{path_path}"
               start_position => "beginning"
               sincedb_path => "#{sincedb_path}"
+              "file_sort_by" => "path"
               delimiter => "#{TEST_FILE_DELIMITER}"
             }
           }
