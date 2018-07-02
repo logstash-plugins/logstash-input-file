@@ -130,7 +130,7 @@ module FileWatch module TailMode module Handlers
 
     def add_new_value_sincedb_collection(watched_file)
       sincedb_value = get_new_value_specifically(watched_file)
-      logger.trace("add_new_value_sincedb_collection: #{watched_file.filename}", "position" => sincedb_value.position)
+      logger.trace("add_new_value_sincedb_collection", "position" => sincedb_value.position, "watched_file details" => watched_file.details)
       sincedb_collection.set(watched_file.sincedb_key, sincedb_value)
       sincedb_value
     end

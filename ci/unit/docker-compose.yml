@@ -1,0 +1,17 @@
+version: '3'
+
+# run tests: docker-compose -f ci/unit/docker-compose.yml up --build --force-recreate
+# only set up: docker-compose -f ci/unit/docker-compose.yml up --build --no-start --force-recreate
+# start manually: docker-compose -f ci/unit/docker-compose.yml run logstash
+services:
+  logstash:
+    build:
+      context: ../../
+      dockerfile: ci/unit/Dockerfile
+      args:
+        - ELASTIC_STACK_VERSION=$ELASTIC_STACK_VERSION
+    command: /usr/share/plugins/this/ci/unit/run.sh
+    environment:
+      LS_JAVA_OPTS: "-Xmx256m -Xms256m"
+      OSS: "true"
+    tty: true
