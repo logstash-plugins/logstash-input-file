@@ -42,6 +42,7 @@ module FileWatch
   end
 
   BufferExtractResult = Struct.new(:lines, :warning, :additional)
+  LoopControlResult = Struct.new(:count, :size, :more)
 
   class NoSinceDBPathGiven < StandardError; end
 
