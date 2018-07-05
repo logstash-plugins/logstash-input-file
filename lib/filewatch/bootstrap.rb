@@ -17,8 +17,8 @@ module FileWatch
 
   gem_root_dir = Pathname.new(__FILE__).dirname.join("../../").realpath
   jar_version = gem_root_dir.join("JAR_VERSION").read.strip
-  require "java"
   fullpath = gem_root_dir.join("lib/jars/filewatch-#{jar_version}.jar").expand_path.to_path
+  require "java"
   require fullpath
   require "jruby_file_watch"
 
