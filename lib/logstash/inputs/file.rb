@@ -206,7 +206,7 @@ class File < LogStash::Inputs::Base
   # 1MB from each active file. See the option `max_open_files` for more info.
   # The default set internally is very large, 4611686018427387903. By default
   # the file is read to the end before moving to the next active file.
-  config :file_chunk_count, :validate => :number, :default => FileWatch::FIXNUM_MAX
+  config :file_chunk_count, :validate => :number, :default => FileWatch::MAX_ITERATIONS
 
   # Which attribute of a discovered file should be used to sort the discovered files.
   # Files can be sort by modified date or full path alphabetic.
@@ -312,7 +312,13 @@ class File < LogStash::Inputs::Base
       end
     end
     @codec = LogStash::Codecs::IdentityMapCodec.new(@codec)
+    @completely_stopped = Concurrent::AtomicBoolean.new
   end # def register
+
+  def completely_stopped?
+    # to synchronise after(:each) blocks in tests that remove the sincedb file before atomic_write completes
+    @completely_stopped.true?
+  end
 
   def listener_for(path)
     # path is the identity
@@ -333,6 +339,7 @@ class File < LogStash::Inputs::Base
     @watcher.subscribe(self) # halts here until quit is called
     # last action of the subscribe call is to write the sincedb
     exit_flush
+    @completely_stopped.make_true
   end # def run
 
   def post_process_this(event)
@@ -354,7 +361,7 @@ class File < LogStash::Inputs::Base
   end
 
   def stop
-    if @watcher
+    unless @watcher.nil?
       @codec.close
       @watcher.quit
     end

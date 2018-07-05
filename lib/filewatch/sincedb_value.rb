@@ -66,6 +66,12 @@ module FileWatch
       @watched_file = nil
     end
 
+    def reading_completed
+      touch
+      @path_in_sincedb = @watched_file.path
+      @position = @watched_file.bytes_read
+    end
+
     def unset_watched_file
       # called in read mode only because we flushed any remaining bytes as a final line.
       # cache the position

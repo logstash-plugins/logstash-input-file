@@ -10,11 +10,8 @@ module FileWatch
 
     def initialize(discoverer, watched_files_collection, settings)
       @settings = settings
-      # watch and iterate_on_state can be called from different threads.
-      @lock = Mutex.new
       # we need to be threadsafe about the quit mutation
-      @quit = false
-      @quit_lock = Mutex.new
+      @quit = Concurrent::AtomicBoolean.new(false)
       @lastwarn_max_files = 0
       @discoverer = discoverer
       @watched_files_collection = watched_files_collection
@@ -27,17 +24,13 @@ module FileWatch
     end
 
     def watch(path)
-      synchronized do
-        @discoverer.add_path(path)
-      end
+      @discoverer.add_path(path)
       # don't return whatever @discoverer.add_path returns
       return true
     end
 
     def discover
-      synchronized do
-        @discoverer.discover
-      end
+      @discoverer.discover
       # don't return whatever @discoverer.discover returns
       return true
     end
@@ -60,6 +53,7 @@ module FileWatch
         break if quit?
         sleep(@settings.stat_interval)
       end
+      sincedb_collection.write_if_requested # does nothing if no requests to write were lodged.
       @watched_files_collection.close_all
     end # def subscribe
 
@@ -67,42 +61,28 @@ module FileWatch
     # differently from Tail mode - see the ReadMode::Processor and TailMode::Processor
     def iterate_on_state
       return if @watched_files_collection.empty?
-      synchronized do
-        begin
-          # creates this snapshot of watched_file values just once
-          watched_files = @watched_files_collection.values
-          @processor.process_closed(watched_files)
-          return if quit?
-          @processor.process_ignored(watched_files)
-          return if quit?
-          @processor.process_watched(watched_files)
-          return if quit?
-          @processor.process_active(watched_files)
-        ensure
-          @watched_files_collection.delete(@processor.deletable_filepaths)
-          @processor.deletable_filepaths.clear
-        end
+      begin
+        # creates this snapshot of watched_file values just once
+        watched_files = @watched_files_collection.values
+        @processor.process_all_states(watched_files)
+      ensure
+        @watched_files_collection.delete(@processor.deletable_filepaths)
+        @processor.deletable_filepaths.clear
       end
     end # def each
 
     def quit
-      @quit_lock.synchronize do
-        @quit = true
-      end
-    end # def quit
+      @quit.make_true
+    end
 
     def quit?
-      @quit_lock.synchronize { @quit }
+      @quit.true?
     end
 
     private
 
-    def synchronized(&block)
-      @lock.synchronize { block.call }
-    end
-
     def reset_quit
-      @quit_lock.synchronize { @quit = false }
+      @quit.make_false
     end
   end
 end

@@ -1,7 +1,5 @@
 # encoding: utf-8
-require "rbconfig"
 require "pathname"
-# require "logstash/environment"
 
 ## Common setup
 #  all the required constants and files
@@ -13,36 +11,26 @@ module FileWatch
   # this is used in the read loop e.g.
   # @opts[:file_chunk_count].times do
   # where file_chunk_count defaults to this constant
-  FIXNUM_MAX = (2**(0.size * 8 - 2) - 1)
+  MAX_ITERATIONS = (2**(0.size * 8 - 2) - 2) / 32768
 
   require_relative "helper"
 
-  module WindowsInode
-    def prepare_inode(path, stat)
-      fileId = Winhelper.GetWindowsUniqueFileIdentifier(path)
-      [fileId, 0, 0] # dev_* doesn't make sense on Windows
-    end
-  end
-
-  module UnixInode
-    def prepare_inode(path, stat)
-      [stat.ino.to_s, stat.dev_major, stat.dev_minor]
-    end
-  end
-
-  jar_version = Pathname.new(__FILE__).dirname.join("../../JAR_VERSION").realpath.read.strip
-
+  gem_root_dir = Pathname.new(__FILE__).dirname.join("../../").realpath
+  jar_version = gem_root_dir.join("JAR_VERSION").read.strip
+  fullpath = gem_root_dir.join("lib/jars/filewatch-#{jar_version}.jar").expand_path.to_path
   require "java"
-  require_relative "../../lib/jars/filewatch-#{jar_version}.jar"
+  require fullpath
   require "jruby_file_watch"
 
   if LogStash::Environment.windows?
     require_relative "winhelper"
+    require_relative "stat/windows_path"
+    PathStatClass = Stat::WindowsPath
     FileOpener = FileExt
-    InodeMixin = WindowsInode
   else
+    require_relative "stat/generic"
+    PathStatClass = Stat::Generic
     FileOpener = ::File
-    InodeMixin = UnixInode
   end
 
   # Structs can be used as hash keys because they compare by value

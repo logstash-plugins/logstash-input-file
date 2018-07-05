@@ -5,42 +5,45 @@ require 'filewatch/observing_tail'
 
 module FileWatch
   describe Watch do
-    before(:all) do
-      @thread_abort = Thread.abort_on_exception
-      Thread.abort_on_exception = true
-    end
-
-    after(:all) do
-      Thread.abort_on_exception = @thread_abort
-    end
-
     let(:directory) { Stud::Temporary.directory }
-    let(:watch_dir) { ::File.join(directory, "*.log") }
-    let(:file_path) { ::File.join(directory, "1.log") }
+    let(:watch_dir)  { ::File.join(directory, "*#{suffix}.log") }
+    let(:file_path)  { ::File.join(directory, "1#{suffix}.log") }
+    let(:file_path2) { ::File.join(directory, "2#{suffix}.log") }
+    let(:file_path3) { ::File.join(directory, "3#{suffix}.log") }
     let(:max)   { 4095 }
     let(:stat_interval) { 0.1 }
     let(:discover_interval) { 4 }
-    let(:start_new_files_at) { :beginning }
+    let(:start_new_files_at) { :end }
     let(:sincedb_path) { ::File.join(directory, "tailing.sdb") }
     let(:opts) do
       {
         :stat_interval => stat_interval, :start_new_files_at => start_new_files_at, :max_active => max,
-        :delimiter => "\n", :discover_interval => discover_interval, :sincedb_path => sincedb_path
+        :delimiter => "\n", :discover_interval => discover_interval, :sincedb_path => sincedb_path,
+        :file_sort_by => "path"
       }
     end
     let(:observer) { TestObserver.new }
+    let(:listener1) { observer.listener_for(file_path) }
+    let(:listener2) { observer.listener_for(file_path2) }
+    let(:listener3) { observer.listener_for(file_path3) }
     let(:tailing) { ObservingTail.new(opts) }
+
+    before do
+      directory
+      wait(1.0).for{Dir.exist?(directory)}.to eq(true)
+    end
 
     after do
       FileUtils.rm_rf(directory)
+      wait(1.0).for{Dir.exist?(directory)}.to eq(false)
     end
 
     describe "max open files (set to 1)" do
       let(:max) { 1 }
-      let(:file_path2) { File.join(directory, "2.log") }
       let(:wait_before_quit) { 0.15 }
       let(:stat_interval) { 0.01 }
       let(:discover_interval) { 4 }
+      let(:start_new_files_at) { :beginning }
       let(:actions) do
         RSpec::Sequencing
           .run_after(wait_before_quit, "quit after a short time") do
@@ -51,94 +54,110 @@ module FileWatch
       before do
         ENV["FILEWATCH_MAX_FILES_WARN_INTERVAL"] = "0"
         File.open(file_path, "wb")  { |file| file.write("line1\nline2\n") }
-        File.open(file_path2, "wb") { |file| file.write("lineA\nlineB\n") }
+        File.open(file_path2, "wb") { |file| file.write("line-A\nline-B\n") }
       end
 
       context "when max_active is 1" do
+        let(:suffix) { "A" }
         it "without close_older set, opens only 1 file" do
-          actions.activate
+          actions.activate_quietly
+          # create files before first discovery, they will be read from the end
           tailing.watch_this(watch_dir)
           tailing.subscribe(observer)
+          actions.assert_no_errors
           expect(tailing.settings.max_active).to eq(max)
-          file1_calls = observer.listener_for(file_path).calls
-          file2_calls = observer.listener_for(file_path2).calls
-          # file glob order is OS dependent
-          if file1_calls.empty?
-            expect(observer.listener_for(file_path2).lines).to eq(["lineA", "lineB"])
-            expect(file2_calls).to eq([:open, :accept, :accept])
-          else
-            expect(observer.listener_for(file_path).lines).to eq(["line1", "line2"])
-            expect(file1_calls).to eq([:open, :accept, :accept])
-            expect(file2_calls).to be_empty
-          end
+          expect(listener1.lines).to eq(["line1", "line2"])
+          expect(listener1.calls).to eq([:open, :accept, :accept])
+          expect(listener2.calls).to be_empty
         end
       end
 
       context "when close_older is set" do
         let(:wait_before_quit) { 0.8 }
-        let(:opts) { super.merge(:close_older => 0.15, :max_active => 1, :stat_interval => 0.1) }
+        let(:opts) { super.merge(:close_older => 0.1, :max_active => 1, :stat_interval => 0.1) }
+        let(:suffix) { "B" }
         it "opens both files" do
-          actions.activate
+          actions.activate_quietly
           tailing.watch_this(watch_dir)
           tailing.subscribe(observer)
+          actions.assert_no_errors
           expect(tailing.settings.max_active).to eq(1)
-          filelistener_1 = observer.listener_for(file_path)
-          filelistener_2 = observer.listener_for(file_path2)
-          expect(filelistener_2.calls).to eq([:open, :accept, :accept, :timed_out])
-          expect(filelistener_2.lines).to eq(["lineA", "lineB"])
-          expect(filelistener_1.calls).to eq([:open, :accept, :accept, :timed_out])
-          expect(filelistener_1.lines).to eq(["line1", "line2"])
+          expect(listener2.calls).to eq([:open, :accept, :accept, :timed_out])
+          expect(listener2.lines).to eq(["line-A", "line-B"])
+          expect(listener1.calls).to eq([:open, :accept, :accept, :timed_out])
+          expect(listener1.lines).to eq(["line1", "line2"])
         end
       end
     end
 
-    context "when watching a directory with files" do
-      let(:start_new_files_at) { :beginning }
+    context "when watching a directory with files, exisiting content is skipped" do
+      let(:suffix) { "C" }
       let(:actions) do
-        RSpec::Sequencing.run_after(0.45, "quit after a short time") do
-          tailing.quit
-        end
-      end
-
-      it "the file is read" do
-        File.open(file_path, "wb") { |file|  file.write("line1\nline2\n") }
-        actions.activate
-        tailing.watch_this(watch_dir)
-        tailing.subscribe(observer)
-        expect(observer.listener_for(file_path).calls).to eq([:open, :accept, :accept])
-        expect(observer.listener_for(file_path).lines).to eq(["line1", "line2"])
-      end
-    end
-
-    context "when watching a directory without files and one is added" do
-      let(:start_new_files_at) { :beginning }
-      before do
-        tailing.watch_this(watch_dir)
         RSpec::Sequencing
-          .run_after(0.25, "create file") do
-            File.open(file_path, "wb") { |file|  file.write("line1\nline2\n") }
+          .run("create file") do
+            File.open(file_path, "wb") { |file|  file.write("lineA\nlineB\n") }
           end
-          .then_after(0.45, "quit after a short time") do
+          .then_after(0.1, "begin watching") do
+            tailing.watch_this(watch_dir)
+          end
+          .then_after(0.05, "add content") do
+            File.open(file_path, "ab") { |file|  file.write("line1\nline2\n") }
+          end
+          .then("wait") do
+            wait(0.75).for{listener1.lines.size}.to eq(2)
+          end
+          .then("quit") do
             tailing.quit
           end
       end
 
-      it "the file is read" do
+      it "only the new content is read" do
+        actions.activate_quietly
+        tailing.watch_this(watch_dir)
         tailing.subscribe(observer)
-        expect(observer.listener_for(file_path).calls).to eq([:open, :accept, :accept])
-        expect(observer.listener_for(file_path).lines).to eq(["line1", "line2"])
+        actions.assert_no_errors
+        expect(listener1.calls).to eq([:open, :accept, :accept])
+        expect(listener1.lines).to eq(["line1", "line2"])
       end
     end
 
-    describe "given a previously discovered file" do
+    context "when watching a directory without files and one is added" do
+      let(:suffix) { "D" }
+      let(:actions) do
+        RSpec::Sequencing
+          .run("begin watching") do
+            tailing.watch_this(watch_dir)
+          end
+          .then_after(0.1, "create file") do
+            File.open(file_path, "wb") { |file|  file.write("line1\nline2\n") }
+          end
+          .then("wait") do
+            wait(0.75).for{listener1.lines.size}.to eq(2)
+          end
+          .then("quit") do
+            tailing.quit
+          end
+      end
+
+      it "the file is read from the beginning" do
+        actions.activate_quietly
+        tailing.subscribe(observer)
+        actions.assert_no_errors
+        expect(listener1.calls).to eq([:open, :accept, :accept])
+        expect(listener1.lines).to eq(["line1", "line2"])
+      end
+    end
+
+    context "given a previously discovered file" do
       # these tests rely on the fact that the 'filepath' does not exist on disk
       # it simulates that the user deleted the file
       # so when a stat is taken on the file an error is raised
+      let(:suffix) { "E" }
       let(:quit_after) { 0.2 }
-      let(:stat)  { double("stat", :size => 100, :ctime => Time.now, :mtime => Time.now, :ino => 234567, :dev_major => 3, :dev_minor => 2) }
+      let(:stat)  { double("stat", :size => 100, :modified_at => Time.now.to_f, :identifier => nil, :inode => 234567, :inode_struct => InodeStruct.new("234567", 1, 5)) }
       let(:watched_file) { WatchedFile.new(file_path, stat, tailing.settings) }
-
       before do
+        allow(stat).to receive(:restat).and_raise(Errno::ENOENT)
         tailing.watch.watched_files_collection.add(watched_file)
         watched_file.initial_completed
       end
@@ -150,7 +169,7 @@ module FileWatch
           RSpec::Sequencing.run_after(quit_after, "quit") { tailing.quit }
           tailing.subscribe(observer)
           expect(tailing.watch.watched_files_collection).to be_empty
-          expect(observer.listener_for(file_path).calls).to eq([:delete])
+          expect(listener1.calls).to eq([:delete])
         end
       end
 
@@ -160,7 +179,7 @@ module FileWatch
           RSpec::Sequencing.run_after(quit_after, "quit") { tailing.quit }
           tailing.subscribe(observer)
           expect(tailing.watch.watched_files_collection).to be_empty
-          expect(observer.listener_for(file_path).calls).to eq([:delete])
+          expect(listener1.calls).to eq([:delete])
         end
       end
 
@@ -170,7 +189,7 @@ module FileWatch
           RSpec::Sequencing.run_after(quit_after, "quit") { tailing.quit }
           tailing.subscribe(observer)
           expect(tailing.watch.watched_files_collection).to be_empty
-          expect(observer.listener_for(file_path).calls).to eq([:delete])
+          expect(listener1.calls).to eq([:delete])
         end
       end
 
@@ -180,172 +199,214 @@ module FileWatch
           RSpec::Sequencing.run_after(quit_after, "quit") { tailing.quit }
           tailing.subscribe(observer)
           expect(tailing.watch.watched_files_collection).to be_empty
-          expect(observer.listener_for(file_path).calls).to eq([:delete])
+          expect(listener1.calls).to eq([:delete])
         end
       end
     end
 
     context "when a processed file shrinks" do
-      let(:discover_interval) { 100 }
-      before do
+      let(:discover_interval) { 1 }
+      let(:suffix) { "F" }
+      let(:actions) do
         RSpec::Sequencing
-        .run("create file") do
+        .run_after(0.1, "start watching") do
+          tailing.watch_this(watch_dir)
+        end
+        .then_after(0.1, "create file") do
+          # create file after first discovery, will be read from the start
           File.open(file_path, "wb") { |file|  file.write("line1\nline2\nline3\nline4\n") }
         end
-        .then_after(0.25, "start watching after files are written") do
-          tailing.watch_this(watch_dir)
+        .then("wait for initial lines to be read") do
+          wait(0.8).for{listener1.lines.size}.to eq(4), "listener1.lines.size not eq 4"
         end
         .then_after(0.25, "truncate file and write new content") do
           File.truncate(file_path, 0)
-          File.open(file_path, "wb") { |file|  file.write("lineA\nlineB\n") }
+          File.open(file_path, "ab") { |file|  file.write("lineA\nlineB\n") }
+          wait(0.5).for{listener1.lines.size}.to eq(6), "listener1.lines.size not eq 6"
         end
-        .then_after(0.25, "quit after a short time") do
+        .then("quit") do
           tailing.quit
         end
       end
 
       it "new changes to the shrunk file are read from the beginning" do
+        actions.activate_quietly
         tailing.subscribe(observer)
-        expect(observer.listener_for(file_path).calls).to eq([:open, :accept, :accept, :accept, :accept, :accept, :accept])
-        expect(observer.listener_for(file_path).lines).to eq(["line1", "line2", "line3", "line4", "lineA", "lineB"])
+        actions.assert_no_errors
+        expect(listener1.calls).to eq([:open, :accept, :accept, :accept, :accept, :accept, :accept])
+        expect(listener1.lines).to eq(["line1", "line2", "line3", "line4", "lineA", "lineB"])
       end
     end
 
-    context "when watching a directory with files and a file is renamed to not match glob" do
+    context "when watching a directory with files and a file is renamed to not match glob", :unix => true do
+      let(:suffix) { "G" }
       let(:new_file_path) { file_path + ".old" }
-      before do
+      let(:new_file_listener) { observer.listener_for(new_file_path) }
+      let(:actions) do
         RSpec::Sequencing
-          .run("create file") do
-            File.open(file_path, "wb") { |file|  file.write("line1\nline2\n") }
-          end
-          .then_after(0.25, "start watching after files are written") do
+          .run("start watching") do
             tailing.watch_this(watch_dir)
+          end
+          .then_after(0.1, "create file") do
+            # create file after first discovery, will be read from the beginning
+            File.open(file_path, "wb") { |file|  file.write("line1\nline2\n") }
           end
           .then_after(0.55, "rename file") do
             FileUtils.mv(file_path, new_file_path)
           end
           .then_after(0.55, "then write to renamed file") do
             File.open(new_file_path, "ab") { |file|  file.write("line3\nline4\n") }
+            wait(0.5).for{listener1.lines.size}.to eq(2), "listener1.lines.size not eq(2)"
           end
-          .then_after(0.45, "quit after a short time") do
+          .then_after(0.1, "quit") do
             tailing.quit
           end
       end
 
       it "changes to the renamed file are not read" do
+        actions.activate_quietly
         tailing.subscribe(observer)
-        expect(observer.listener_for(file_path).calls).to eq([:open, :accept, :accept, :delete])
-        expect(observer.listener_for(file_path).lines).to eq(["line1", "line2"])
-        expect(observer.listener_for(new_file_path).calls).to eq([])
-        expect(observer.listener_for(new_file_path).lines).to eq([])
+        actions.assert_no_errors
+        expect(listener1.calls).to eq([:open, :accept, :accept, :delete])
+        expect(listener1.lines).to eq(["line1", "line2"])
+        expect(new_file_listener.calls).to eq([])
+        expect(new_file_listener.lines).to eq([])
       end
     end
 
-    context "when watching a directory with files and a file is renamed to match glob" do
-      let(:new_file_path) { file_path + "2.log" }
+    context "when watching a directory with files and a file is renamed to match glob", :unix => true do
+      let(:suffix) { "H" }
       let(:opts) { super.merge(:close_older => 0) }
-      before do
+      let(:listener2) { observer.listener_for(file_path2) }
+      let(:actions) do
         RSpec::Sequencing
-          .run("create file") do
+          .run("file created") do
+            # create file before first discovery, will be read from the end
             File.open(file_path, "wb") { |file|  file.write("line1\nline2\n") }
           end
           .then_after(0.15, "start watching after files are written") do
             tailing.watch_this(watch_dir)
           end
-          .then_after(0.25, "rename file") do
-            FileUtils.mv(file_path, new_file_path)
+          .then("wait") do
+            wait(0.5).for{listener1.calls.last}.to eq(:timed_out)
           end
-          .then("then write to renamed file") do
-            File.open(new_file_path, "ab") { |file|  file.write("line3\nline4\n") }
+          .then("rename file") do
+            FileUtils.mv(file_path, file_path2)
           end
-          .then_after(0.55, "quit after a short time") do
+          .then_after(0.1, "then write to renamed file") do
+            File.open(file_path2, "ab") { |file|  file.write("line3\nline4\n") }
+          end
+          .then_after(0.1, "wait for lines") do
+            wait(0.5).for{listener2.lines.size}.to eq(2)
+          end
+          .then_after(0.1, "quit") do
             tailing.quit
           end
       end
 
       it "the first set of lines are not re-read" do
+        actions.activate_quietly
         tailing.subscribe(observer)
-        expect(observer.listener_for(file_path).lines).to eq(["line1", "line2"])
-        expect(observer.listener_for(file_path).calls).to eq([:open, :accept, :accept, :timed_out, :delete])
-        expect(observer.listener_for(new_file_path).lines).to eq(["line3", "line4"])
-        expect(observer.listener_for(new_file_path).calls).to eq([:open, :accept, :accept, :timed_out])
+        actions.assert_no_errors
+        expect(listener1.lines).to eq([])
+        expect(listener1.calls).to eq([:open, :timed_out, :delete])
+        expect(listener2.lines).to eq(["line3", "line4"])
+        expect(listener2.calls).to eq([:open, :accept, :accept, :timed_out])
       end
     end
 
     context "when watching a directory with files and data is appended" do
-      before do
+      let(:suffix) { "I" }
+      let(:actions) do
         RSpec::Sequencing
-          .run("create file") do
+          .run("file created") do
             File.open(file_path, "wb") { |file|  file.write("line1\nline2\n") }
           end
-          .then_after(0.25, "start watching after file is written") do
+          .then_after(0.15, "start watching after file is written") do
             tailing.watch_this(watch_dir)
           end
           .then_after(0.45, "append more lines to the file") do
             File.open(file_path, "ab") { |file|  file.write("line3\nline4\n") }
+            wait(0.5).for{listener1.lines.size}.to eq(2)
           end
-          .then_after(0.45, "quit after a short time") do
+          .then_after(0.1, "quit") do
             tailing.quit
           end
       end
 
-      it "appended lines are read after an EOF" do
+      it "appended lines are read only" do
+        actions.activate_quietly
         tailing.subscribe(observer)
-        expect(observer.listener_for(file_path).calls).to eq([:open, :accept, :accept, :accept, :accept])
-        expect(observer.listener_for(file_path).lines).to eq(["line1", "line2", "line3", "line4"])
+        actions.assert_no_errors
+        expect(listener1.calls).to eq([:open, :accept, :accept])
+        expect(listener1.lines).to eq(["line3", "line4"])
       end
     end
 
     context "when close older expiry is enabled" do
       let(:opts) { super.merge(:close_older => 1) }
-      before do
-        RSpec::Sequencing
-          .run("create file") do
-            File.open(file_path, "wb") { |file|  file.write("line1\nline2\n") }
-          end
-          .then("start watching before file ages more than close_older") do
-            tailing.watch_this(watch_dir)
-          end
-          .then_after(2.1, "quit after allowing time to close the file") do
-            tailing.quit
-          end
+      let(:suffix) { "J" }
+      let(:actions) do
+        RSpec::Sequencing.run("create file") do
+          File.open(file_path, "wb") { |file|  file.write("line1\nline2\n") }
+        end
+        .then("watch and wait") do
+          tailing.watch_this(watch_dir)
+          wait(1.25).for{listener1.calls}.to eq([:open, :timed_out])
+        end
+        .then("quit") do
+          tailing.quit
+        end
       end
 
-      it "lines are read and the file times out" do
+      it "existing lines are not read and the file times out" do
+        actions.activate_quietly
         tailing.subscribe(observer)
-        expect(observer.listener_for(file_path).calls).to eq([:open, :accept, :accept, :timed_out])
-        expect(observer.listener_for(file_path).lines).to eq(["line1", "line2"])
+        actions.assert_no_errors
+        expect(listener1.lines).to eq([])
       end
     end
 
     context "when close older expiry is enabled and after timeout the file is appended-to" do
-      let(:opts) { super.merge(:close_older => 1) }
-      before do
+      let(:opts) { super.merge(:close_older => 0.5) }
+      let(:suffix) { "K" }
+      let(:actions) do
         RSpec::Sequencing
-          .run("create file") do
-            File.open(file_path, "wb") { |file|  file.write("line1\nline2\n") }
-          end
-          .then("start watching before file ages more than close_older") do
+          .run("start watching") do
             tailing.watch_this(watch_dir)
           end
-          .then_after(2.1, "append more lines to file after file ages more than close_older") do
+          .then("create file") do
+            File.open(file_path, "wb") { |file|  file.write("line1\nline2\n") }
+          end
+          .then("wait for file to be read") do
+            wait(0.5).for{listener1.calls}.to eq([:open, :accept, :accept]), "file is not read"
+          end
+          .then("wait for file to be read and time out") do
+            wait(0.75).for{listener1.calls}.to eq([:open, :accept, :accept, :timed_out]), "file did not timeout the first time"
+          end
+          .then("append more lines to file after file ages more than close_older") do
             File.open(file_path, "ab") { |file|  file.write("line3\nline4\n") }
           end
-          .then_after(2.1, "quit after allowing time to close the file") do
+          .then("wait for last timeout") do
+            wait(0.75).for{listener1.calls}.to eq([:open, :accept, :accept, :timed_out, :open, :accept, :accept, :timed_out]), "file did not timeout the second time"
+          end
+          .then("quit") do
             tailing.quit
           end
       end
 
       it "all lines are read" do
+        actions.activate_quietly
         tailing.subscribe(observer)
-        expect(observer.listener_for(file_path).calls).to eq([:open, :accept, :accept, :timed_out, :open, :accept, :accept, :timed_out])
-        expect(observer.listener_for(file_path).lines).to eq(["line1", "line2", "line3", "line4"])
+        actions.assert_no_errors
+        expect(listener1.lines).to eq(["line1", "line2", "line3", "line4"])
       end
     end
 
     context "when ignore older expiry is enabled and all files are already expired" do
       let(:opts) { super.merge(:ignore_older => 1) }
-      before do
+      let(:suffix) { "L" }
+      let(:actions) do
         RSpec::Sequencing
           .run("create file older than ignore_older and watch") do
             File.open(file_path, "wb") { |file|  file.write("line1\nline2\n") }
@@ -358,60 +419,112 @@ module FileWatch
       end
 
       it "no files are read" do
+        actions.activate_quietly
         tailing.subscribe(observer)
-        expect(observer.listener_for(file_path).calls).to eq([])
-        expect(observer.listener_for(file_path).lines).to eq([])
+        expect(listener1.calls).to eq([])
+        expect(listener1.lines).to eq([])
+      end
+    end
+
+    context "when a file is renamed before it gets activated", :unix => true do
+      let(:max) { 1 }
+      let(:opts) { super.merge(:file_chunk_count => 8, :file_chunk_size => 6, :close_older => 0.1, :discover_interval => 6) }
+      let(:suffix) { "M" }
+      let(:start_new_files_at) { :beginning } # we are creating files and sincedb record before hand
+      let(:actions) do
+        RSpec::Sequencing
+          .run("create files and sincedb record") do
+            File.open(file_path, "wb") { |file| 32.times{file.write("line1\n")} }
+            File.open(file_path2, "wb") { |file| file.write("line2\n") }
+            # synthesize a sincedb record
+            stat = File.stat(file_path2)
+            record = [stat.ino.to_s, stat.dev_major.to_s, stat.dev_minor.to_s, "0", "1526220348.083179", file_path2]
+            File.open(sincedb_path, "wb") { |file| file.puts(record.join(" ")) }
+          end
+          .then_after(0.2, "watch") do
+            tailing.watch_this(watch_dir)
+          end
+          .then_after(0.1, "rename file 2") do
+            FileUtils.mv(file_path2, file_path3)
+          end
+          .then("wait") do
+            wait(2).for do
+              listener1.lines.size == 32 && listener2.calls == [:delete] && listener3.calls == [:open, :accept, :timed_out]
+            end.to eq(true), "listener1.lines != 32 or listener2.calls != [:delete] or listener3.calls != [:open, :accept, :timed_out]"
+          end
+          .then("quit") do
+            tailing.quit
+          end
+      end
+
+      it "files are read correctly" do
+        actions.activate_quietly
+        tailing.subscribe(observer)
+        actions.assert_no_errors
+        expect(listener2.lines).to eq([])
+        expect(listener3.lines).to eq(["line2"])
       end
     end
 
     context "when ignore_older is less than close_older and all files are not expired" do
-      let(:opts) { super.merge(:ignore_older => 1, :close_older => 1.5) }
-      before do
+      let(:opts) { super.merge(:ignore_older => 1, :close_older => 1.1) }
+      let(:suffix) { "N" }
+      let(:start_new_files_at) { :beginning }
+      let(:actions) do
         RSpec::Sequencing
-          .run("create file") do
+          .run_after(0.1, "file created") do
             File.open(file_path, "wb") { |file|  file.write("line1\nline2\n") }
           end
           .then("start watching before file age reaches ignore_older") do
             tailing.watch_this(watch_dir)
           end
-          .then_after(1.75, "quit after allowing time to close the file") do
+          .then("wait for lines") do
+            wait(1.5).for{listener1.calls}.to eq([:open, :accept, :accept, :timed_out])
+          end
+          .then("quit") do
             tailing.quit
           end
       end
 
       it "reads lines normally" do
+        actions.activate_quietly
         tailing.subscribe(observer)
-        expect(observer.listener_for(file_path).calls).to eq([:open, :accept, :accept, :timed_out])
-        expect(observer.listener_for(file_path).lines).to eq(["line1", "line2"])
+        actions.assert_no_errors
+        expect(listener1.lines).to eq(["line1", "line2"])
       end
     end
 
     context "when ignore_older is less than close_older and all files are expired" do
       let(:opts) { super.merge(:ignore_older => 10, :close_older => 1) }
-      before do
+      let(:suffix) { "P" }
+      let(:actions) do
         RSpec::Sequencing
-          .run("create file older than ignore_older and watch") do
+          .run("creating file") do
             File.open(file_path, "wb") { |file|  file.write("line1\nline2\n") }
+          end
+          .then("making it older by 15 seconds and watch") do
             FileWatch.make_file_older(file_path, 15)
             tailing.watch_this(watch_dir)
           end
-          .then_after(1.5, "quit after allowing time to check the files") do
+          .then_after(0.75, "quit after allowing time to check the files") do
             tailing.quit
           end
       end
 
       it "no files are read" do
+        actions.activate_quietly
         tailing.subscribe(observer)
-        expect(observer.listener_for(file_path).calls).to eq([])
-        expect(observer.listener_for(file_path).lines).to eq([])
+        expect(listener1.calls).to eq([])
+        expect(listener1.lines).to eq([])
       end
     end
 
     context "when ignore older and close older expiry is enabled and after timeout the file is appended-to" do
-      let(:opts) { super.merge(:ignore_older => 20, :close_older => 1) }
-      before do
+      let(:opts) { super.merge(:ignore_older => 20, :close_older => 0.5) }
+      let(:suffix) { "Q" }
+      let(:actions) do
         RSpec::Sequencing
-          .run("create file older than ignore_older and watch") do
+          .run("file older than ignore_older created and watching") do
             File.open(file_path, "wb") { |file|  file.write("line1\nline2\n") }
             FileWatch.make_file_older(file_path, 25)
             tailing.watch_this(watch_dir)
@@ -419,37 +532,46 @@ module FileWatch
           .then_after(0.15, "append more lines to file after file ages more than ignore_older") do
             File.open(file_path, "ab") { |file|  file.write("line3\nline4\n") }
           end
-          .then_after(1.25, "quit after allowing time to close the file") do
+          .then("wait for lines") do
+            wait(2).for{listener1.calls}.to eq([:open, :accept, :accept, :timed_out])
+          end
+          .then_after(0.1, "quit after allowing time to close the file") do
             tailing.quit
           end
       end
 
       it "reads the added lines only" do
+        actions.activate_quietly
         tailing.subscribe(observer)
-        expect(observer.listener_for(file_path).lines).to eq(["line3", "line4"])
-        expect(observer.listener_for(file_path).calls).to eq([:open, :accept, :accept, :timed_out])
+        actions.assert_no_errors
+        expect(listener1.lines).to eq(["line3", "line4"])
       end
     end
 
     context "when a non default delimiter is specified and it is not in the content" do
       let(:opts) { super.merge(:ignore_older => 20, :close_older => 1, :delimiter => "\nø") }
-      before do
+      let(:suffix) { "R" }
+      let(:actions) do
         RSpec::Sequencing
-          .run("create file") do
-            File.open(file_path, "wb") { |file|  file.write("line1\nline2") }
-          end
-          .then("start watching before file ages more than close_older") do
+          .run("start watching") do
             tailing.watch_this(watch_dir)
           end
-          .then_after(2.1, "quit after allowing time to close the file") do
+          .then("creating file") do
+            File.open(file_path, "wb") { |file|  file.write("line1\nline2") }
+          end
+          .then("wait for :timeout") do
+            wait(2).for{listener1.calls}.to eq([:open, :timed_out])
+          end
+          .then_after(0.75, "quit after allowing time to close the file") do
             tailing.quit
           end
       end
 
       it "the file is opened, data is read, but no lines are found, the file times out" do
+        actions.activate_quietly
         tailing.subscribe(observer)
-        expect(observer.listener_for(file_path).calls).to eq([:open, :timed_out])
-        expect(observer.listener_for(file_path).lines).to eq([])
+        actions.assert_no_errors
+        expect(listener1.lines).to eq([])
         sincedb_record_fields = File.read(sincedb_path).split(" ")
         position_field_index = 3
         # tailing, no delimiter, we are expecting one, if it grows we read from the start.
@@ -459,5 +581,3 @@ module FileWatch
     end
   end
 end
-
-

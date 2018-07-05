@@ -18,7 +18,7 @@ module FileInput
 
   class TracerBase
     def initialize
-      @tracer = []
+      @tracer = Concurrent::Array.new
     end
 
     def trace_for(symbol)
@@ -54,6 +54,9 @@ module FileInput
   end
 end
 
+require_relative "rspec_wait_handler_helper" unless defined? RSPEC_WAIT_HANDLER_PATCHED
+require_relative "logging_level_helper" unless defined? LOG_AT_HANDLED
+
 unless RSpec::Matchers.method_defined?(:receive_call_and_args)
   RSpec::Matchers.define(:receive_call_and_args) do |m, args|
     match do |actual|
@@ -66,3 +69,6 @@ unless RSpec::Matchers.method_defined?(:receive_call_and_args)
   end
 end
 
+ENV["LOG_AT"].tap do |level|
+  LogStash::Logging::Logger::configure_logging(level) unless level.nil?
+end

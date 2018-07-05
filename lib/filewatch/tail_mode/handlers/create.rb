@@ -10,8 +10,7 @@ module FileWatch module TailMode module Handlers
 
     def update_existing_specifically(watched_file, sincedb_value)
       # sincedb_value is the source of truth
-      position = sincedb_value.position
-      watched_file.update_bytes_read(position)
+      watched_file.update_bytes_read(sincedb_value.position)
     end
   end
 end end end

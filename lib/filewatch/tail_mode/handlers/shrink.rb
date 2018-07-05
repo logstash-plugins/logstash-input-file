@@ -3,18 +3,18 @@
 module FileWatch module TailMode module Handlers
   class Shrink < Base
     def handle_specifically(watched_file)
-      add_or_update_sincedb_collection(watched_file)
+      sdbv = add_or_update_sincedb_collection(watched_file)
       watched_file.file_seek(watched_file.bytes_read)
-      logger.debug("reading to eof: #{watched_file.path}")
       read_to_eof(watched_file)
+      logger.trace("handle_specifically: after read_to_eof", "watched file" => watched_file.details, "sincedb value" => sdbv)
     end
 
     def update_existing_specifically(watched_file, sincedb_value)
       # we have a match but size is smaller
       # set all to zero
-      logger.debug("update_existing_specifically: #{watched_file.path}: was truncated seeking to beginning")
-      watched_file.update_bytes_read(0) if watched_file.bytes_read != 0
+      watched_file.reset_bytes_unread
       sincedb_value.update_position(0)
+      logger.trace("update_existing_specifically: was truncated seeking to beginning", "watched file" => watched_file.details, "sincedb value" => sincedb_value)
     end
   end
 end end end

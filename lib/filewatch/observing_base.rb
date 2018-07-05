@@ -44,7 +44,8 @@ module FileWatch
         :exclude => [],
         :start_new_files_at => :end,
         :delimiter => "\n",
-        :file_chunk_count => FIXNUM_MAX,
+        :file_chunk_count => MAX_ITERATIONS,
+        :file_chunk_size => FILE_READ_SIZE,
         :file_sort_by => "last_modified",
         :file_sort_direction => "asc",
       }.merge(opts)

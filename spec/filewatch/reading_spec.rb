@@ -30,82 +30,115 @@ module FileWatch
     end
     let(:observer) { TestObserver.new }
     let(:reading) { ObservingRead.new(opts) }
-    let(:actions) do
-      RSpec::Sequencing.run_after(0.45, "quit after a short time") do
-        reading.quit
-      end
-    end
+    let(:listener1) { observer.listener_for(file_path) }
 
     after do
       FileUtils.rm_rf(directory) unless directory =~ /fixture/
     end
 
     context "when watching a directory with files" do
-      let(:directory) { Stud::Temporary.directory }
-      let(:watch_dir) { ::File.join(directory, "*.log") }
-      let(:file_path) { ::File.join(directory, "1.log") }
-
+      let(:actions) do
+        RSpec::Sequencing.run("quit after a short time") do
+          File.open(file_path, "wb") { |file|  file.write("line1\nline2\n") }
+        end
+        .then("watch") do
+          reading.watch_this(watch_dir)
+        end
+        .then("wait") do
+          wait(2).for{listener1.calls.last}.to eq(:delete)
+        end
+        .then("quit") do
+          reading.quit
+        end
+      end
       it "the file is read" do
-        File.open(file_path, "wb") { |file|  file.write("line1\nline2\n") }
-        actions.activate
-        reading.watch_this(watch_dir)
+        actions.activate_quietly
         reading.subscribe(observer)
-        expect(observer.listener_for(file_path).calls).to eq([:open, :accept, :accept, :eof, :delete])
-        expect(observer.listener_for(file_path).lines).to eq(["line1", "line2"])
+        actions.assert_no_errors
+        expect(listener1.calls).to eq([:open, :accept, :accept, :eof, :delete])
+        expect(listener1.lines).to eq(["line1", "line2"])
       end
     end
 
     context "when watching a directory with files and sincedb_path is /dev/null or NUL" do
-      let(:directory) { Stud::Temporary.directory }
       let(:sincedb_path) { File::NULL }
-      let(:watch_dir) { ::File.join(directory, "*.log") }
-      let(:file_path) { ::File.join(directory, "1.log") }
-
+      let(:actions) do
+        RSpec::Sequencing.run("quit after a short time") do
+          File.open(file_path, "wb") { |file|  file.write("line1\nline2\n") }
+        end
+        .then("watch") do
+          reading.watch_this(watch_dir)
+        end
+        .then("wait") do
+          wait(2).for{listener1.calls.last}.to eq(:delete)
+        end
+        .then("quit") do
+          reading.quit
+        end
+      end
       it "the file is read" do
-        File.open(file_path, "wb") { |file|  file.write("line1\nline2\n") }
-        actions.activate
-        reading.watch_this(watch_dir)
+        actions.activate_quietly
         reading.subscribe(observer)
-        expect(observer.listener_for(file_path).calls).to eq([:open, :accept, :accept, :eof, :delete])
-        expect(observer.listener_for(file_path).lines).to eq(["line1", "line2"])
+        actions.assert_no_errors
+        expect(listener1.calls).to eq([:open, :accept, :accept, :eof, :delete])
+        expect(listener1.lines).to eq(["line1", "line2"])
       end
     end
 
     context "when watching a directory with files using striped reading" do
-      let(:directory) { Stud::Temporary.directory }
-      let(:watch_dir) { ::File.join(directory, "*.log") }
-      let(:file_path1) { ::File.join(directory, "1.log") }
       let(:file_path2) { ::File.join(directory, "2.log") }
       # use a chunk size that does not align with the line boundaries
-      let(:opts) { super.merge(:file_chunk_size => 10, :file_chunk_count => 1)}
+      let(:opts) { super.merge(:file_chunk_size => 10, :file_chunk_count => 1, :file_sort_by => "path")}
       let(:lines) { [] }
       let(:observer) { TestObserver.new(lines) }
-
-      it "the files are read seemingly in parallel" do
-        File.open(file_path1, "w") { |file|  file.write("string1\nstring2\n") }
-        File.open(file_path2, "w") { |file|  file.write("stringA\nstringB\n") }
-        actions.activate
-        reading.watch_this(watch_dir)
-        reading.subscribe(observer)
-        if lines.first == "stringA"
-          expect(lines).to eq(%w(stringA string1 stringB string2))
-        else
-          expect(lines).to eq(%w(string1 stringA string2 stringB))
+      let(:listener2) { observer.listener_for(file_path2) }
+      let(:actions) do
+        RSpec::Sequencing.run("create file") do
+          File.open(file_path,  "w") { |file|  file.write("string1\nstring2") }
+          File.open(file_path2, "w") { |file|  file.write("stringA\nstringB") }
         end
+        .then("watch") do
+          reading.watch_this(watch_dir)
+        end
+        .then("wait") do
+          wait(2).for{listener1.calls.last == :delete && listener2.calls.last == :delete}.to eq(true)
+        end
+        .then("quit") do
+          reading.quit
+        end
+      end
+      it "the files are read seemingly in parallel" do
+        actions.activate_quietly
+        reading.subscribe(observer)
+        actions.assert_no_errors
+        expect(listener1.calls).to eq([:open, :accept, :accept, :eof, :delete])
+        expect(listener2.calls).to eq([:open, :accept, :accept, :eof, :delete])
+        expect(lines).to eq(%w(string1 stringA string2 stringB))
       end
     end
 
     context "when a non default delimiter is specified and it is not in the content" do
       let(:opts) { super.merge(:delimiter => "\nø") }
-
+      let(:actions) do
+        RSpec::Sequencing.run("create file") do
+          File.open(file_path, "wb") { |file|  file.write("line1\nline2") }
+        end
+        .then("watch") do
+          reading.watch_this(watch_dir)
+        end
+        .then("wait") do
+          wait(2).for{listener1.calls.last}.to eq(:delete)
+        end
+        .then("quit") do
+          reading.quit
+        end
+      end
       it "the file is opened, data is read, but no lines are found initially, at EOF the whole file becomes the line" do
-        File.open(file_path, "wb") { |file|  file.write("line1\nline2") }
-        actions.activate
-        reading.watch_this(watch_dir)
+        actions.activate_quietly
         reading.subscribe(observer)
-        listener = observer.listener_for(file_path)
-        expect(listener.calls).to eq([:open, :accept, :eof, :delete])
-        expect(listener.lines).to eq(["line1\nline2"])
+        actions.assert_no_errors
+        expect(listener1.calls).to eq([:open, :accept, :eof, :delete])
+        expect(listener1.lines).to eq(["line1\nline2"])
         sincedb_record_fields = File.read(sincedb_path).split(" ")
         position_field_index = 3
         # tailing, no delimiter, we are expecting one, if it grows we read from the start.
@@ -116,18 +149,28 @@ module FileWatch
 
     describe "reading fixtures" do
       let(:directory) { FIXTURE_DIR }
-
+      let(:actions) do
+        RSpec::Sequencing.run("watch") do
+          reading.watch_this(watch_dir)
+        end
+        .then("wait") do
+          wait(1).for{listener1.calls.last}.to eq(:delete)
+        end
+        .then("quit") do
+          reading.quit
+        end
+      end
       context "for an uncompressed file" do
         let(:watch_dir) { ::File.join(directory, "unc*.log") }
         let(:file_path) { ::File.join(directory, 'uncompressed.log') }
 
         it "the file is read" do
           FileWatch.make_fixture_current(file_path)
-          actions.activate
-          reading.watch_this(watch_dir)
+          actions.activate_quietly
           reading.subscribe(observer)
-          expect(observer.listener_for(file_path).calls).to eq([:open, :accept, :accept, :eof, :delete])
-          expect(observer.listener_for(file_path).lines.size).to eq(2)
+          actions.assert_no_errors
+          expect(listener1.calls).to eq([:open, :accept, :accept, :eof, :delete])
+          expect(listener1.lines.size).to eq(2)
         end
       end
 
@@ -137,11 +180,11 @@ module FileWatch
 
         it "the file is read" do
           FileWatch.make_fixture_current(file_path)
-          actions.activate
-          reading.watch_this(watch_dir)
+          actions.activate_quietly
           reading.subscribe(observer)
-          expect(observer.listener_for(file_path).calls).to eq([:open, :accept, :accept, :eof, :delete])
-          expect(observer.listener_for(file_path).lines.size).to eq(2)
+          actions.assert_no_errors
+          expect(listener1.calls).to eq([:open, :accept, :accept, :eof, :delete])
+          expect(listener1.lines.size).to eq(2)
         end
       end
 
@@ -151,11 +194,11 @@ module FileWatch
 
         it "the file is read" do
           FileWatch.make_fixture_current(file_path)
-          actions.activate
-          reading.watch_this(watch_dir)
+          actions.activate_quietly
           reading.subscribe(observer)
-          expect(observer.listener_for(file_path).calls).to eq([:open, :accept, :accept, :eof, :delete])
-          expect(observer.listener_for(file_path).lines.size).to eq(2)
+          actions.assert_no_errors
+          expect(listener1.calls).to eq([:open, :accept, :accept, :eof, :delete])
+          expect(listener1.lines.size).to eq(2)
         end
       end
     end

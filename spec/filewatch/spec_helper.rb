@@ -1,7 +1,8 @@
 # encoding: utf-8
 require "rspec_sequencing"
-require 'rspec/wait'
+# require 'rspec/wait'
 require "logstash/devutils/rspec/spec_helper"
+require "concurrent"
 require "timecop"
 
 def formatted_puts(text)
@@ -24,9 +25,32 @@ unless RSpec::Matchers.method_defined?(:receive_call_and_args)
   end
 end
 
+require_relative "../helpers/rspec_wait_handler_helper" unless defined? RSPEC_WAIT_HANDLER_PATCHED
+require_relative "../helpers/logging_level_helper" unless defined? LOG_AT_HANDLED
+
 require 'filewatch/bootstrap'
 
 module FileWatch
+  class DummyIO
+    def stat
+      self
+    end
+    def ino
+      23456
+    end
+    def size
+      65535
+    end
+    def mtime
+      Time.now
+    end
+    def dev_major
+      1
+    end
+    def dev_minor
+      5
+    end
+  end
 
   class DummyFileReader
     def initialize(read_size, iterations)
@@ -34,6 +58,7 @@ module FileWatch
       @iterations = iterations
       @closed = false
       @accumulated = 0
+      @io = DummyIO.new
     end
     def file_seek(*)
     end
@@ -42,6 +67,9 @@ module FileWatch
     end
     def closed?
       @closed
+    end
+    def to_io
+      @io
     end
     def sysread(amount)
       @accumulated += amount
@@ -67,7 +95,7 @@ module FileWatch
 
   class TracerBase
     def initialize
-      @tracer = []
+      @tracer = Concurrent::Array.new
     end
 
     def trace_for(symbol)
@@ -91,8 +119,8 @@ module FileWatch
 
       def initialize(path)
         @path = path
-        @lines = []
-        @calls = []
+        @lines = Concurrent::Array.new
+        @calls = Concurrent::Array.new
       end
 
       def add_lines(lines)
@@ -134,7 +162,7 @@ module FileWatch
       else
         lambda{|k| Listener.new(k).add_lines(combined_lines) }
       end
-      @listeners = Hash.new {|hash, key| hash[key] = listener_proc.call(key) }
+      @listeners = Concurrent::Hash.new {|hash, key| hash[key] = listener_proc.call(key) }
     end
 
     def listener_for(path)
@@ -145,8 +173,3 @@ module FileWatch
       @listeners.clear; end
   end
 end
-
-ENV["LOG_AT"].tap do |level|
-  LogStash::Logging::Logger::configure_logging(level) unless level.nil?
-end
-

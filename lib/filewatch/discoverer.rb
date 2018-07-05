@@ -10,8 +10,8 @@ module FileWatch
     include LogStash::Util::Loggable
 
     def initialize(watched_files_collection, sincedb_collection, settings)
-      @watching = []
-      @exclude = []
+      @watching = Concurrent::Array.new
+      @exclude = Concurrent::Array.new
       @watched_files_collection = watched_files_collection
       @sincedb_collection = sincedb_collection
       @settings = settings
@@ -21,13 +21,13 @@ module FileWatch
     def add_path(path)
       return if @watching.member?(path)
       @watching << path
-      discover_files(path)
+      discover_files_new_path(path)
       self
     end
 
     def discover
       @watching.each do |path|
-        discover_files(path)
+        discover_files_ongoing(path)
       end
     end
 
@@ -37,7 +37,7 @@ module FileWatch
       @exclude.each do |pattern|
         if watched_file.pathname.fnmatch?(pattern)
           if new_discovery
-            logger.debug("Discoverer can_exclude?: #{watched_file.path}: skipping " +
+            logger.trace("Discoverer can_exclude?: #{watched_file.path}: skipping " +
               "because it matches exclude #{pattern}")
           end
           watched_file.unwatch
@@ -47,45 +47,52 @@ module FileWatch
       false
     end
 
-    def discover_files(path)
-      globbed = Dir.glob(path)
-      globbed = [path] if globbed.empty?
-      logger.debug("Discoverer found files, count: #{globbed.size}")
-      globbed.each do |file|
-        logger.debug("Discoverer found file, path: #{file}")
+    def discover_files_new_path(path)
+      discover_any_files(path, false)
+    end
+
+    def discover_files_ongoing(path)
+      discover_any_files(path, true)
+    end
+
+    def discover_any_files(path, ongoing)
+      fileset = Dir.glob(path).select{|f| File.file?(f) && !File.symlink?(f)}
+      logger.trace("discover_files",  "count" => fileset.size)
+      fileset.each do |file|
         pathname = Pathname.new(file)
-        next unless pathname.file?
-        next if pathname.symlink?
         new_discovery = false
         watched_file = @watched_files_collection.watched_file_by_path(file)
         if watched_file.nil?
-          logger.debug("Discoverer discover_files: #{path}: new: #{file} (exclude is #{@exclude.inspect})")
           new_discovery = true
-          watched_file = WatchedFile.new(pathname, pathname.stat, @settings)
+          watched_file = WatchedFile.new(pathname, PathStatClass.new(pathname), @settings)
         end
         # if it already unwatched or its excluded then we can skip
         next if watched_file.unwatched? || can_exclude?(watched_file, new_discovery)
 
+        logger.trace("discover_files handling:", "new discovery"=> new_discovery, "watched_file details" => watched_file.details)
+
         if new_discovery
-          if watched_file.file_ignorable?
-            logger.debug("Discoverer discover_files: #{file}: skipping because it was last modified more than #{@settings.ignore_older} seconds ago")
-            # on discovery ignorable watched_files are put into the ignored state and that
-            # updates the size from the internal stat
-            # so the existing contents are not read.
-            # because, normally, a newly discovered file will
-            # have a watched_file size of zero
-            # they are still added to the collection so we know they are there for the next periodic discovery
-            watched_file.ignore
-          end
-          # now add the discovered file to the watched_files collection and adjust the sincedb collections
-          @watched_files_collection.add(watched_file)
+          watched_file.initial_completed if ongoing
           # initially when the sincedb collection is filled with records from the persistence file
           # each value is not associated with a watched file
           # a sincedb_value can be:
           #   unassociated
           #   associated with this watched_file
           #   associated with a different watched_file
-          @sincedb_collection.associate(watched_file)
+          if @sincedb_collection.associate(watched_file)
+            if watched_file.file_ignorable?
+              logger.trace("Discoverer discover_files: #{file}: skipping because it was last modified more than #{@settings.ignore_older} seconds ago")
+              # on discovery ignorable watched_files are put into the ignored state and that
+              # updates the size from the internal stat
+              # so the existing contents are not read.
+              # because, normally, a newly discovered file will
+              # have a watched_file size of zero
+              # they are still added to the collection so we know they are there for the next periodic discovery
+              watched_file.ignore_as_unread
+            end
+            # now add the discovered file to the watched_files collection and adjust the sincedb collections
+            @watched_files_collection.add(watched_file)
+          end
         end
         # at this point the watched file is created, is in the db but not yet opened or being processed
       end

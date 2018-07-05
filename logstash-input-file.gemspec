@@ -1,7 +1,7 @@
 Gem::Specification.new do |s|
 
   s.name            = 'logstash-input-file'
-  s.version         = '4.1.3'
+  s.version         = '4.1.4'
   s.licenses        = ['Apache-2.0']
   s.summary         = "Streams events from files"
   s.description     = "This gem is a Logstash plugin required to be installed on top of the Logstash core pipeline using $LS_HOME/bin/logstash-plugin install gemname. This gem is not a stand-alone program"
@@ -23,7 +23,14 @@ Gem::Specification.new do |s|
   s.add_runtime_dependency "logstash-core-plugin-api", ">= 1.60", "<= 2.99"
 
   s.add_runtime_dependency 'logstash-codec-plain'
-  s.add_runtime_dependency 'addressable'
+
+  if RUBY_VERSION.start_with?("1")
+    s.add_runtime_dependency 'rake', '~> 12.2.0'
+    s.add_runtime_dependency 'addressable', '~> 2.4.0'
+  else
+    s.add_runtime_dependency 'addressable'
+  end
+
   s.add_runtime_dependency 'logstash-codec-multiline', ['~> 3.0']
 
   s.add_development_dependency 'stud', ['~> 0.0.19']

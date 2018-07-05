@@ -13,7 +13,7 @@ module FileWatch module TailMode module Handlers
     end
 
     def handle(watched_file)
-      logger.debug("handling: #{watched_file.path}")
+      logger.trace("handling: #{watched_file.filename}")
       unless watched_file.has_listener?
         watched_file.set_listener(@observer)
       end
@@ -31,6 +31,7 @@ module FileWatch module TailMode module Handlers
     private
 
     def read_to_eof(watched_file)
+      logger.trace("reading...", "amount" => watched_file.read_bytesize_description, "filename" => watched_file.filename)
       changed = false
       # from a real config (has 102 file inputs)
       # -- This cfg creates a file input for every log file to create a dedicated file pointer and read all file simultaneously
@@ -39,20 +40,16 @@ module FileWatch module TailMode module Handlers
       # we enable the pseudo parallel processing of each file.
       # user also has the option to specify a low `stat_interval` and a very high `discover_interval`to respond
       # quicker to changing files and not allowing too much content to build up before reading it.
-      @settings.file_chunk_count.times do
+      watched_file.read_loop_count.times do
         begin
-          data = watched_file.file_read(@settings.file_chunk_size)
-          result = watched_file.buffer_extract(data) # expect BufferExtractResult
-          logger.info(result.warning, result.additional) unless result.warning.empty?
+          result = watched_file.read_extract_lines # expect BufferExtractResult
+          logger.trace(result.warning, result.additional) unless result.warning.empty?
           changed = true
           result.lines.each do |line|
             watched_file.listener.accept(line)
             # sincedb position is now independent from the watched_file bytes_read
             sincedb_collection.increment(watched_file.sincedb_key, line.bytesize + @settings.delimiter_byte_size)
           end
-          # instead of tracking the bytes_read line by line we need to track by the data read size.
-          # because we seek to the bytes_read not the sincedb position
-          watched_file.increment_bytes_read(data.bytesize)
         rescue EOFError
           # it only makes sense to signal EOF in "read" mode not "tail"
           break
@@ -70,7 +67,7 @@ module FileWatch module TailMode module Handlers
 
     def open_file(watched_file)
       return true if watched_file.file_open?
-      logger.debug("opening #{watched_file.path}")
+      logger.trace("opening #{watched_file.filename}")
       begin
         watched_file.open
       rescue
@@ -82,43 +79,64 @@ module FileWatch module TailMode module Handlers
           logger.warn("failed to open #{watched_file.path}: #{$!.inspect}, #{$!.backtrace.take(3)}")
           watched_file.last_open_warning_at = now
         else
-          logger.debug("suppressed warning for `failed to open` #{watched_file.path}: #{$!.inspect}")
+          logger.trace("suppressed warning for `failed to open` #{watched_file.path}: #{$!.inspect}")
         end
         watched_file.watch # set it back to watch so we can try it again
-      end
-      if watched_file.file_open?
-        watched_file.listener.opened
-        true
       else
-        false
+        watched_file.listener.opened
       end
+      watched_file.file_open?
     end
 
     def add_or_update_sincedb_collection(watched_file)
       sincedb_value = @sincedb_collection.find(watched_file)
       if sincedb_value.nil?
-        add_new_value_sincedb_collection(watched_file)
+        sincedb_value = add_new_value_sincedb_collection(watched_file)
+        watched_file.initial_completed
       elsif sincedb_value.watched_file == watched_file
         update_existing_sincedb_collection_value(watched_file, sincedb_value)
+        watched_file.initial_completed
       else
-        logger.warn? && logger.warn("mismatch on sincedb_value.watched_file, this should have been handled by Discoverer")
+        msg = "add_or_update_sincedb_collection: found sincedb record"
+        logger.trace(msg,
+          "sincedb key" => watched_file.sincedb_key,
+          "sincedb value" => sincedb_value
+        )
+        # detected a rotation, Discoverer can't handle this because this watched file is not a new discovery.
+        # we must handle it here, by transferring state and have the sincedb value track this watched file
+        # rotate_as_file and rotate_from will switch the sincedb key to the inode that the path is now pointing to
+        # and pickup the sincedb_value from before.
+        msg = "add_or_update_sincedb_collection: the found sincedb_value has a watched_file - this is a rename, switching inode to this watched file"
+        logger.trace(msg)
+        existing_watched_file = sincedb_value.watched_file
+        if existing_watched_file.nil?
+          sincedb_value.set_watched_file(watched_file)
+          logger.trace("add_or_update_sincedb_collection: switching as new file")
+          watched_file.rotate_as_file
+          watched_file.update_bytes_read(sincedb_value.position)
+        else
+          sincedb_value.set_watched_file(watched_file)
+          logger.trace("add_or_update_sincedb_collection: switching from...", "watched_file details" => watched_file.details)
+          watched_file.rotate_from(existing_watched_file)
+        end
       end
-      watched_file.initial_completed
+      sincedb_value
     end
 
     def update_existing_sincedb_collection_value(watched_file, sincedb_value)
-      logger.debug("update_existing_sincedb_collection_value: #{watched_file.path}, last value #{sincedb_value.position}, cur size #{watched_file.last_stat_size}")
+      logger.trace("update_existing_sincedb_collection_value: #{watched_file.filename}, last value #{sincedb_value.position}, cur size #{watched_file.last_stat_size}")
       update_existing_specifically(watched_file, sincedb_value)
     end
 
     def add_new_value_sincedb_collection(watched_file)
       sincedb_value = get_new_value_specifically(watched_file)
-      logger.debug("add_new_value_sincedb_collection: #{watched_file.path}", "position" => sincedb_value.position)
+      logger.trace("add_new_value_sincedb_collection", "position" => sincedb_value.position, "watched_file details" => watched_file.details)
       sincedb_collection.set(watched_file.sincedb_key, sincedb_value)
+      sincedb_value
     end
 
     def get_new_value_specifically(watched_file)
-      position = @settings.start_new_files_at == :beginning ? 0 : watched_file.last_stat_size
+      position = watched_file.position_for_new_sincedb_value
       value = SincedbValue.new(position)
       value.set_watched_file(watched_file)
       watched_file.update_bytes_read(position)
