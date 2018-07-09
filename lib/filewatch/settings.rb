@@ -37,7 +37,7 @@ module FileWatch
 
     def add_options(opts)
       @opts.update(opts)
-      self.max_open_files = @opts[:max_active]
+      self.max_open_files = @opts[:max_open_files]
       @delimiter = @opts[:delimiter]
       @delimiter_byte_size = @delimiter.bytesize
       @file_chunk_size = @opts[:file_chunk_size]
