@@ -6,10 +6,15 @@ module FileWatch module TailMode module Handlers
     include LogStash::Util::Loggable
     attr_reader :sincedb_collection
 
-    def initialize(sincedb_collection, observer, settings)
+    def initialize(processor, sincedb_collection, observer, settings)
       @settings = settings
+      @processor = processor
       @sincedb_collection = sincedb_collection
       @observer = observer
+    end
+
+    def quit?
+      @processor.watch.quit?
     end
 
     def handle(watched_file)
@@ -41,7 +46,9 @@ module FileWatch module TailMode module Handlers
       # user also has the option to specify a low `stat_interval` and a very high `discover_interval`to respond
       # quicker to changing files and not allowing too much content to build up before reading it.
       watched_file.read_loop_count.times do
+        break if quit?
         begin
+          logger.debug("read_to_eof: get chunk")
           result = watched_file.read_extract_lines # expect BufferExtractResult
           logger.trace(result.warning, result.additional) unless result.warning.empty?
           changed = true
@@ -62,6 +69,7 @@ module FileWatch module TailMode module Handlers
           break
         end
       end
+      logger.debug("read_to_eof: exit due to quit") if quit?
       sincedb_collection.request_disk_flush if changed
     end
 

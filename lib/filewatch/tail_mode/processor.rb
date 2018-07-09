@@ -35,13 +35,13 @@ module FileWatch module TailMode
 
     def initialize_handlers(sincedb_collection, observer)
       @sincedb_collection = sincedb_collection
-      @create_initial = Handlers::CreateInitial.new(sincedb_collection, observer, @settings)
-      @create = Handlers::Create.new(sincedb_collection, observer, @settings)
-      @grow = Handlers::Grow.new(sincedb_collection, observer, @settings)
-      @shrink = Handlers::Shrink.new(sincedb_collection, observer, @settings)
-      @delete = Handlers::Delete.new(sincedb_collection, observer, @settings)
-      @timeout = Handlers::Timeout.new(sincedb_collection, observer, @settings)
-      @unignore = Handlers::Unignore.new(sincedb_collection, observer, @settings)
+      @create_initial = Handlers::CreateInitial.new(self, sincedb_collection, observer, @settings)
+      @create = Handlers::Create.new(self, sincedb_collection, observer, @settings)
+      @grow = Handlers::Grow.new(self, sincedb_collection, observer, @settings)
+      @shrink = Handlers::Shrink.new(self, sincedb_collection, observer, @settings)
+      @delete = Handlers::Delete.new(self, sincedb_collection, observer, @settings)
+      @timeout = Handlers::Timeout.new(self, sincedb_collection, observer, @settings)
+      @unignore = Handlers::Unignore.new(self, sincedb_collection, observer, @settings)
     end
 
     def create(watched_file)
