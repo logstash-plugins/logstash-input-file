@@ -7,7 +7,8 @@ module FileWatch
 
     attr_reader :bytes_read, :state, :file, :buffer, :recent_states, :bytes_unread
     attr_reader :path, :accessed_at, :modified_at, :pathname, :filename
-    attr_reader :listener, :read_loop_count, :read_chunk_size, :stat, :read_bytesize_description
+    attr_reader :listener, :read_loop_count, :read_chunk_size, :stat
+    attr_reader :loop_count_type, :loop_count_mode
     attr_accessor :last_open_warning_at
 
     # this class represents a file that has been discovered
@@ -19,7 +20,7 @@ module FileWatch
       @filename = @pathname.basename.to_s
       full_state_reset(stat)
       watch
-      set_user_defined_read_loop
+      set_standard_read_loop
       set_accessed_at
     end
 
@@ -52,7 +53,7 @@ module FileWatch
 
     def rotate_from(other)
       # move all state from other to this one
-      set_user_defined_read_loop
+      set_standard_read_loop
       file_close
       @bytes_read = other.bytes_read
       @bytes_unread = other.bytes_unread
@@ -231,8 +232,8 @@ module FileWatch
       @buffer.flush
     end
 
-    def read_extract_lines
-      data = file_read
+    def read_extract_lines(amount)
+      data = file_read(amount)
       result = buffer_extract(data)
       increment_bytes_read(data.bytesize)
       result
@@ -342,16 +343,39 @@ module FileWatch
       !@settings.ignore_older.nil?
     end
 
-    def set_depth_first_read_loop
-      @read_loop_count = FileWatch::MAX_ITERATIONS
-      @read_chunk_size = FileWatch::FILE_READ_SIZE
-      @read_bytesize_description = "All"
-    end
-
-    def set_user_defined_read_loop
+    def set_standard_read_loop
       @read_loop_count = @settings.file_chunk_count
       @read_chunk_size = @settings.file_chunk_size
-      @read_bytesize_description = @read_loop_count == FileWatch::MAX_ITERATIONS ? "All" : (@read_loop_count * @read_chunk_size).to_s
+      # e.g. 1 * 10 bytes -> 10 or 256 * 65536 -> 1677716 or 140737488355327 * 32768 -> 4611686018427355136
+      @standard_loop_max_bytes = @read_loop_count * @read_chunk_size
+    end
+
+    def set_maximum_read_loop
+      # used to quickly fully read an open file when rotation is detected
+      @read_loop_count = FileWatch::MAX_ITERATIONS
+      @read_chunk_size = FileWatch::FILE_READ_SIZE
+      @standard_loop_max_bytes = @read_loop_count * @read_chunk_size
+    end
+
+    def loop_control_adjusted_for_stat_size
+      more = false
+      to_read = current_size - @bytes_read
+      return LoopControlResult.new(0, 0, more) if to_read < 1
+      return LoopControlResult.new(1, to_read, more) if to_read < @read_chunk_size
+      # set as if to_read is greater than or equal to max_bytes
+      # use the ones from settings and don't indicate more
+      count = @read_loop_count
+      if to_read < @standard_loop_max_bytes
+        # if the defaults are used then this branch will be taken
+        # e.g. to_read is 100 and max_bytes is 4 * 30 -> 120
+        # will overrun and trigger EOF, build less iterations
+        # will generate 3 * 30 -> 90 this time and we indicate more
+        # a 2GB file in read mode will get one loop of 64666 x 32768 (2119006656 / 32768)
+        # and a second loop with 1 x 31168
+        count = to_read / @read_chunk_size
+        more = true
+      end
+      LoopControlResult.new(count, @read_chunk_size, more)
     end
 
     def reset_bytes_unread
