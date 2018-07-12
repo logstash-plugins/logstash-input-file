@@ -32,7 +32,7 @@ module FileWatch
     let(:sincedb_path) { directory.join("tailing.sdb") }
     let(:opts) do
       {
-        :stat_interval => stat_interval, :start_new_files_at => start_new_files_at, :max_active => max,
+        :stat_interval => stat_interval, :start_new_files_at => start_new_files_at, :max_open_files => max,
         :delimiter => "\n", :discover_interval => discover_interval, :sincedb_path => sincedb_path.to_path
       }
     end
@@ -410,7 +410,7 @@ module FileWatch
     context "? rotation: when a not active file is rotated outside the glob before the file is read" do
       let(:opts) { super.merge(
           :close_older => 3600,
-          :max_active => 1,
+          :max_open_files => 1,
           :file_sort_by => "path"
         ) }
       let(:watch_dir) { directory.join("*J.log") }
