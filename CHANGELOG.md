@@ -1,3 +1,13 @@
+## 4.1.4
+  - Fixed a regression where files discovered after first discovery were not
+    always read from the beginning. Applies to tail mode only.
+    [#198](https://github.com/logstash-plugins/logstash-input-file/issues/198)
+  - Added much better support for file rotation schemes of copy/truncate and
+    rename cascading. Applies to tail mode only.
+  - Added support for processing files over remote mounts e.g. NFS. Before, it
+    was possible to read into memory allocated but not filled with data resulting
+    in ASCII NUL (0) bytes in the message field. Now, files are read up to the
+    size as given by the remote filesystem client. Applies to tail and read modes.
 ## 4.1.3
   - Fixed `read` mode of regular files sincedb write is requested in each read loop
     iteration rather than waiting for the end-of-file to be reached. Note: for gz files,
