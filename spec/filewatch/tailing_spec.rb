@@ -100,7 +100,7 @@ module FileWatch
           .then_after(0.1, "begin watching") do
             tailing.watch_this(watch_dir)
           end
-          .then_after(0.05, "add content") do
+          .then_after(0.2, "add content") do
             File.open(file_path, "ab") { |file|  file.write("line1\nline2\n") }
           end
           .then("wait") do
