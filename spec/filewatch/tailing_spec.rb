@@ -17,7 +17,7 @@ module FileWatch
     let(:sincedb_path) { ::File.join(directory, "tailing.sdb") }
     let(:opts) do
       {
-        :stat_interval => stat_interval, :start_new_files_at => start_new_files_at, :max_active => max,
+        :stat_interval => stat_interval, :start_new_files_at => start_new_files_at, :max_open_files => max,
         :delimiter => "\n", :discover_interval => discover_interval, :sincedb_path => sincedb_path,
         :file_sort_by => "path"
       }
@@ -74,7 +74,7 @@ module FileWatch
 
       context "when close_older is set" do
         let(:wait_before_quit) { 0.8 }
-        let(:opts) { super.merge(:close_older => 0.1, :max_active => 1, :stat_interval => 0.1) }
+        let(:opts) { super.merge(:close_older => 0.1, :max_open_files => 1, :stat_interval => 0.1) }
         let(:suffix) { "B" }
         it "opens both files" do
           actions.activate_quietly
@@ -100,7 +100,7 @@ module FileWatch
           .then_after(0.1, "begin watching") do
             tailing.watch_this(watch_dir)
           end
-          .then_after(0.05, "add content") do
+          .then_after(0.2, "add content") do
             File.open(file_path, "ab") { |file|  file.write("line1\nline2\n") }
           end
           .then("wait") do
