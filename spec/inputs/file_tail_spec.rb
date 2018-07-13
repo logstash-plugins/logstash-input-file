@@ -449,16 +449,14 @@ describe LogStash::Inputs::File do
               subject.stop
             end
             .then("stop flushes last event") do
-              wait(0.4).for{events.size}.to eq(4), "events size does not equal 4"
+              wait(0.4).for{events.size}.to eq(2), "events size does not equal 2"
             end
           subject.run(events)
           # wait for actions future value
           actions.assert_no_errors
-          e1, e2, e3, e4 = events
+          e1, e2 = events
           expect(e1.get("message")).to eq("line1-of-P")
           expect(e2.get("message")).to eq("line2-of-P")
-          expect(e3.get("message")).to eq("line1-of-Q")
-          expect(e4.get("message")).to eq("line2-of-Q")
         end
       end
 
@@ -480,7 +478,7 @@ describe LogStash::Inputs::File do
         it "collects line events from both files" do
           actions = RSpec::Sequencing
             .run("assert both identities are mapped and the first two events are built") do
-              wait(0.2).for{subject.codec.identity_count == 2 && events.size > 1}.to eq(true), "both identities are not mapped and the first two events are not built"
+              wait(0.4).for{subject.codec.identity_count == 1 && events.size == 2}.to eq(true), "both identities are not mapped and the first two events are not built"
             end
             .then("wait for close to flush last event of each identity") do
               wait(0.8).for{events.size}.to eq(4), "close does not flush last event of each identity"

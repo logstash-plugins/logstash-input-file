@@ -20,7 +20,7 @@ module FileWatch
       let(:watch) { double("watch", :quit? => false) }
       it "calls 'sincedb_write' exactly 2 times" do
         allow(FileOpener).to receive(:open).with(watched_file.path).and_return(file)
-        expect(sdb_collection).to receive(:sincedb_write).exactly(2).times
+        expect(sdb_collection).to receive(:sincedb_write).exactly(1).times
         watched_file.activate
         processor.initialize_handlers(sdb_collection, TestObserver.new)
         processor.read_file(watched_file)

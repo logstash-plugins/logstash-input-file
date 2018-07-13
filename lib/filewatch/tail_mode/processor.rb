@@ -155,9 +155,9 @@ module FileWatch module TailMode
             # we need to keep reading the open file, if we close it we lose it because the path is now pointing at a different file.
             logger.trace(">>> Rotation In Progress - inode change detected and original content is not fully read, reading all", "watched_file details" => watched_file.details)
             # need to fully read open file while we can
-            watched_file.set_depth_first_read_loop
+            watched_file.set_maximum_read_loop
             grow(watched_file)
-            watched_file.set_user_defined_read_loop
+            watched_file.set_standard_read_loop
           else
             logger.warn(">>> Rotation In Progress - inode change detected and original content is not fully read, file is closed and path points to new content", "watched_file details" => watched_file.details)
           end

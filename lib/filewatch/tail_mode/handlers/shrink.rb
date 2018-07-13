@@ -3,10 +3,14 @@
 module FileWatch module TailMode module Handlers
   class Shrink < Base
     def handle_specifically(watched_file)
-      sdbv = add_or_update_sincedb_collection(watched_file)
+      add_or_update_sincedb_collection(watched_file)
       watched_file.file_seek(watched_file.bytes_read)
-      read_to_eof(watched_file)
-      logger.trace("handle_specifically: after read_to_eof", "watched file" => watched_file.details, "sincedb value" => sdbv)
+      loop do
+        break if quit?
+        loop_control = watched_file.loop_control_adjusted_for_stat_size
+        controlled_read(watched_file, loop_control)
+        break unless loop_control.more
+      end
     end
 
     def update_existing_specifically(watched_file, sincedb_value)

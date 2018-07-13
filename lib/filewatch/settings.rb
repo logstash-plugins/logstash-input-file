@@ -21,7 +21,7 @@ module FileWatch
       defaults = {
         :delimiter => "\n",
         :file_chunk_size => FILE_READ_SIZE,
-        :max_active => 4095,
+        :max_open_files => 4095,
         :file_chunk_count => MAX_ITERATIONS,
         :sincedb_clean_after => 14,
         :exclude => [],
