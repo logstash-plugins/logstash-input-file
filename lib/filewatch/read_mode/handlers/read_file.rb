@@ -30,6 +30,7 @@ module FileWatch module ReadMode module Handlers
     def controlled_read(watched_file, loop_control)
       logger.trace("reading...", "iterations" => loop_control.count, "amount" => loop_control.size, "filename" => watched_file.filename)
       loop_control.count.times do
+        break if quit?
         begin
           result = watched_file.read_extract_lines(loop_control.size) # expect BufferExtractResult
           logger.info(result.warning, result.additional) unless result.warning.empty?
