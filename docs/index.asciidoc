@@ -159,12 +159,12 @@ This plugin supports the following configuration options plus the <<plugins-{typ
 [NOTE]
 Duration settings can be specified in text form e.g. "250 ms", this string will be converted into
 decimal seconds. There are quite a few supported natural and abbreviated durations,
-see <<string_duration,string duration>> for the details.
+see <<plugins-{type}s-{plugin}-string_duration,string_duration>> for the details.
 
 [cols="<,<,<",options="header",]
 |=======================================================================
 |Setting |Input type|Required
-| <<plugins-{type}s-{plugin}-close_older>> |<<number,number>> or <<string_duration,string duration>>|No
+| <<plugins-{type}s-{plugin}-close_older>> |<<number,number>> or <<plugins-{type}s-{plugin}-string_duration,string_duration>>|No
 | <<plugins-{type}s-{plugin}-delimiter>> |<<string,string>>|No
 | <<plugins-{type}s-{plugin}-discover_interval>> |<<number,number>>|No
 | <<plugins-{type}s-{plugin}-exclude>> |<<array,array>>|No
@@ -174,15 +174,15 @@ see <<string_duration,string duration>> for the details.
 | <<plugins-{type}s-{plugin}-file_completed_log_path>> |<<string,string>>|No
 | <<plugins-{type}s-{plugin}-file_sort_by>> |<<string,string>>, one of `["last_modified", "path"]`|No
 | <<plugins-{type}s-{plugin}-file_sort_direction>> |<<string,string>>, one of `["asc", "desc"]`|No
-| <<plugins-{type}s-{plugin}-ignore_older>> |<<number,number>> or <<string_duration,string duration>>|No
+| <<plugins-{type}s-{plugin}-ignore_older>> |<<number,number>> or <<plugins-{type}s-{plugin}-string_duration,string_duration>>|No
 | <<plugins-{type}s-{plugin}-max_open_files>> |<<number,number>>|No
 | <<plugins-{type}s-{plugin}-mode>> |<<string,string>>, one of `["tail", "read"]`|No
 | <<plugins-{type}s-{plugin}-path>> |<<array,array>>|Yes
-| <<plugins-{type}s-{plugin}-sincedb_clean_after>> |<<number,number>> or <<string_duration,string duration>>|No
+| <<plugins-{type}s-{plugin}-sincedb_clean_after>> |<<number,number>> or <<plugins-{type}s-{plugin}-string_duration,string_duration>>|No
 | <<plugins-{type}s-{plugin}-sincedb_path>> |<<string,string>>|No
-| <<plugins-{type}s-{plugin}-sincedb_write_interval>> |<<number,number>> or <<string_duration,string duration>>|No
+| <<plugins-{type}s-{plugin}-sincedb_write_interval>> |<<number,number>> or <<plugins-{type}s-{plugin}-string_duration,string_duration>>|No
 | <<plugins-{type}s-{plugin}-start_position>> |<<string,string>>, one of `["beginning", "end"]`|No
-| <<plugins-{type}s-{plugin}-stat_interval>> |<<number,number>> or <<string_duration,string duration>>|No
+| <<plugins-{type}s-{plugin}-stat_interval>> |<<number,number>> or <<plugins-{type}s-{plugin}-string_duration,string_duration>>|No
 |=======================================================================
 
 Also see <<plugins-{type}s-{plugin}-common-options>> for a list of options supported by all
@@ -193,7 +193,7 @@ input plugins.
 [id="plugins-{type}s-{plugin}-close_older"]
 ===== `close_older`
 
-  * Value type is <<number,number>> or <<string_duration,string duration>>
+  * Value type is <<number,number>> or <<plugins-{type}s-{plugin}-string_duration,string_duration>>
   * Default value is `"1 hour"`
 
 The file input closes any files that were last read the specified
@@ -311,7 +311,7 @@ If you use special naming conventions for the file full paths then perhaps
 [id="plugins-{type}s-{plugin}-ignore_older"]
 ===== `ignore_older`
 
-  * Value type is <<number,number>> or <<string_duration,string duration>>
+  * Value type is <<number,number>> or <<plugins-{type}s-{plugin}-string_duration,string_duration>>
   * There is no default value for this setting.
 
 When the file input discovers a file that was last modified
@@ -371,7 +371,7 @@ on the {logstash-ref}/configuration-file-structure.html#array[Logstash configura
 [id="plugins-{type}s-{plugin}-sincedb_clean_after"]
 ===== `sincedb_clean_after`
 
-  * Value type is <<number,number>> or <<string_duration,string duration>>
+  * Value type is <<number,number>> or <<plugins-{type}s-{plugin}-string_duration,string_duration>>
   * The default value for this setting is "2 weeks".
   * If a number is specified then it is interpreted as *days* and can be decimal e.g. 0.5 is 12 hours.
 
@@ -395,7 +395,7 @@ NOTE: it must be a file path and not a directory path
 [id="plugins-{type}s-{plugin}-sincedb_write_interval"]
 ===== `sincedb_write_interval`
 
-  * Value type is <<number,number>> or <<string_duration,string duration>>
+  * Value type is <<number,number>> or <<plugins-{type}s-{plugin}-string_duration,string_duration>>
   * Default value is `"15 seconds"`
 
 How often (in seconds) to write a since database with the current position of
@@ -421,7 +421,7 @@ position recorded in the sincedb file will be used.
 [id="plugins-{type}s-{plugin}-stat_interval"]
 ===== `stat_interval`
 
-  * Value type is <<number,number>> or <<string_duration,string duration>>
+  * Value type is <<number,number>> or <<plugins-{type}s-{plugin}-string_duration,string_duration>>
   * Default value is `"1 second"`
 
 How often (in seconds) we stat files to see if they have been modified.
@@ -438,9 +438,8 @@ the pipeline is congested. So the overall loop time is a combination of the
 [id="plugins-{type}s-{plugin}-common-options"]
 include::{include_path}/{type}.asciidoc[]
 
-:default_codec!:
 
-[id="string_duration"]
+[id="plugins-{type}s-{plugin}-string_duration"]
 // Move this to the includes when we make string durations available generally.
 ==== String Durations
 
@@ -474,3 +473,4 @@ Supported values: `us` `usec` `usecs`, e.g. "600 us", "800 usec", "900 usecs"
 [NOTE]
 `micro` `micros` and `microseconds` are not supported
 
+:default_codec!:
