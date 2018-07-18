@@ -1,3 +1,7 @@
+## 4.1.5
+  - Fixed text anchor by changing it from hardcoded to asciidoc reference to
+    work in versioned plugin reference
+
 ## 4.1.4
   - Fixed a regression where files discovered after first discovery were not
     always read from the beginning. Applies to tail mode only.
@@ -8,6 +12,7 @@
     was possible to read into memory allocated but not filled with data resulting
     in ASCII NUL (0) bytes in the message field. Now, files are read up to the
     size as given by the remote filesystem client. Applies to tail and read modes.
+    
 ## 4.1.3
   - Fixed `read` mode of regular files sincedb write is requested in each read loop
     iteration rather than waiting for the end-of-file to be reached. Note: for gz files,
