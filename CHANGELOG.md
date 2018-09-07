@@ -1,3 +1,6 @@
+## 4.1.6
+  - Fixed Errno::ENOENT exception in Discoverer. [Issue #204](https://github.com/logstash-plugins/logstash-input-file/issues/204)
+
 ## 4.1.5
   - Fixed text anchor by changing it from hardcoded to asciidoc reference to
     work in versioned plugin reference

@@ -63,8 +63,13 @@ module FileWatch
         new_discovery = false
         watched_file = @watched_files_collection.watched_file_by_path(file)
         if watched_file.nil?
+          begin
+            path_stat = PathStatClass.new(pathname)
+          rescue Errno::ENOENT
+            next
+          end
+          watched_file = WatchedFile.new(pathname, path_stat, @settings)
           new_discovery = true
-          watched_file = WatchedFile.new(pathname, PathStatClass.new(pathname), @settings)
         end
         # if it already unwatched or its excluded then we can skip
         next if watched_file.unwatched? || can_exclude?(watched_file, new_discovery)
