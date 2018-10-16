@@ -56,7 +56,7 @@ module FileWatch
     end
 
     def discover_any_files(path, ongoing)
-      fileset = Dir.glob(path).select{|f| File.file?(f) && !File.symlink?(f)}
+      fileset = Dir.glob(path).select{|f| File.file?(f)}
       logger.trace("discover_files",  "count" => fileset.size)
       fileset.each do |file|
         pathname = Pathname.new(file)
