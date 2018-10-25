@@ -28,7 +28,7 @@ module FileWatch
     let(:max)   { 4095 }
     let(:stat_interval) { 0.01 }
     let(:discover_interval) { 15 }
-    let(:start_new_files_at) { :beginning }
+    let(:start_new_files_at) { :end }
     let(:sincedb_path) { directory.join("tailing.sdb") }
     let(:opts) do
       {
@@ -445,6 +445,50 @@ module FileWatch
         actions.assert_no_errors
         expect(listener2.lines.size).to eq(0)
         expect(listener3.lines.size).to eq(0)
+      end
+    end
+
+    context "? rotation: when an active file is renamed inside the glob - issue 214" do
+      let(:watch_dir) { directory.join("*L.log") }
+      let(:file_path) { directory.join("1L.log") }
+      let(:second_file) { directory.join("2L.log") }
+      subject { described_class.new(conf) }
+      let(:listener1) { observer.listener_for(file1_path) }
+      let(:listener2) { observer.listener_for(second_file.to_path) }
+      let(:stat_interval) { 0.25 }
+      let(:discover_interval) { 1 }
+      let(:line4) { "Line 4 - Some other non lorem ipsum content" }
+      let(:actions) do
+        RSpec::Sequencing
+        .run_after(0.75, "create file") do
+          file_path.open("wb") { |file|  file.puts(line1); file.puts(line2) }
+        end
+        .then_after(0.5, "rename") do
+          file_path.rename(second_file)
+          file_path.open("wb") { |file|  file.puts("#{line3}") }
+        end
+        .then("wait for expectations to be met") do
+          wait(2.0).for{listener1.lines.size + listener2.lines.size}.to eq(3)
+        end
+        .then_after(0.5, "rename again") do
+          file_path.rename(second_file)
+          file_path.open("wb") { |file|  file.puts("#{line4}") }
+        end
+        .then("wait for expectations to be met") do
+          wait(2.0).for{listener1.lines.size + listener2.lines.size}.to eq(4)
+        end
+        .then("quit") do
+          tailing.quit
+        end
+      end
+
+      it "content is read correctly, the renamed file is not reread from scratch" do
+        actions.activate_quietly
+        tailing.watch_this(watch_dir.to_path)
+        tailing.subscribe(observer)
+        actions.assert_no_errors
+        expect(listener1.lines).to eq([line1, line2, line3, line4])
+        expect(listener2.lines).to eq([])
       end
     end
   end
