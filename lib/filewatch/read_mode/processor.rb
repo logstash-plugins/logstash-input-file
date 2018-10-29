@@ -80,6 +80,8 @@ module FileWatch module ReadMode
       end
     end
 
+    ## TODO add process_rotation_in_progress
+
     def process_active(watched_files)
       logger.trace("Active processing")
       # Handles watched_files in the active state.

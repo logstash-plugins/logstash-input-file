@@ -76,12 +76,6 @@ module FileWatch
       @sdb_key_v1 = @stat.inode_struct
     end
 
-    def rotate_as_initial_file
-      # rotation, when no sincedb record exists for new inode - we have never seen this inode before.
-      rotate_as_file
-      @initial = true
-    end
-
     def rotate_as_file(bytes_read = 0)
       # rotation, when a sincedb record exists for new inode, but no watched file to rotate from
       # probably caused by a deletion detected in the middle of the rename cascade

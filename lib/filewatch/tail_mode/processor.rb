@@ -168,14 +168,16 @@ module FileWatch module TailMode
         potential_sdb_value =  @sincedb_collection.get(potential_key)
         logger.trace(">>> Rotation In Progress", "watched_file" => watched_file.details, "found_sdb_value" => sdb_value, "potential_key" => potential_key, "potential_sdb_value" => potential_sdb_value)
         if potential_sdb_value.nil?
+          logger.trace("---------- >>>> Rotation In Progress: rotating as existing file")
+          watched_file.rotate_as_file
+          trace_message = "---------- >>>> Rotation In Progress: no potential sincedb value "
           if sdb_value.nil?
-            logger.trace("---------- >>> Rotation In Progress: rotating as initial file, no potential sincedb value AND no found sincedb value")
-            watched_file.rotate_as_initial_file
+            trace_message.concat("AND no found sincedb value")
           else
-            logger.trace("---------- >>>> Rotation In Progress: rotating as existing file, no potential sincedb value BUT found sincedb value")
-            watched_file.rotate_as_file
+            trace_message.concat("BUT found sincedb value")
             sdb_value.clear_watched_file
           end
+          logger.trace(trace_message)
           new_sdb_value = SincedbValue.new(0)
           new_sdb_value.set_watched_file(watched_file)
           @sincedb_collection.set(potential_key, new_sdb_value)

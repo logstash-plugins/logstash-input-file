@@ -1,3 +1,8 @@
+## 4.1.7
+  - Fixed problem in rotation handling where the target file being rotated was
+  subjected to the start_position setting when it must always start from the beginning.
+  [Issue #214](https://github.com/logstash-plugins/logstash-input-file/issues/214)
+
 ## 4.1.6
   - Fixed Errno::ENOENT exception in Discoverer. [Issue #204](https://github.com/logstash-plugins/logstash-input-file/issues/204)
 
@@ -15,7 +20,7 @@
     was possible to read into memory allocated but not filled with data resulting
     in ASCII NUL (0) bytes in the message field. Now, files are read up to the
     size as given by the remote filesystem client. Applies to tail and read modes.
-    
+
 ## 4.1.3
   - Fixed `read` mode of regular files sincedb write is requested in each read loop
     iteration rather than waiting for the end-of-file to be reached. Note: for gz files,
