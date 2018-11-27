@@ -51,7 +51,7 @@ module FileWatch
       @read_error_detected = false
     end
 
-    def detect_read_error
+    def flag_read_error
       @read_error_detected = true
     end
 

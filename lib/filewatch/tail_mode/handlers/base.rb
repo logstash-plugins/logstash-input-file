@@ -59,16 +59,16 @@ module FileWatch module TailMode module Handlers
           end
         rescue EOFError
           # it only makes sense to signal EOF in "read" mode not "tail"
-          loop_control.detect_read_error
+          loop_control.flag_read_error
           break
         rescue Errno::EWOULDBLOCK, Errno::EINTR
           watched_file.listener.error
-          loop_control.detect_read_error
+          loop_control.flag_read_error
           break
         rescue => e
           logger.error("read_to_eof: general error reading #{watched_file.path}", "error" => e.inspect, "backtrace" => e.backtrace.take(4))
           watched_file.listener.error
-          loop_control.detect_read_error
+          loop_control.flag_read_error
           break
         end
       end

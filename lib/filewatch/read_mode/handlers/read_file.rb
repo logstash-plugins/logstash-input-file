@@ -42,17 +42,17 @@ module FileWatch module ReadMode module Handlers
           end
         rescue EOFError
           logger.error("controlled_read: eof error reading file", "path" => watched_file.path, "error" => e.inspect, "backtrace" => e.backtrace.take(8))
-          loop_control.detect_read_error
+          loop_control.flag_read_error
           break
         rescue Errno::EWOULDBLOCK, Errno::EINTR
           logger.error("controlled_read: block or interrupt error reading file", "path" => watched_file.path, "error" => e.inspect, "backtrace" => e.backtrace.take(8))
           watched_file.listener.error
-          loop_control.detect_read_error
+          loop_control.flag_read_error
           break
         rescue => e
           logger.error("controlled_read: general error reading file", "path" => watched_file.path, "error" => e.inspect, "backtrace" => e.backtrace.take(8))
           watched_file.listener.error
-          loop_control.detect_read_error
+          loop_control.flag_read_error
           break
         end
       end
