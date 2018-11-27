@@ -1,3 +1,8 @@
+## 4.1.8
+  - Fixed problem in tail and read modes where the read loop could get stuck if an IO error occurs in the loop.
+    The file appears to be being read but it is not, suspected with file truncation schemes.
+    [Issue #205](https://github.com/logstash-plugins/logstash-input-file/issues/205)
+
 ## 4.1.7
   - Fixed problem in rotation handling where the target file being rotated was
   subjected to the start_position setting when it must always start from the beginning.

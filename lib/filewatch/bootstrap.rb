@@ -42,7 +42,23 @@ module FileWatch
   end
 
   BufferExtractResult = Struct.new(:lines, :warning, :additional)
-  LoopControlResult = Struct.new(:count, :size, :more)
+
+  class LoopControlResult
+    attr_reader :count, :size, :more
+
+    def initialize(count, size, more)
+      @count, @size, @more = count, size, more
+      @read_error_detected = false
+    end
+
+    def flag_read_error
+      @read_error_detected = true
+    end
+
+    def keep_looping?
+      !@read_error_detected && @more
+    end
+  end
 
   class NoSinceDBPathGiven < StandardError; end
 

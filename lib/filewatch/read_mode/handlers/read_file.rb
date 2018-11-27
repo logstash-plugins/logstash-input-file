@@ -10,7 +10,7 @@ module FileWatch module ReadMode module Handlers
           loop_control = watched_file.loop_control_adjusted_for_stat_size
           controlled_read(watched_file, loop_control)
           sincedb_collection.request_disk_flush
-          break unless loop_control.more
+          break unless loop_control.keep_looping?
         end
         if watched_file.all_read?
           # flush the buffer now in case there is no final delimiter
@@ -42,14 +42,17 @@ module FileWatch module ReadMode module Handlers
           end
         rescue EOFError
           logger.error("controlled_read: eof error reading file", "path" => watched_file.path, "error" => e.inspect, "backtrace" => e.backtrace.take(8))
+          loop_control.flag_read_error
           break
         rescue Errno::EWOULDBLOCK, Errno::EINTR
           logger.error("controlled_read: block or interrupt error reading file", "path" => watched_file.path, "error" => e.inspect, "backtrace" => e.backtrace.take(8))
           watched_file.listener.error
+          loop_control.flag_read_error
           break
         rescue => e
           logger.error("controlled_read: general error reading file", "path" => watched_file.path, "error" => e.inspect, "backtrace" => e.backtrace.take(8))
           watched_file.listener.error
+          loop_control.flag_read_error
           break
         end
       end

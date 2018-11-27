@@ -9,7 +9,7 @@ module FileWatch module TailMode module Handlers
         break if quit?
         loop_control = watched_file.loop_control_adjusted_for_stat_size
         controlled_read(watched_file, loop_control)
-        break unless loop_control.more
+        break unless loop_control.keep_looping?
       end
     end
 
