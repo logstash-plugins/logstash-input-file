@@ -85,7 +85,7 @@ module FileWatch module TailMode module Handlers
         # don't emit this message too often. if a file that we can't
         # read is changing a lot, we'll try to open it more often, and spam the logs.
         now = Time.now.to_i
-        logger.warn("open_file OPEN_WARN_INTERVAL is '#{OPEN_WARN_INTERVAL}'")
+        logger.trace("open_file OPEN_WARN_INTERVAL is '#{OPEN_WARN_INTERVAL}'")
         if watched_file.last_open_warning_at.nil? || now - watched_file.last_open_warning_at > OPEN_WARN_INTERVAL
           logger.warn("failed to open #{watched_file.path}: #{$!.inspect}, #{$!.backtrace.take(3)}")
           watched_file.last_open_warning_at = now
