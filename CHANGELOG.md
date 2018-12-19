@@ -1,3 +1,6 @@
+## 4.1.9
+  - Fixed issue where logs were being spammed with needless error messages [#224](https://github.com/logstash-plugins/logstash-input-file/pull/224)
+
 ## 4.1.8
   - Fixed problem in tail and read modes where the read loop could get stuck if an IO error occurs in the loop.
     The file appears to be being read but it is not, suspected with file truncation schemes.
