@@ -9,7 +9,7 @@ matrix:
   include:
   - env: ELASTIC_STACK_VERSION=5.6.12
   - env: ELASTIC_STACK_VERSION=6.4.2
-  - env: ELASTIC_STACK_VERSION=7.0.0-alpha1-SNAPSHOT
+  - env: ELASTIC_STACK_VERSION=7.0.0-alpha1
   fast_finish: true
 install: ci/unit/docker-setup.sh
 script: ci/unit/docker-run.sh
