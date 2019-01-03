@@ -4,7 +4,7 @@ services: docker
 addons:
   apt:
     packages:
-      - docker-ce
+    - docker-ce
 matrix:
   include:
   - env: ELASTIC_STACK_VERSION=5.6.12
@@ -13,3 +13,4 @@ matrix:
   fast_finish: true
 install: ci/unit/docker-setup.sh
 script: ci/unit/docker-run.sh
+before_install: gem install bundler -v '< 2'
