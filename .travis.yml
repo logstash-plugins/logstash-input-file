@@ -13,4 +13,3 @@ matrix:
   fast_finish: true
 install: ci/unit/docker-setup.sh
 script: ci/unit/docker-run.sh
-before_install: gem install bundler -v '< 2'
