@@ -177,11 +177,7 @@ module Winhelper
   private
 
   def self.open_handle_from_path(path)
-    CreateFileW(in_buffer(path), 0, 7, nil, 3, 128, nil)
-  end
-
-  def self.in_buffer(string)
-    utf16le(string)
+    CreateFileW(utf16le(path), 0, 7, nil, 3, 128, nil)
   end
 
   def self.char_pointer_to_ruby_string(char_pointer, length = 256)
@@ -192,7 +188,11 @@ module Winhelper
   end
 
   def self.utf16le(string)
-    string.encode("UTF-16LE")
+    to_cstring(string).encode("UTF-16LE")
+  end
+
+  def to_cstring(rubystring)
+    rubystring + 0.chr
   end
 
   def self.win1252(string)

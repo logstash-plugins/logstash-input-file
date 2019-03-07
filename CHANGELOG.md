@@ -1,3 +1,6 @@
+## 4.1.10
+  - Fixed problem in Windows where some paths would fail to return an identifier ("inode"). Make path into a C style String before encoding to UTF-16LE. [#232](https://github.com/logstash-plugins/logstash-input-file/issues/232)
+
 ## 4.1.9
   - Fixed issue where logs were being spammed with needless error messages [#224](https://github.com/logstash-plugins/logstash-input-file/pull/224)
 
