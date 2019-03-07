@@ -191,7 +191,7 @@ module Winhelper
     to_cstring(string).encode("UTF-16LE")
   end
 
-  def to_cstring(rubystring)
+  def self.to_cstring(rubystring)
     rubystring + 0.chr
   end
 
