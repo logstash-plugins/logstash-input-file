@@ -105,6 +105,12 @@ module FileWatch
       if rotation_detected?
         # switch to new state now
         rotation_in_progress
+        # update the original file's size, there may be new data written after last read
+        unless @file.nil?
+          original_stat = @file.stat
+          @size = original_stat.size
+          update_bytes_unread
+        end
       else
         @size = @stat.size
         update_bytes_unread
