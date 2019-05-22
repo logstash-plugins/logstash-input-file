@@ -222,6 +222,11 @@ class File < LogStash::Inputs::Base
   # perhaps path + asc will help to achieve the goal of controlling the order of file ingestion
   config :file_sort_direction, :validate => ["asc", "desc"], :default => "asc"
 
+  # When in 'read' mode - this option is closing all file watchers when EOF is hit
+  # This option also disables discovery of new/changes files. It works only on files found at the beginning
+  # Sincedb still works, if you run LS once again after doing some changes - only new values will be read
+  config :exit_after_read, :validate => :boolean, :default => false
+
   public
 
   class << self
@@ -260,6 +265,7 @@ class File < LogStash::Inputs::Base
       :file_chunk_size => @file_chunk_size,
       :file_sort_by => @file_sort_by,
       :file_sort_direction => @file_sort_direction,
+      :exit_after_read => @exit_after_read,
     }
 
     @completed_file_handlers = []
@@ -280,7 +286,7 @@ class File < LogStash::Inputs::Base
         raise ArgumentError.new("The \"sincedb_path\" argument must point to a file, received a directory: \"#{@sincedb_path}\"")
       end
     end
-
+    
     @filewatch_config[:sincedb_path] = @sincedb_path
 
     @filewatch_config[:start_new_files_at] = @start_position.to_sym
@@ -301,6 +307,9 @@ class File < LogStash::Inputs::Base
     end
 
     if tail_mode?
+      if @exit_after_read
+        raise ArgumentError.new('The "exit_after_read" setting only works when the "mode" is set to "read"')
+      end
       @watcher_class = FileWatch::ObservingTail
     else
       @watcher_class = FileWatch::ObservingRead

@@ -175,7 +175,7 @@ describe LogStash::Inputs::File do
     context "when sincedb_path is a directory" do
       let(:name) { "E" }
       subject { LogStash::Inputs::File.new("path" => path_path, "sincedb_path" => directory) }
-
+      
       after :each do
         FileUtils.rm_rf(sincedb_path)
       end
@@ -184,6 +184,15 @@ describe LogStash::Inputs::File do
         expect { subject.register }.to raise_error(ArgumentError)
       end
     end
+
+    context "when mode it set to tail and exit_after_read equals true" do
+        subject { LogStash::Inputs::File.new("path" => path_path, "exit_after_read" => true, "mode" => "tail") }
+
+      it "should raise exception" do
+        expect { subject.register }.to raise_error(ArgumentError)
+      end
+    end
+
   end
 
   describe "testing with new, register, run and stop" do

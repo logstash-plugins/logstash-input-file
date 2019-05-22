@@ -1,3 +1,7 @@
+## 4.1.16
+  - Added configuration setting exit_after_read to read to EOF and terminate
+  the input [#240](https://github.com/logstash-plugins/logstash-input-file/pull/240)
+
 ## 4.1.15
   - Fixed bug in conversion of sincedb_clean_after setting [#257](https://github.com/logstash-plugins/logstash-input-file/pull/257)
 

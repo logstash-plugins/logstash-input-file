@@ -103,8 +103,19 @@ module FileWatch module ReadMode
         else
           read_file(watched_file)
         end
+        
+        if @settings.exit_after_read
+          common_detach_when_allread(watched_file)
+        end
         # handlers take care of closing and unwatching
       end
+    end
+
+    def common_detach_when_allread(watched_file)
+      watched_file.unwatch
+      watched_file.listener.reading_completed
+      deletable_filepaths << watched_file.path
+      logger.trace("Whole file read: #{watched_file.path}, removing from collection")
     end
 
     def common_deleted_reaction(watched_file, action)

@@ -168,6 +168,7 @@ see <<plugins-{type}s-{plugin}-string_duration,string_duration>> for the details
 | <<plugins-{type}s-{plugin}-delimiter>> |<<string,string>>|No
 | <<plugins-{type}s-{plugin}-discover_interval>> |<<number,number>>|No
 | <<plugins-{type}s-{plugin}-exclude>> |<<array,array>>|No
+| <<plugins-{type}s-{plugin}-exit_after_read>> |<<boolean,boolean>>|No
 | <<plugins-{type}s-{plugin}-file_chunk_count>> |<<number,number>>|No
 | <<plugins-{type}s-{plugin}-file_chunk_size>> |<<number,number>>|No
 | <<plugins-{type}s-{plugin}-file_completed_action>> |<<string,string>>, one of `["delete", "log", "log_and_delete"]`|No
@@ -240,6 +241,19 @@ patterns are valid here, too. For example, if you have
 In Tail mode, you might want to exclude gzipped files:
 [source,ruby]
     exclude => "*.gz"
+
+[id="plugins-{type}s-{plugin}-exit_after_read"]
+===== `exit_after_read`
+
+  * Value type is <<boolean,boolean>>
+  * Default value is `false`
+
+This option can be used in `read` mode to enforce closing all watchers when file gets read.
+Can be used in situation when content of the file is static and won't change during execution.
+When set to `true` it also disables active discovery of the files - only files that were in 
+the directories when process was started will be read.
+It supports `sincedb` entries. When file was processed once, then modified - next run will only
+read newly added entries.
 
 [id="plugins-{type}s-{plugin}-file_chunk_count"]
 ===== `file_chunk_count`
