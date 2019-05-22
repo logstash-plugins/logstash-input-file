@@ -147,6 +147,65 @@ module FileWatch
       end
     end
 
+    context "when watching a directory with files using exit_after_read" do
+      let(:opts) { super.merge(:exit_after_read => true, :max_open_files => 2) }
+      let(:file_path3) { ::File.join(directory, "3.log") }
+      let(:file_path4) { ::File.join(directory, "4.log") }
+      let(:file_path5) { ::File.join(directory, "5.log") }
+      let(:lines) { [] }
+      let(:observer) { TestObserver.new(lines) }
+      let(:listener3) { observer.listener_for(file_path3) }
+      let(:file_path6) { ::File.join(directory, "6.log") }
+      let(:listener6) { observer.listener_for(file_path6) }
+
+      it "the file is read" do
+        File.open(file_path3, "w") { |file|  file.write("line1\nline2\n") }
+        reading.watch_this(watch_dir)
+        reading.subscribe(observer)
+        expect(listener3.lines).to eq(["line1", "line2"])
+      end
+      it "multiple files are read" do
+        File.open(file_path3, "w") { |file|  file.write("line1\nline2\n") }
+        File.open(file_path4, "w") { |file| file.write("line3\nline4\n") }
+        reading.watch_this(watch_dir)
+        reading.subscribe(observer)
+        expect(listener3.lines.sort).to eq(["line1", "line2", "line3", "line4"])
+      end
+      it "multiple files are read even if max_open_files is smaller then number of files" do
+        File.open(file_path3, "w") { |file|  file.write("line1\nline2\n") }
+        File.open(file_path4, "w") { |file| file.write("line3\nline4\n") }
+        File.open(file_path5, "w") { |file| file.write("line5\nline6\n") }
+        reading.watch_this(watch_dir)
+        reading.subscribe(observer)
+        expect(listener3.lines.sort).to eq(["line1", "line2", "line3", "line4", "line5", "line6"])
+      end
+      it "file as marked as reading_completed" do
+        File.open(file_path3, "w") { |file|  file.write("line1\nline2\n") }
+        reading.watch_this(watch_dir)
+        reading.subscribe(observer)
+        expect(listener3.calls).to eq([:open, :accept, :accept, :eof, :delete, :reading_completed])
+      end
+      it "sincedb works correctly" do
+        File.open(file_path3, "w") { |file|  file.write("line1\nline2\n") }
+        reading.watch_this(watch_dir)
+        reading.subscribe(observer)
+        sincedb_record_fields = File.read(sincedb_path).split(" ")
+        position_field_index = 3
+        expect(sincedb_record_fields[position_field_index]).to eq("12")
+      end
+      it "does not include new files added after start" do
+        File.open(file_path3, "w") { |file|  file.write("line1\nline2\n") }
+        reading.watch_this(watch_dir)
+        reading.subscribe(observer)
+        File.open(file_path6, "w") { |file|  file.write("foob\nbar\n") }
+        expect(listener3.lines).to eq(["line1", "line2"])
+        expect(listener3.calls).to eq([:open, :accept, :accept, :eof, :delete, :reading_completed])
+        expect(listener6.calls).to eq([])
+
+      end
+    
+    end
+
     describe "reading fixtures" do
       let(:directory) { FIXTURE_DIR }
       let(:actions) do

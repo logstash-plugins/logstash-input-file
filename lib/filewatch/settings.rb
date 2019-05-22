@@ -8,6 +8,7 @@ module FileWatch
     attr_reader :exclude, :start_new_files_at, :file_chunk_count, :file_chunk_size
     attr_reader :sincedb_path, :sincedb_write_interval, :sincedb_expiry_duration
     attr_reader :file_sort_by, :file_sort_direction
+    attr_reader :exit_after_read
 
     def self.from_options(opts)
       new.add_options(opts)
@@ -50,6 +51,7 @@ module FileWatch
       @sincedb_expiry_duration =  @opts.fetch(:sincedb_clean_after)
       @file_sort_by = @opts[:file_sort_by]
       @file_sort_direction = @opts[:file_sort_direction]
+      @exit_after_read = @opts[:exit_after_read]
       self
     end
 

@@ -152,6 +152,10 @@ module FileWatch
       def timed_out
         @calls << :timed_out
       end
+
+      def reading_completed
+        @calls << :reading_completed
+      end
     end
 
     attr_reader :listeners

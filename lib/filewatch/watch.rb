@@ -43,10 +43,11 @@ module FileWatch
       reset_quit
       until quit?
         iterate_on_state
+        # Don't discover new files when files to read are known at the beginning
         break if quit?
         sincedb_collection.write_if_requested
         glob += 1
-        if glob == interval
+        if glob == interval && !@settings.exit_after_read
           discover
           glob = 0
         end
@@ -76,7 +77,10 @@ module FileWatch
     end
 
     def quit?
-      @quit.true?
+      if @settings.exit_after_read
+        @exit = @watched_files_collection.empty?
+      end
+      @quit.true? || @exit
     end
 
     private

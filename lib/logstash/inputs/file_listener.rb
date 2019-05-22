@@ -21,6 +21,9 @@ module LogStash module Inputs
     def error
     end
 
+    def reading_completed
+    end
+
     def timed_out
       input.codec.evict(path)
     end

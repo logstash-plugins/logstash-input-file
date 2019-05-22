@@ -75,6 +75,40 @@ describe LogStash::Inputs::File do
       end
       expect(events.map{|e| e.get("message")}).to contain_exactly("hello", "world")
     end
+
+    it "should read whole file when exit_after_read is set to true" do
+      directory = Stud::Temporary.directory
+      tmpfile_path = ::File.join(directory, "B.log")
+      sincedb_path = ::File.join(directory, "readmode_B_sincedb.txt")
+      path_path = ::File.join(directory, "*.log")
+
+      conf = <<-CONFIG
+        input {
+          file {
+            id => "foo"
+            path => "#{path_path}"
+            sincedb_path => "#{sincedb_path}"
+            delimiter => "|"
+            mode => "read"
+            file_completed_action => "delete"
+            exit_after_read => true
+          }
+        }
+      CONFIG
+
+      File.open(tmpfile_path, "a") do |fd|
+        fd.write("exit|after|end")
+        fd.fsync
+      end
+
+      events = input(conf) do |pipeline, queue|
+        wait(0.5).for{File.exist?(tmpfile_path)}.to be_falsey
+        3.times.collect { queue.pop }
+      end
+
+      expect(events.map{|e| e.get("message")}).to contain_exactly("exit", "after", "end")
+    end
+
   end
 
   describe "reading fixtures" do
