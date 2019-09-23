@@ -379,7 +379,7 @@ The sincedb record now has a last active timestamp associated with it.
 If no changes are detected in a tracked file in the last N days its sincedb
 tracking record expires and will not be persisted.
 This option helps protect against the inode recycling problem.
-Filebeat has a {filebeat-ref}/faq.html#inode-reuse-issue[FAQ about inode recycling].
+Filebeat has a {filebeat-ref}/inode-reuse-issue.html[FAQ about inode recycling].
 
 [id="plugins-{type}s-{plugin}-sincedb_path"]
 ===== `sincedb_path`
