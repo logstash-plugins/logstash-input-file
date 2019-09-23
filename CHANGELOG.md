@@ -1,5 +1,5 @@
 ## 4.1.11
-  - Fixed link to FAQ [#tbd](https://github.com/logstash-plugins/logstash-input-file/pull/tbd)
+  - Fixed link to FAQ [#247](https://github.com/logstash-plugins/logstash-input-file/pull/247)
 
 ## 4.1.10
   - Fixed problem in Windows where some paths would fail to return an identifier ("inode"). Make path into a C style String before encoding to UTF-16LE. [#232](https://github.com/logstash-plugins/logstash-input-file/issues/232)
