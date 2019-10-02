@@ -51,7 +51,7 @@ module FileWatch
       inode_struct = prepare_inode_struct(parts)
       pos = parts.shift.to_i
       expires_at = Float(parts.shift) # this is like Time.now.to_f
-      path_in_sincedb = parts.shift
+      path_in_sincedb = parts.join(" ")
       value = SincedbValue.new(pos, expires_at).add_path_in_sincedb(path_in_sincedb)
       [inode_struct, value]
     end
