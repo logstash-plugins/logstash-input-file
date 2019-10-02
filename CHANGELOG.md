@@ -1,3 +1,6 @@
+## 4.1.13
+  - Fixed sinceDB to work spaces filename [#249](https://github.com/logstash-plugins/logstash-input-file/pull/249)
+
 ## 4.1.12
   - Fix regression in `exclude` handling. Patterns are matched against the filename, not full path.
     [Issue #237](https://github.com/logstash-plugins/logstash-input-file/issues/237)
