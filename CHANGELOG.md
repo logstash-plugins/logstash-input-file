@@ -1,3 +1,7 @@
+## 4.1.12
+  - Fix regression in `exclude` handling. Patterns are matched against the filename, not full path.
+    [Issue #237](https://github.com/logstash-plugins/logstash-input-file/issues/237)
+
 ## 4.1.11
   - Fixed link to FAQ [#247](https://github.com/logstash-plugins/logstash-input-file/pull/247)
 
