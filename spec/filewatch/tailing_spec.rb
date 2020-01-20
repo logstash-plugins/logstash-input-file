@@ -90,7 +90,7 @@ module FileWatch
       end
     end
 
-    context "when watching a directory with files, exisiting content is skipped" do
+    context "when watching a directory with files, existing content is skipped" do
       let(:suffix) { "C" }
       let(:actions) do
         RSpec::Sequencing
@@ -100,11 +100,11 @@ module FileWatch
           .then_after(0.1, "begin watching") do
             tailing.watch_this(watch_dir)
           end
-          .then_after(0.2, "add content") do
+          .then_after(2, "add content") do
             File.open(file_path, "ab") { |file|  file.write("line1\nline2\n") }
           end
           .then("wait") do
-            wait(0.75).for{listener1.lines.size}.to eq(2)
+            wait(0.75).for{listener1.lines}.to eq(["line1", "line2"])
           end
           .then("quit") do
             tailing.quit
