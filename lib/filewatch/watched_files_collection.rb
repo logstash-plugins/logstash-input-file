@@ -19,6 +19,7 @@ module FileWatch
       Array(paths).each do |f|
         index = @pointers.delete(f)
         @files.delete_at(index)
+        refresh_pointers
       end
       @sort_method.call
     end
