@@ -1,3 +1,6 @@
+## 4.1.14
+  - Fixed bug in delete of multiple watched files [#254](https://github.com/logstash-plugins/logstash-input-file/pull/254)
+
 ## 4.1.13
   - Fixed sinceDB to work spaces filename [#249](https://github.com/logstash-plugins/logstash-input-file/pull/249)
 
