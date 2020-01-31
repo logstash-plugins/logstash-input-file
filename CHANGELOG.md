@@ -1,3 +1,6 @@
+## 4.1.15
+  - Fixed bug in conversion of sincedb_clean_after setting [#257](https://github.com/logstash-plugins/logstash-input-file/pull/257)
+
 ## 4.1.14
   - Fixed bug in delete of multiple watched files [#254](https://github.com/logstash-plugins/logstash-input-file/pull/254)
 

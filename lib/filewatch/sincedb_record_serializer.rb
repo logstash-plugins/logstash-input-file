@@ -5,13 +5,17 @@ module FileWatch
 
     attr_reader :expired_keys
 
+    def self.days_to_seconds(days)
+      (24 * 3600) * days.to_f
+    end
+
     def initialize(sincedb_value_expiry)
       @sincedb_value_expiry = sincedb_value_expiry
       @expired_keys = []
     end
 
     def update_sincedb_value_expiry_from_days(days)
-      @sincedb_value_expiry = Settings.days_to_seconds(days)
+      @sincedb_value_expiry = SincedbRecordSerializer.days_to_seconds(days)
     end
 
     def serialize(db, io, as_of = Time.now.to_f)

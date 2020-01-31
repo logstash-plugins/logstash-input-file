@@ -13,10 +13,6 @@ module FileWatch
       new.add_options(opts)
     end
 
-    def self.days_to_seconds(days)
-      (24 * 3600) * days.to_f
-    end
-
     def initialize
       defaults = {
         :delimiter => "\n",
@@ -51,7 +47,7 @@ module FileWatch
       @file_chunk_count = @opts[:file_chunk_count]
       @sincedb_path = @opts[:sincedb_path]
       @sincedb_write_interval = @opts[:sincedb_write_interval]
-      @sincedb_expiry_duration =  self.class.days_to_seconds(@opts.fetch(:sincedb_clean_after, 14))
+      @sincedb_expiry_duration =  @opts.fetch(:sincedb_clean_after)
       @file_sort_by = @opts[:file_sort_by]
       @file_sort_direction = @opts[:file_sort_direction]
       self
