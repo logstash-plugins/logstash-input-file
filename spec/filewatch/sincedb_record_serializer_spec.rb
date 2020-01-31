@@ -9,7 +9,7 @@ module FileWatch
     let(:io) { StringIO.new }
     let(:db) { Hash.new }
 
-    subject { SincedbRecordSerializer.new(Settings.days_to_seconds(14)) }
+    subject { SincedbRecordSerializer.new(SincedbRecordSerializer.days_to_seconds(14)) }
 
     context "deserialize from IO" do
       it 'reads V1 records' do
