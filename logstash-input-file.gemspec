@@ -34,7 +34,7 @@ Gem::Specification.new do |s|
   s.add_runtime_dependency 'logstash-codec-multiline', ['~> 3.0']
 
   s.add_development_dependency 'stud', ['~> 0.0.19']
-  s.add_development_dependency 'logstash-devutils'
+  s.add_development_dependency 'logstash-devutils', '~> 1.3'
   s.add_development_dependency 'logstash-codec-json'
   s.add_development_dependency 'rspec-sequencing'
   s.add_development_dependency "rspec-wait"
