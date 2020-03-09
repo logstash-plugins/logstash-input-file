@@ -1,6 +1,7 @@
 # encoding: utf-8
 
 require "helpers/spec_helper"
+require "logstash/devutils/rspec/shared_examples"
 require "logstash/inputs/file"
 
 require "tempfile"
