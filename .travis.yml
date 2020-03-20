@@ -1,15 +1,2 @@
----
-sudo: required
-services: docker
-addons:
-  apt:
-    packages:
-    - docker-ce
-matrix:
-  include:
-  - env: ELASTIC_STACK_VERSION=5.6.15
-  - env: ELASTIC_STACK_VERSION=6.6.1
-  - env: ELASTIC_STACK_VERSION=7.0.0-beta1
-  fast_finish: true
-install: ci/unit/docker-setup.sh
-script: ci/unit/docker-run.sh
+import:
+- logstash-plugins/.ci:travis/travis.yml@1.x
