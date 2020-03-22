@@ -1,6 +1,6 @@
 # encoding: utf-8
 require "rspec_sequencing"
-# require 'rspec/wait'
+require 'rspec/wait'
 require "logstash/devutils/rspec/spec_helper"
 require "concurrent"
 require "timecop"
