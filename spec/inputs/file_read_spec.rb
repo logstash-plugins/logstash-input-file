@@ -70,7 +70,7 @@ describe LogStash::Inputs::File do
       end
 
       events = input(conf) do |pipeline, queue|
-        wait(0.5).for{IO.read(log_completed_path)}.to match(/A\.log/)
+        wait(0.75).for { IO.read(log_completed_path) }.to match(/A\.log/)
         2.times.collect { queue.pop }
       end
       expect(events.map{|e| e.get("message")}).to contain_exactly("hello", "world")
@@ -137,7 +137,7 @@ describe LogStash::Inputs::File do
         CONFIG
 
         events = input(conf) do |pipeline, queue|
-          wait(0.5).for{IO.read(log_completed_path)}.to match(/#{file_path.to_s}/)
+          wait(0.75).for { IO.read(log_completed_path) }.to match(/#{file_path.to_s}/)
           2.times.collect { queue.pop }
         end
 
@@ -171,7 +171,7 @@ describe LogStash::Inputs::File do
         CONFIG
 
         events = input(conf) do |pipeline, queue|
-          wait(0.5).for{IO.read(log_completed_path)}.to match(/uncompressed\.log/)
+          wait(0.75).for{ IO.read(log_completed_path) }.to match(/uncompressed\.log/)
           2.times.collect { queue.pop }
         end
 
@@ -205,7 +205,7 @@ describe LogStash::Inputs::File do
         CONFIG
 
         events = input(conf) do |pipeline, queue|
-          wait(0.5).for{IO.read(log_completed_path).scan(/compressed\.log\.gz(ip)?/).size}.to eq(2)
+          wait(0.75).for { IO.read(log_completed_path).scan(/compressed\.log\.gz(ip)?/).size }.to eq(2)
           4.times.collect { queue.pop }
         end
 
