@@ -67,7 +67,7 @@ describe LogStash::Inputs::File do
               path => "#{path_path}"
               start_position => "beginning"
               sincedb_path => "#{sincedb_path}"
-              "file_sort_by" => "path"
+              file_sort_by => "path"
               delimiter => "#{TEST_FILE_DELIMITER}"
             }
           }
@@ -176,7 +176,7 @@ describe LogStash::Inputs::File do
     context "when sincedb_path is a directory" do
       let(:name) { "E" }
       subject { LogStash::Inputs::File.new("path" => path_path, "sincedb_path" => directory) }
-      
+
       after :each do
         FileUtils.rm_rf(sincedb_path)
       end

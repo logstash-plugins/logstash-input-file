@@ -8,6 +8,6 @@ require "logstash/devutils/rake"
 
 desc "Compile and put filewatch jar into lib/jars"
 task :vendor do
-  exit(1) unless system './gradlew clean jar'
+  exit(1) unless system './gradlew --no-daemon clean jar'
   puts "-------------------> built filewatch jar via rake"
 end
