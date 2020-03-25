@@ -164,6 +164,7 @@ see <<plugins-{type}s-{plugin}-string_duration,string_duration>> for the details
 [cols="<,<,<",options="header",]
 |=======================================================================
 |Setting |Input type|Required
+| <<plugins-{type}s-{plugin}-check_archive_validity>> |<<boolean,boolean>>|No
 | <<plugins-{type}s-{plugin}-close_older>> |<<number,number>> or <<plugins-{type}s-{plugin}-string_duration,string_duration>>|No
 | <<plugins-{type}s-{plugin}-delimiter>> |<<string,string>>|No
 | <<plugins-{type}s-{plugin}-discover_interval>> |<<number,number>>|No
@@ -190,6 +191,20 @@ Also see <<plugins-{type}s-{plugin}-common-options>> for a list of options suppo
 input plugins.
 
 &nbsp;
+
+[id="plugins-{type}s-{plugin}-check_archive_validity"]
+===== `check_archive_validity`
+
+  * Value type is <<boolean,boolean>>
+  * The default is `false`.
+
+When set to `true`, this setting verifies that a compressed file is valid before
+processing it. There are two passes through the file--one pass to
+verify that the file is valid, and another pass to process the file.
+
+Validating a compressed file requires more processing time, but can prevent a
+corrupt archive from causing looping.
+
 
 [id="plugins-{type}s-{plugin}-close_older"]
 ===== `close_older`

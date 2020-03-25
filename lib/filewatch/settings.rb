@@ -9,6 +9,7 @@ module FileWatch
     attr_reader :sincedb_path, :sincedb_write_interval, :sincedb_expiry_duration
     attr_reader :file_sort_by, :file_sort_direction
     attr_reader :exit_after_read
+    attr_reader :check_archive_validity
 
     def self.from_options(opts)
       new.add_options(opts)
@@ -52,6 +53,7 @@ module FileWatch
       @file_sort_by = @opts[:file_sort_by]
       @file_sort_direction = @opts[:file_sort_direction]
       @exit_after_read = @opts[:exit_after_read]
+      @check_archive_validity = @opts[:check_archive_validity]
       self
     end
 
