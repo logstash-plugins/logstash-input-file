@@ -214,6 +214,37 @@ describe LogStash::Inputs::File do
         expect(events[2].get("message")).to start_with("2010-03-12   23:51")
         expect(events[3].get("message")).to start_with("2010-03-12   23:51")
       end
+
+      it "the corrupted file is untouched" do
+        directory = Stud::Temporary.directory
+        file_path = fixture_dir.join('compressed.log.gz')
+        corrupted_file_path = ::File.join(directory, 'corrupted.gz')
+        FileUtils.cp(file_path, corrupted_file_path)
+
+        FileInput.corrupt_gzip(corrupted_file_path)
+
+        log_completed_path = ::File.join(directory, "C_completed.txt")
+        f = File.new(log_completed_path, "w")
+        f.close()
+
+        conf = <<-CONFIG
+        input {
+          file {
+            type => "blah"
+            path => "#{corrupted_file_path}"
+            mode => "read"
+            file_completed_action => "log_and_delete"
+            file_completed_log_path => "#{log_completed_path}"
+            check_archive_validity => true
+          }
+        }
+        CONFIG
+
+        events = input(conf) do |pipeline, queue|
+          wait(1)
+          expect(IO.read(log_completed_path)).to be_empty
+        end
+      end
     end
   end
 end

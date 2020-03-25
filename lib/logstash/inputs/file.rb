@@ -227,6 +227,11 @@ class File < LogStash::Inputs::Base
   # Sincedb still works, if you run LS once again after doing some changes - only new values will be read
   config :exit_after_read, :validate => :boolean, :default => false
 
+  # Before start read a compressed file, checks for its validity.
+  # This request a full read of the archive, so potentially could cost time.
+  # If not specified to true, and the file is corrupted, could end in cyclic processing of the broken file.
+  config :check_archive_validity, :validate => :boolean, :default => false
+
   public
 
   class << self
@@ -266,6 +271,7 @@ class File < LogStash::Inputs::Base
       :file_sort_by => @file_sort_by,
       :file_sort_direction => @file_sort_direction,
       :exit_after_read => @exit_after_read,
+      :check_archive_validity => @check_archive_validity,
     }
 
     @completed_file_handlers = []

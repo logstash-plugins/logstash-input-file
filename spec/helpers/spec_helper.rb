@@ -16,6 +16,13 @@ module FileInput
     ::File.utime(time, time, path)
   end
 
+  def self.corrupt_gzip(file_path)
+    f = File.open(file_path, "w")
+    f.seek(12)
+    f.puts 'corrupting_string'
+    f.close()
+  end
+
   class TracerBase
     def initialize
       @tracer = Concurrent::Array.new
