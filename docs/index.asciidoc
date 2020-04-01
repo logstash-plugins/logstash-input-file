@@ -360,7 +360,7 @@ If "read" is specified then the following other settings are ignored:
 . `start_position` (files are always read from the beginning)
 . `close_older` (files are automatically 'closed' when EOF is reached)
 
-If "read" is specified then the following settings are heeded:
+If "read" is specified then the following settings can be used:
 
 . `ignore_older` (older files are not processed)
 . `file_completed_action` (what action should be taken when the file is processed)
