@@ -1,6 +1,6 @@
 ## 4.1.17
-  - Added configuration setting `check_archive_validity` settings to enable gzipped files verification, 
-  issue [#261](https://github.com/logstash-plugins/logstash-input-file/issues/261)
+  - [DOC] Added clarification for settings available with `read` mode [#235](https://github.com/logstash-plugins/logstash-input-file/pull/235)
+  - [DOC] Rearranged text and fixed formatting for `mode` setting [266](https://github.com/logstash-plugins/logstash-input-file/pull/266)  
 
 ## 4.1.16
   - Added configuration setting exit_after_read to read to EOF and terminate
