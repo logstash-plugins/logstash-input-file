@@ -13,33 +13,40 @@ module FileWatch
       case @sort_by
       when :last_modified
         sorter = @sort_direction.eql?(:desc) ?
-            -> (l, r) { r.modified_at <=> l.modified_at } :
-            -> (l, r) { l.modified_at <=> r.modified_at }
+                     -> (l, r) { r.modified_at <=> l.modified_at } :
+                     -> (l, r) { l.modified_at <=> r.modified_at }
       when :path
         sorter = @sort_direction.eql?(:desc) ?
-            -> (l, r) { r.path <=> l.path } :
-            -> (l, r) { l.path <=> r.path }
+                     -> (l, r) { r.path <=> l.path } :
+                     -> (l, r) { l.path <=> r.path }
       else
         raise ArgumentError, "sort_by: #{@sort_by.inspect} not supported"
       end
 
-      @files = java.util.TreeMap.new(&sorter) # [File] -> [String] file.path
+      @files = java.util.TreeMap.new(&sorter) # [WatchedFile] -> [String] file.path
       @files_lock = Thread::Mutex.new
+      @files_inverse = Hash.new # keep an inverse view for fast path lookups
     end
 
+    # @return truthy if file was added as a new mapping, falsy otherwise
     def add(watched_file)
-      @files_lock.synchronize { !@files.put(watched_file, watched_file.path).nil? }
+      path = watched_file.path.freeze
+      @files_lock.synchronize do
+        prev_path = @files.put(watched_file, path)
+        @files_inverse.delete(prev_path) if prev_path
+        @files_inverse[path] = watched_file
+        prev_path
+      end
     end
 
     def remove_paths(paths)
       removed_files = []
       @files_lock.synchronize do
         Array(paths).each do |path|
-          entry = file_for_path(path)
-          if entry
-            watched_file = entry.key
-            @files.remove(watched_file)
-            removed_files << watched_file
+          file = @files_inverse.delete(path)
+          if file
+            @files.remove(file)
+            removed_files << file
           end
         end
       end
@@ -61,20 +68,14 @@ module FileWatch
 
     # @return [Enumerable<File>] managed files (snapshot)
     def values
+      # NOTE: needs to return properly ordered files
       @files_lock.synchronize { @files.key_set.to_a }
     end
 
     # @param path [String] the file path
     # @return [File] or nil if not found
     def get(path)
-      @files_lock.synchronize { file_for_path(path) }
-    end
-
-    private
-
-    def file_for_path(path)
-      entry = @files.entry_set.find { |_, val| val == path }
-      entry && entry.key
+      @files_lock.synchronize { @files_inverse[path] }
     end
 
   end
