@@ -100,7 +100,8 @@ module FileWatch module TailMode
       # logger.trace("Closed processing")
       # Handles watched_files in the closed state.
       # if its size changed it is put into the watched state
-      watched_files.select {|wf| wf.closed? }.each do |watched_file|
+      watched_files.each do |watched_file|
+        next unless watched_file.closed?
         common_restat_with_delay(watched_file, "Closed") do
           # it won't do this if rotation is detected
           if watched_file.size_changed?
@@ -119,7 +120,8 @@ module FileWatch module TailMode
       # if its size changed:
       #   put it in the watched state
       #   invoke unignore
-      watched_files.select {|wf| wf.ignored? }.each do |watched_file|
+      watched_files.each do |watched_file|
+        next unless watched_file.ignored?
         common_restat_with_delay(watched_file, "Ignored") do
           # it won't do this if rotation is detected
           if watched_file.size_changed?
@@ -135,7 +137,8 @@ module FileWatch module TailMode
       # defer the delete to one loop later to ensure that the stat really really can't find a renamed file
       # because a `stat` can be called right in the middle of the rotation rename cascade
       logger.trace("Delayed Delete processing")
-      watched_files.select {|wf| wf.delayed_delete?}.each do |watched_file|
+      watched_files.each do |watched_file|
+        next unless watched_file.delayed_delete?
         logger.trace(">>> Delayed Delete", "path" => watched_file.filename)
         common_restat_without_delay(watched_file, ">>> Delayed Delete") do
           logger.trace(">>> Delayed Delete: file at path found again", "watched_file" => watched_file.details)
@@ -147,14 +150,16 @@ module FileWatch module TailMode
     def process_restat_for_watched_and_active(watched_files)
       # do restat on all watched and active states once now. closed and ignored have been handled already
       logger.trace("Watched + Active restat processing")
-      watched_files.select {|wf| wf.watched? || wf.active?}.each do |watched_file|
+      watched_files.each do |watched_file|
+        next if !watched_file.watched? && !watched_file.active?
         common_restat_with_delay(watched_file, "Watched")
       end
     end
 
     def process_rotation_in_progress(watched_files)
       logger.trace("Rotation In Progress processing")
-      watched_files.select {|wf| wf.rotation_in_progress?}.each do |watched_file|
+      watched_files.each do |watched_file|
+        next unless watched_file.rotation_in_progress?
         if !watched_file.all_read?
           if watched_file.file_open?
             # rotated file but original opened file is not fully read
@@ -214,9 +219,9 @@ module FileWatch module TailMode
       #   those that were active before but are watched now were closed under constraint
       logger.trace("Watched processing")
       # how much of the max active window is available
-      to_take = @settings.max_active - watched_files.count{|wf| wf.active?}
+      to_take = @settings.max_active - watched_files.count(&:active?)
       if to_take > 0
-        watched_files.select {|wf| wf.watched?}.take(to_take).each do |watched_file|
+        watched_files.select(&:watched?).take(to_take).each do |watched_file|
           watched_file.activate
           if watched_file.initial?
             create_initial(watched_file)
@@ -239,7 +244,8 @@ module FileWatch module TailMode
       # logger.trace("Active processing")
       # Handles watched_files in the active state.
       # files have been opened at this point
-      watched_files.select {|wf| wf.active? }.each do |watched_file|
+      watched_files.each do |watched_file|
+        next unless watched_file.active?
         break if watch.quit?
         path = watched_file.filename
         if watched_file.grown?

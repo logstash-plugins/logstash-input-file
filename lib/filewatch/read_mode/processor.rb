@@ -60,9 +60,9 @@ module FileWatch module ReadMode
       #   move to the active state
       #   should never have been active before
       # how much of the max active window is available
-      to_take = @settings.max_active - watched_files.count{|wf| wf.active?}
+      to_take = @settings.max_active - watched_files.count { |wf| wf.active? }
       if to_take > 0
-        watched_files.select {|wf| wf.watched?}.take(to_take).each do |watched_file|
+        watched_files.select(&:watched?).take(to_take).each do |watched_file|
           path = watched_file.path
           begin
             watched_file.restat
@@ -91,7 +91,9 @@ module FileWatch module ReadMode
     def process_active(watched_files)
       logger.trace("Active processing")
       # Handles watched_files in the active state.
-      watched_files.select {|wf| wf.active? }.each do |watched_file|
+      watched_files.each do |watched_file|
+        next unless watched_file.active?
+
         path = watched_file.path
         begin
           watched_file.restat
