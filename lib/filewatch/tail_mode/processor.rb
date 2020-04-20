@@ -21,7 +21,7 @@ module FileWatch module TailMode
   class Processor
     include LogStash::Util::Loggable
 
-    attr_reader :watch, :deletable_filepaths
+    attr_reader :watch
 
     def initialize(settings)
       @settings = settings
@@ -86,6 +86,12 @@ module FileWatch module TailMode
       process_watched(watched_files)
       return if watch.quit?
       process_active(watched_files)
+    end
+
+    def deletable_filepaths(clear: false)
+      deletable_filepaths = @deletable_filepaths
+      @deletable_filepaths = [] if clear
+      deletable_filepaths
     end
 
     private
