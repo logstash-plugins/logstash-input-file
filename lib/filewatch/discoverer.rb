@@ -61,7 +61,7 @@ module FileWatch
       fileset.each do |file|
         pathname = Pathname.new(file)
         new_discovery = false
-        watched_file = @watched_files_collection.watched_file_by_path(file)
+        watched_file = @watched_files_collection.get(file)
         if watched_file.nil?
           begin
             path_stat = PathStatClass.new(pathname)
