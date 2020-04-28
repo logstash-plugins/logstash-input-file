@@ -85,9 +85,9 @@ module FileWatch
         collection.add(wf3)
         expect(collection.keys).to eq([filepath1, filepath2, filepath3])
 
-        collection.delete([filepath2,filepath3])
+        collection.remove_paths([filepath2,filepath3])
         expect(collection.keys).to eq([filepath1])
-
+        expect(collection.values.size).to eq 1
       end
     end
 

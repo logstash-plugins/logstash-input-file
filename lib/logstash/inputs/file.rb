@@ -247,6 +247,8 @@ class File < LogStash::Inputs::Base
     end
   end
 
+  attr_reader :queue, :watcher # used in specs
+
   def register
     require "addressable/uri"
     require "digest/md5"
@@ -273,8 +275,6 @@ class File < LogStash::Inputs::Base
       :exit_after_read => @exit_after_read,
       :check_archive_validity => @check_archive_validity,
     }
-
-    @completed_file_handlers = []
 
     @path.each do |path|
       if Pathname.new(path).relative?
@@ -319,12 +319,6 @@ class File < LogStash::Inputs::Base
       @watcher_class = FileWatch::ObservingTail
     else
       @watcher_class = FileWatch::ObservingRead
-      if @file_completed_action.include?('log')
-        @completed_file_handlers << LogCompletedFileHandler.new(@file_completed_log_path)
-      end
-      if @file_completed_action.include?('delete')
-        @completed_file_handlers << DeleteCompletedFileHandler.new
-      end
     end
     @codec = LogStash::Codecs::IdentityMapCodec.new(@codec)
     @completely_stopped = Concurrent::AtomicBoolean.new
@@ -344,7 +338,19 @@ class File < LogStash::Inputs::Base
     # if the pipeline restarts this input,
     # make sure previous files are closed
     stop
+
     @watcher = @watcher_class.new(@filewatch_config)
+
+    @completed_file_handlers = []
+    if read_mode?
+      if @file_completed_action.include?('log')
+        @completed_file_handlers << LogCompletedFileHandler.new(@file_completed_log_path)
+      end
+      if @file_completed_action.include?('delete')
+        @completed_file_handlers << DeleteCompletedFileHandler.new(@watcher.watch)
+      end
+    end
+
     @path.each { |path| @watcher.watch_this(path) }
   end
 

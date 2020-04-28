@@ -15,13 +15,17 @@ module FileWatch
       @sort_method.call
     end
 
-    def delete(paths)
-      Array(paths).each do |f|
-        index = @pointers.delete(f)
-        @files.delete_at(index)
-        refresh_pointers
+    def remove_paths(paths)
+      removed_files = Array(paths).map do |path|
+        index = @pointers.delete(path)
+        if index
+          watched_file = @files.delete_at(index)
+          refresh_pointers
+          watched_file
+        end
       end
       @sort_method.call
+      removed_files
     end
 
     def close_all
