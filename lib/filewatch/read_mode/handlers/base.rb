@@ -34,19 +34,21 @@ module FileWatch module ReadMode module Handlers
 
     def open_file(watched_file)
       return true if watched_file.file_open?
-      logger.trace("opening #{watched_file.path}")
+      logger.trace? && logger.trace("opening", :path => watched_file.path)
       begin
         watched_file.open
-      rescue
+      rescue => e
         # don't emit this message too often. if a file that we can't
         # read is changing a lot, we'll try to open it more often, and spam the logs.
         now = Time.now.to_i
         logger.trace("opening OPEN_WARN_INTERVAL is '#{OPEN_WARN_INTERVAL}'")
         if watched_file.last_open_warning_at.nil? || now - watched_file.last_open_warning_at > OPEN_WARN_INTERVAL
-          logger.warn("failed to open #{watched_file.path}: #{$!.inspect}, #{$!.backtrace.take(3)}")
+          backtrace = e.backtrace
+          backtrace = backtrace.take(3) if backtrace && !logger.debug?
+          logger.warn("failed to open", :path => watched_file.path, :exception => e.class, :message => e.message, :backtrace => backtrace)
           watched_file.last_open_warning_at = now
         else
-          logger.trace("suppressed warning for `failed to open` #{watched_file.path}: #{$!.inspect}")
+          logger.trace("suppressed warning (failed to open)", :path => watched_file.path, :exception => e.class, :message => e.message)
         end
         watched_file.watch # set it back to watch so we can try it again
       end
@@ -75,7 +77,7 @@ module FileWatch module ReadMode module Handlers
           watched_file.update_bytes_read(sincedb_value.position)
         else
           sincedb_value.set_watched_file(watched_file)
-          logger.trace("add_or_update_sincedb_collection: switching from...", "watched_file details" => watched_file.details)
+          logger.trace("add_or_update_sincedb_collection: switching from", :watched_file => watched_file.details)
           watched_file.rotate_from(existing_watched_file)
         end
 
@@ -92,7 +94,7 @@ module FileWatch module ReadMode module Handlers
     def add_new_value_sincedb_collection(watched_file)
       sincedb_value = SincedbValue.new(0)
       sincedb_value.set_watched_file(watched_file)
-      logger.trace("add_new_value_sincedb_collection: #{watched_file.path}", "position" => sincedb_value.position)
+      logger.trace("add_new_value_sincedb_collection:", :path => watched_file.path, :position => sincedb_value.position)
       sincedb_collection.set(watched_file.sincedb_key, sincedb_value)
     end
   end

@@ -31,7 +31,7 @@ module FileWatch module ReadMode module Handlers
     end
 
     def controlled_read(watched_file, loop_control)
-      logger.trace("reading...", "iterations" => loop_control.count, "amount" => loop_control.size, "filename" => watched_file.filename)
+      logger.trace? && logger.trace("reading...", :filename => watched_file.filename, :iterations => loop_control.count, :amount => loop_control.size)
       loop_control.count.times do
         break if quit?
         begin
@@ -43,22 +43,35 @@ module FileWatch module ReadMode module Handlers
             delta = line.bytesize + @settings.delimiter_byte_size
             sincedb_collection.increment(watched_file.sincedb_key, delta)
           end
-        rescue EOFError
-          logger.error("controlled_read: eof error reading file", "path" => watched_file.path, "error" => e.inspect, "backtrace" => e.backtrace.take(8))
+        rescue EOFError => e
+          log_error("controlled_read: eof error reading file", watched_file, e)
           loop_control.flag_read_error
           break
-        rescue Errno::EWOULDBLOCK, Errno::EINTR
-          logger.error("controlled_read: block or interrupt error reading file", "path" => watched_file.path, "error" => e.inspect, "backtrace" => e.backtrace.take(8))
+        rescue Errno::EWOULDBLOCK, Errno::EINTR => e
+          log_error("controlled_read: block or interrupt error reading file", watched_file, e)
           watched_file.listener.error
           loop_control.flag_read_error
           break
         rescue => e
-          logger.error("controlled_read: general error reading file", "path" => watched_file.path, "error" => e.inspect, "backtrace" => e.backtrace.take(8))
+          log_error("controlled_read: general error reading file", watched_file, e)
           watched_file.listener.error
           loop_control.flag_read_error
           break
         end
       end
+    end
+
+    def log_error(msg, watched_file, error)
+      details = { :path => watched_file.path,
+                  :exception => error.class,
+                  :message => error.message,
+                  :backtrace => error.backtrace }
+      if logger.debug?
+        details[:file] = watched_file
+      else
+        details[:backtrace] = details[:backtrace].take(8) if details[:backtrace]
+      end
+      logger.error(msg, details)
     end
   end
 end end end

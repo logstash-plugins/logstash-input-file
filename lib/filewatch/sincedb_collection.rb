@@ -56,12 +56,12 @@ module FileWatch
         logger.trace("open: count of keys read: #{@sincedb.keys.size}")
       rescue => e
         #No existing sincedb to load
-        logger.trace("open: error: #{path}: #{e.inspect}")
+        logger.trace("open: error:", :path => path, :exception => e.class, :message => e.message)
       end
     end
 
     def associate(watched_file)
-      logger.trace("associate: finding", "inode" => watched_file.sincedb_key.inode, "path" => watched_file.path)
+      logger.trace? && logger.trace("associate: finding", :path => watched_file.path, :inode => watched_file.sincedb_key.inode)
       sincedb_value = find(watched_file)
       if sincedb_value.nil?
         # sincedb has no record of this inode
