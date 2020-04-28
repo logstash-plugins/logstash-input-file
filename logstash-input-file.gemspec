@@ -31,6 +31,7 @@ Gem::Specification.new do |s|
     s.add_runtime_dependency 'addressable'
   end
 
+  s.add_runtime_dependency 'concurrent-ruby', '~> 1.0'
   s.add_runtime_dependency 'logstash-codec-multiline', ['~> 3.0']
 
   s.add_development_dependency 'stud', ['~> 0.0.19']
