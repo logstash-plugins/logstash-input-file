@@ -1,5 +1,6 @@
 # encoding: utf-8
 require "logstash/util/loggable"
+require "concurrent/atomic/atomic_boolean"
 
 module FileWatch
   class Watch
@@ -67,9 +68,9 @@ module FileWatch
         watched_files = @watched_files_collection.values
         @processor.process_all_states(watched_files)
       ensure
-        @watched_files_collection.remove_paths(@processor.deletable_filepaths(clear: true))
+        @watched_files_collection.remove_paths(@processor.clear_deletable_paths)
       end
-    end # def each
+    end
 
     def quit
       @quit.make_true
