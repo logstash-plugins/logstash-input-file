@@ -37,8 +37,7 @@ module FileWatch
       @exclude.each do |pattern|
         if watched_file.pathname.basename.fnmatch?(pattern)
           if new_discovery
-            logger.trace("Discoverer can_exclude?: #{watched_file.path}: skipping " +
-              "because it matches exclude #{pattern}")
+            logger.trace("skipping file because it matches exclude", :path => watched_file.path, :pattern => pattern)
           end
           watched_file.unwatch
           return true
@@ -56,13 +55,13 @@ module FileWatch
     end
 
     def discover_any_files(path, ongoing)
-      fileset = Dir.glob(path).select{|f| File.file?(f)}
-      logger.trace("discover_files",  "count" => fileset.size)
+      fileset = Dir.glob(path).select { |f| File.file?(f) }
+      logger.trace("discover_files", :count => fileset.size)
       fileset.each do |file|
-        pathname = Pathname.new(file)
         new_discovery = false
         watched_file = @watched_files_collection.get(file)
         if watched_file.nil?
+          pathname = Pathname.new(file)
           begin
             path_stat = PathStatClass.new(pathname)
           rescue Errno::ENOENT
@@ -74,7 +73,7 @@ module FileWatch
         # if it already unwatched or its excluded then we can skip
         next if watched_file.unwatched? || can_exclude?(watched_file, new_discovery)
 
-        logger.trace("discover_files handling:", "new discovery"=> new_discovery, "watched_file details" => watched_file.details)
+        logger.trace? && logger.trace("handling:", :new_discovery => new_discovery, :watched_file => watched_file.details)
 
         if new_discovery
           watched_file.initial_completed if ongoing
@@ -86,7 +85,7 @@ module FileWatch
           #   associated with a different watched_file
           if @sincedb_collection.associate(watched_file)
             if watched_file.file_ignorable?
-              logger.trace("Discoverer discover_files: #{file}: skipping because it was last modified more than #{@settings.ignore_older} seconds ago")
+              logger.trace("skipping file because it was last modified more than #{@settings.ignore_older} seconds ago", :path => file)
               # on discovery ignorable watched_files are put into the ignored state and that
               # updates the size from the internal stat
               # so the existing contents are not read.
