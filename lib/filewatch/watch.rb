@@ -67,7 +67,7 @@ module FileWatch
         watched_files = @watched_files_collection.values
         @processor.process_all_states(watched_files)
       ensure
-        @watched_files_collection.delete(@processor.deletable_filepaths)
+        @watched_files_collection.remove_paths(@processor.deletable_filepaths)
         @processor.deletable_filepaths.clear
       end
     end # def each

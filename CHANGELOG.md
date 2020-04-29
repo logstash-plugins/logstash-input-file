@@ -1,3 +1,6 @@
+## 4.1.18
+  - Fix: release watched files on completion (in read-mode) [#271](https://github.com/logstash-plugins/logstash-input-file/pull/271)
+
 ## 4.1.17
   - Added configuration setting `check_archive_validity` settings to enable
   gzipped files verification, issue

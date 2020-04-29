@@ -6,6 +6,7 @@ require "logstash/codecs/identity_map_codec"
 require "pathname"
 require "socket" # for Socket.gethostname
 require "fileutils"
+require "concurrent/atomic/atomic_reference"
 
 require_relative "file/patch"
 require_relative "file_listener"
@@ -247,6 +248,9 @@ class File < LogStash::Inputs::Base
     end
   end
 
+  # @private used in specs
+  attr_reader :watcher
+
   def register
     require "addressable/uri"
     require "digest/md5"
@@ -273,8 +277,6 @@ class File < LogStash::Inputs::Base
       :exit_after_read => @exit_after_read,
       :check_archive_validity => @check_archive_validity,
     }
-
-    @completed_file_handlers = []
 
     @path.each do |path|
       if Pathname.new(path).relative?
@@ -319,15 +321,10 @@ class File < LogStash::Inputs::Base
       @watcher_class = FileWatch::ObservingTail
     else
       @watcher_class = FileWatch::ObservingRead
-      if @file_completed_action.include?('log')
-        @completed_file_handlers << LogCompletedFileHandler.new(@file_completed_log_path)
-      end
-      if @file_completed_action.include?('delete')
-        @completed_file_handlers << DeleteCompletedFileHandler.new
-      end
     end
     @codec = LogStash::Codecs::IdentityMapCodec.new(@codec)
     @completely_stopped = Concurrent::AtomicBoolean.new
+    @queue = Concurrent::AtomicReference.new
   end # def register
 
   def completely_stopped?
@@ -344,13 +341,25 @@ class File < LogStash::Inputs::Base
     # if the pipeline restarts this input,
     # make sure previous files are closed
     stop
+
     @watcher = @watcher_class.new(@filewatch_config)
+
+    @completed_file_handlers = []
+    if read_mode?
+      if @file_completed_action.include?('log')
+        @completed_file_handlers << LogCompletedFileHandler.new(@file_completed_log_path)
+      end
+      if @file_completed_action.include?('delete')
+        @completed_file_handlers << DeleteCompletedFileHandler.new(@watcher.watch)
+      end
+    end
+
     @path.each { |path| @watcher.watch_this(path) }
   end
 
   def run(queue)
     start_processing
-    @queue = queue
+    @queue.set queue
     @watcher.subscribe(self) # halts here until quit is called
     # last action of the subscribe call is to write the sincedb
     exit_flush
@@ -361,7 +370,7 @@ class File < LogStash::Inputs::Base
     event.set("[@metadata][host]", @host)
     event.set("host", @host) unless event.include?("host")
     decorate(event)
-    @queue << event
+    @queue.get << event
   end
 
   def handle_deletable_path(path)
@@ -380,6 +389,11 @@ class File < LogStash::Inputs::Base
       @codec.close
       @watcher.quit
     end
+  end
+
+  # @private used in specs
+  def queue
+    @queue.get
   end
 
   private

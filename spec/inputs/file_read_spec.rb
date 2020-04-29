@@ -247,4 +247,79 @@ describe LogStash::Inputs::File do
       end
     end
   end
+
+  let(:temp_directory) { Stud::Temporary.directory }
+  let(:interval) { 0.1 }
+  let(:options) do
+    {
+        'mode' => "read",
+        'path' => "#{temp_directory}/*",
+        'stat_interval' => interval,
+        'discover_interval' => interval,
+        'sincedb_path' => "#{temp_directory}/.sincedb",
+        'sincedb_write_interval' => interval
+    }
+  end
+
+  let(:queue) { Queue.new }
+  let(:plugin) { LogStash::Inputs::File.new(options) }
+
+  describe 'delete on complete' do
+
+    let(:options) do
+      super.merge({ 'file_completed_action' => "delete", 'exit_after_read' => false })
+    end
+
+    let(:sample_file) { File.join(temp_directory, "sample.log") }
+
+    before do
+      plugin.register
+      @run_thread = Thread.new(plugin) do |plugin|
+        Thread.current.abort_on_exception = true
+        plugin.run queue
+      end
+
+      File.open(sample_file, 'w') { |fd| fd.write("sample-content\n") }
+
+      wait_for_start_processing(@run_thread)
+    end
+
+    after { plugin.stop }
+
+    it 'processes a file' do
+      wait_for_file_removal(sample_file) # watched discovery
+
+      expect( plugin.queue.size ).to eql 1
+      event = plugin.queue.pop
+      expect( event.get('message') ).to eql 'sample-content'
+    end
+
+    it 'removes watched file from collection' do
+      wait_for_file_removal(sample_file) # watched discovery
+      sleep(0.25) # give CI some space to execute the removal
+      # TODO shouldn't be necessary once WatchedFileCollection does proper locking
+      watched_files = plugin.watcher.watch.watched_files_collection
+      expect( watched_files ).to be_empty
+    end
+
+    private
+
+    def wait_for_start_processing(run_thread, timeout: 1.0)
+      begin
+        Timeout.timeout(timeout) do
+          sleep(0.01) while run_thread.status != 'sleep'
+          sleep(timeout) unless plugin.queue
+        end
+      rescue Timeout::Error
+        raise "plugin did not start processing (timeout: #{timeout})" unless plugin.queue
+      else
+        raise "plugin did not start processing" unless plugin.queue
+      end
+    end
+
+    def wait_for_file_removal(path, timeout: 3 * interval)
+      wait(timeout).for { File.exist?(path) }.to be_falsey
+    end
+
+  end
 end

@@ -1,6 +1,7 @@
 # encoding: utf-8
 
 require "logstash/devutils/rspec/spec_helper"
+require "rspec/wait"
 require "rspec_sequencing"
 
 module FileInput
