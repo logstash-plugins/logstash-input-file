@@ -296,7 +296,8 @@ describe LogStash::Inputs::File do
 
     it 'removes watched file from collection' do
       wait_for_file_removal(sample_file) # watched discovery
-
+      sleep(0.25) # give CI some space to execute the removal
+      # TODO shouldn't be necessary once WatchedFileCollection does proper locking
       watched_files = plugin.watcher.watch.watched_files_collection
       expect( watched_files ).to be_empty
     end
@@ -307,6 +308,7 @@ describe LogStash::Inputs::File do
       begin
         Timeout.timeout(timeout) do
           sleep(0.01) while run_thread.status != 'sleep'
+          sleep(timeout) unless plugin.queue
         end
       rescue Timeout::Error
         raise "plugin did not start processing (timeout: #{timeout})" unless plugin.queue
