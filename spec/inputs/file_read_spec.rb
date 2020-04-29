@@ -317,7 +317,6 @@ describe LogStash::Inputs::File do
 
     def wait_for_file_removal(path, timeout: 3 * interval)
       wait(timeout).for { File.exist?(path) }.to be_falsey
-      raise "plugin did not start processing" unless plugin.queue
     end
 
   end

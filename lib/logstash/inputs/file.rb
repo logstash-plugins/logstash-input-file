@@ -6,6 +6,7 @@ require "logstash/codecs/identity_map_codec"
 require "pathname"
 require "socket" # for Socket.gethostname
 require "fileutils"
+require "concurrent/atomic/atomic_reference"
 
 require_relative "file/patch"
 require_relative "file_listener"
@@ -247,7 +248,8 @@ class File < LogStash::Inputs::Base
     end
   end
 
-  attr_reader :queue, :watcher # used in specs
+  # @private used in specs
+  attr_reader :watcher
 
   def register
     require "addressable/uri"
@@ -322,6 +324,7 @@ class File < LogStash::Inputs::Base
     end
     @codec = LogStash::Codecs::IdentityMapCodec.new(@codec)
     @completely_stopped = Concurrent::AtomicBoolean.new
+    @queue = Concurrent::AtomicReference.new
   end # def register
 
   def completely_stopped?
@@ -356,7 +359,7 @@ class File < LogStash::Inputs::Base
 
   def run(queue)
     start_processing
-    @queue = queue
+    @queue.set queue
     @watcher.subscribe(self) # halts here until quit is called
     # last action of the subscribe call is to write the sincedb
     exit_flush
@@ -367,7 +370,7 @@ class File < LogStash::Inputs::Base
     event.set("[@metadata][host]", @host)
     event.set("host", @host) unless event.include?("host")
     decorate(event)
-    @queue << event
+    @queue.get << event
   end
 
   def handle_deletable_path(path)
@@ -386,6 +389,11 @@ class File < LogStash::Inputs::Base
       @codec.close
       @watcher.quit
     end
+  end
+
+  # @private used in specs
+  def queue
+    @queue.get
   end
 
   private
