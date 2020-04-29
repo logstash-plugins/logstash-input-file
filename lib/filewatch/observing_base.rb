@@ -62,8 +62,7 @@ module FileWatch
       @sincedb_collection = SincedbCollection.new(@settings)
       @sincedb_collection.open
       discoverer = Discoverer.new(watched_files_collection, @sincedb_collection, @settings)
-      @watch = Watch.new(discoverer, watched_files_collection, @settings)
-      @watch.add_processor build_specific_processor(@settings)
+      @watch = Watch.new(discoverer, build_specific_processor(@settings), @settings)
     end
 
     def watch_this(path)

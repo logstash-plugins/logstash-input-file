@@ -9,6 +9,8 @@ module FileWatch
     # associated with a sincedb entry if one can be found
     include LogStash::Util::Loggable
 
+    attr_reader :watched_files_collection
+
     def initialize(watched_files_collection, sincedb_collection, settings)
       @watching = Concurrent::Array.new
       @exclude = Concurrent::Array.new

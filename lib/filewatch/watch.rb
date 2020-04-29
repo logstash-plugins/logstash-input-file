@@ -7,21 +7,19 @@ module FileWatch
     include LogStash::Util::Loggable
 
     attr_accessor :lastwarn_max_files
-    attr_reader :discoverer, :watched_files_collection
+    attr_reader :discoverer, :processor, :watched_files_collection
 
-    def initialize(discoverer, watched_files_collection, settings)
+    def initialize(discoverer, processor, settings)
+      @discoverer = discoverer
+      @watched_files_collection = discoverer.watched_files_collection
       @settings = settings
+
       # we need to be threadsafe about the quit mutation
       @quit = Concurrent::AtomicBoolean.new(false)
       @lastwarn_max_files = 0
-      @discoverer = discoverer
-      @watched_files_collection = watched_files_collection
-    end
 
-    def add_processor(processor)
       @processor = processor
       @processor.add_watch(self)
-      self
     end
 
     def watch(path)
