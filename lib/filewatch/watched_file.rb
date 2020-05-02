@@ -6,7 +6,7 @@ module FileWatch
     IO_BASED_STAT = 1
 
     attr_reader :bytes_read, :state, :file, :buffer, :recent_states, :bytes_unread
-    attr_reader :path, :accessed_at, :modified_at, :pathname, :filename
+    attr_reader :path, :accessed_at, :pathname, :filename
     attr_reader :listener, :read_loop_count, :read_chunk_size, :stat
     attr_reader :loop_count_type, :loop_count_mode
     attr_accessor :last_open_warning_at
@@ -100,19 +100,34 @@ module FileWatch
       stat_sincedb_key != sincedb_key
     end
 
-    def restat
+    # @return true if the file was modified since last stat
+    def restat!
+      # NOTE: currently assumed to be called
+      modified_at # to always be able to detect changes
       @stat.restat
       if rotation_detected?
         # switch to new state now
         rotation_in_progress
+        return true
       else
         @size = @stat.size
         update_bytes_unread
+        modified_at_changed?
       end
     end
 
-    def modified_at
-      @stat.modified_at
+    def modified_at(update = false)
+      if update || @modified_at.nil?
+        @modified_at = @stat.modified_at
+      else
+        @modified_at
+      end
+    end
+
+    # @return whether modified_at changed since it was last read
+    # @see #restat
+    def modified_at_changed?
+      modified_at != @stat.modified_at
     end
 
     def position_for_new_sincedb_value

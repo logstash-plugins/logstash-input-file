@@ -263,7 +263,7 @@ module FileWatch module TailMode
     def common_restat(watched_file, action, delay, &block)
       all_ok = true
       begin
-        watched_file.restat
+        restat(watched_file)
         if watched_file.rotation_in_progress?
           logger.trace("-------------------- >>>>> restat - rotation_detected", :watched_file => watched_file.details, :new_sincedb_key => watched_file.stat_sincedb_key)
           # don't yield to closed and ignore processing

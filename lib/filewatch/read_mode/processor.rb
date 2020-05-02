@@ -44,7 +44,7 @@ module FileWatch module ReadMode
       if to_take > 0
         watched_files.select(&:watched?).take(to_take).each do |watched_file|
           begin
-            watched_file.restat
+            restat(watched_file)
             watched_file.activate
           rescue Errno::ENOENT
             common_deleted_reaction(watched_file, __method__)
@@ -74,7 +74,7 @@ module FileWatch module ReadMode
         next unless watched_file.active?
 
         begin
-          watched_file.restat
+          restat(watched_file)
         rescue Errno::ENOENT
           common_deleted_reaction(watched_file, __method__)
           next
