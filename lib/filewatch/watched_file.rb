@@ -24,10 +24,6 @@ module FileWatch
       set_accessed_at
     end
 
-    def no_restat_reset
-      full_state_reset(@stat)
-    end
-
     def full_state_reset(this_stat = nil)
       if this_stat.nil?
         begin
@@ -75,6 +71,7 @@ module FileWatch
       @size = @stat.size
       @sdb_key_v1 = @stat.inode_struct
     end
+    private :set_stat
 
     def rotate_as_file(bytes_read = 0)
       # rotation, when a sincedb record exists for new inode, but no watched file to rotate from
