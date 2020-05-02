@@ -16,7 +16,7 @@ module FileWatch
     def initialize(pathname, stat, settings)
       @settings = settings
       @pathname = Pathname.new(pathname) # given arg pathname might be a string or a Pathname object
-      @path = @pathname.to_path
+      @path = @pathname.to_path.freeze
       @filename = @pathname.basename.to_s
       full_state_reset(stat)
       watch
