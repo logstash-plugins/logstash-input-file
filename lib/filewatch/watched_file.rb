@@ -405,14 +405,14 @@ module FileWatch
     end
 
     def details
-      detail = "@filename='#{filename}', @state='#{state}', @recent_states='#{@recent_states.inspect}', "
-      detail.concat("@bytes_read='#{@bytes_read}', @bytes_unread='#{@bytes_unread}', current_size='#{current_size}', ")
-      detail.concat("last_stat_size='#{last_stat_size}', file_open?='#{file_open?}', @initial=#{@initial}")
-      "<FileWatch::WatchedFile: #{detail}, @sincedb_key='#{sincedb_key}'>"
+      detail = "@filename='#{@filename}', @state=#{@state.inspect}, @recent_states=#{@recent_states.inspect}, "
+      detail.concat("@bytes_read=#{@bytes_read}, @bytes_unread=#{@bytes_unread}, current_size=#{current_size}, ")
+      detail.concat("last_stat_size=#{last_stat_size}, file_open?=#{file_open?}, @initial=#{@initial}")
+      "<FileWatch::WatchedFile: #{detail}, sincedb_key='#{sincedb_key}'>"
     end
 
     def inspect
-      "\"<FileWatch::WatchedFile: @filename='#{filename}', @state='#{state}', @sincedb_key='#{sincedb_key}, size=#{@size}>\""
+      "<FileWatch::WatchedFile: @filename='#{@filename}', @state=#{@state.inspect}, current_size=#{current_size}, sincedb_key='#{sincedb_key}'>"
     end
 
     def to_s
