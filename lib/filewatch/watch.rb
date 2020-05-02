@@ -75,10 +75,7 @@ module FileWatch
     end
 
     def quit?
-      if @settings.exit_after_read
-        @exit = @watched_files_collection.empty?
-      end
-      @quit.true? || @exit
+      @quit.true? || (@settings.exit_after_read && @watched_files_collection.empty?)
     end
 
     private
