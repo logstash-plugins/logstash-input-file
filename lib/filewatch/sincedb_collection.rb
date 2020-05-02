@@ -149,8 +149,8 @@ module FileWatch
     end
 
     def watched_file_deleted(watched_file)
-      return unless member?(watched_file.sincedb_key)
-      get(watched_file.sincedb_key).unset_watched_file
+      value = @sincedb[watched_file.sincedb_key]
+      value.unset_watched_file if value
     end
 
     def store_last_read(key, pos)
