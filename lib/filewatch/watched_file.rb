@@ -99,7 +99,6 @@ module FileWatch
 
     # @return true if the file was modified since last stat
     def restat!
-      # NOTE: currently assumed to be called
       modified_at # to always be able to detect changes
       @stat.restat
       if rotation_detected?
