@@ -332,8 +332,9 @@ class File < LogStash::Inputs::Base
     @completely_stopped.true?
   end
 
+  # The WatchedFile calls back here as `observer.listener_for(@path)`
+  # @param [String] path the identity
   def listener_for(path)
-    # path is the identity
     FileListener.new(path, self)
   end
 
