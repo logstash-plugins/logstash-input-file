@@ -23,9 +23,12 @@ module FileWatch
     let(:start_new_files_at) { :end } # should be irrelevant for read mode
     let(:opts) do
       {
-        :stat_interval => stat_interval, :start_new_files_at => start_new_files_at,
-        :delimiter => "\n", :discover_interval => discover_interval,
-        :ignore_older => 3600, :sincedb_path => sincedb_path
+        :stat_interval => stat_interval,
+        :start_new_files_at => start_new_files_at,
+        :delimiter => "\n",
+        :discover_interval => discover_interval,
+        :ignore_older => 3600,
+        :sincedb_path => sincedb_path
       }
     end
     let(:observer) { TestObserver.new }
@@ -147,6 +150,50 @@ module FileWatch
       end
     end
 
+    context "when watching directory with files and adding a new file" do
+      let(:file_path2) { ::File.join(directory, "2.log") }
+      let(:file_path3) { ::File.join(directory, "3.log") }
+
+      let(:opts) { super.merge(:file_sort_by => "last_modified") }
+      let(:lines) { [] }
+      let(:observer) { TestObserver.new(lines) }
+
+
+      let(:listener2) { observer.listener_for(file_path2) }
+      let(:listener3) { observer.listener_for(file_path3) }
+
+      let(:actions) do
+        RSpec::Sequencing.run("create12") do
+          File.open(file_path,  "w") { |file| file.write("string11\nstring12") }
+          File.open(file_path2, "w") { |file| file.write("string21\nstring22") }
+        end
+        .then("watch") do
+          reading.watch_this(watch_dir)
+        end
+        .then("wait12") do
+          wait(2).for { listener1.calls.last == :delete && listener2.calls.last == :delete }.to eq(true)
+        end
+        .then_after(2, "create3") do
+          File.open(file_path3, "w") { |file| file.write("string31\nstring32") }
+        end
+        .then("wait3") do
+          wait(2).for { listener3.calls.last == :delete }.to eq(true)
+        end
+        .then("quit") do
+          reading.quit
+        end
+      end
+
+      it "reads all (3) files" do
+        actions.activate_quietly
+        reading.subscribe(observer)
+        actions.assert_no_errors
+        expect(lines.last).to eq 'string32'
+        expect(lines.sort).to eq %w(string11 string12 string21 string22 string31 string32)
+        expect( reading.watch.watched_files_collection.paths ).to eq [ file_path, file_path2, file_path3 ]
+      end
+    end
+
     context "when watching a directory with files using exit_after_read" do
       let(:opts) { super.merge(:exit_after_read => true, :max_open_files => 2) }
       let(:file_path3) { ::File.join(directory, "3.log") }
@@ -159,40 +206,45 @@ module FileWatch
       let(:listener6) { observer.listener_for(file_path6) }
 
       it "the file is read" do
-        File.open(file_path3, "w") { |file|  file.write("line1\nline2\n") }
+        File.open(file_path3, "w") { |file| file.write("line1\nline2\n") }
         reading.watch_this(watch_dir)
         reading.subscribe(observer)
         expect(listener3.lines).to eq(["line1", "line2"])
       end
+
       it "multiple files are read" do
-        File.open(file_path3, "w") { |file|  file.write("line1\nline2\n") }
+        File.open(file_path3, "w") { |file| file.write("line1\nline2\n") }
         File.open(file_path4, "w") { |file| file.write("line3\nline4\n") }
         reading.watch_this(watch_dir)
         reading.subscribe(observer)
         expect(listener3.lines.sort).to eq(["line1", "line2", "line3", "line4"])
       end
+
       it "multiple files are read even if max_open_files is smaller then number of files" do
-        File.open(file_path3, "w") { |file|  file.write("line1\nline2\n") }
+        File.open(file_path3, "w") { |file| file.write("line1\nline2\n") }
         File.open(file_path4, "w") { |file| file.write("line3\nline4\n") }
         File.open(file_path5, "w") { |file| file.write("line5\nline6\n") }
         reading.watch_this(watch_dir)
         reading.subscribe(observer)
         expect(listener3.lines.sort).to eq(["line1", "line2", "line3", "line4", "line5", "line6"])
       end
+
       it "file as marked as reading_completed" do
-        File.open(file_path3, "w") { |file|  file.write("line1\nline2\n") }
+        File.open(file_path3, "w") { |file| file.write("line1\nline2\n") }
         reading.watch_this(watch_dir)
         reading.subscribe(observer)
         expect(listener3.calls).to eq([:open, :accept, :accept, :eof, :delete, :reading_completed])
       end
+
       it "sincedb works correctly" do
-        File.open(file_path3, "w") { |file|  file.write("line1\nline2\n") }
+        File.open(file_path3, "w") { |file| file.write("line1\nline2\n") }
         reading.watch_this(watch_dir)
         reading.subscribe(observer)
         sincedb_record_fields = File.read(sincedb_path).split(" ")
         position_field_index = 3
         expect(sincedb_record_fields[position_field_index]).to eq("12")
       end
+
       it "does not include new files added after start" do
         File.open(file_path3, "w") { |file|  file.write("line1\nline2\n") }
         reading.watch_this(watch_dir)
@@ -201,7 +253,6 @@ module FileWatch
         expect(listener3.lines).to eq(["line1", "line2"])
         expect(listener3.calls).to eq([:open, :accept, :accept, :eof, :delete, :reading_completed])
         expect(listener6.calls).to eq([])
-
       end
     
     end
