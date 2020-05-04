@@ -121,7 +121,7 @@ module FileWatch
     end
 
     # @return whether modified_at changed since it was last read
-    # @see #restat
+    # @see #restat!
     def modified_at_changed?
       modified_at != @stat.modified_at
     end
