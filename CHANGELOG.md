@@ -1,3 +1,7 @@
+## 4.2.0
+  - Fix: watched files performance with huge filesets [#268](https://github.com/logstash-plugins/logstash-input-file/pull/268) 
+  - Updated logging to include full traces in debug (and trace) levels
+
 ## 4.1.18
   - Fix: release watched files on completion (in read-mode) [#271](https://github.com/logstash-plugins/logstash-input-file/pull/271)
 
