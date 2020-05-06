@@ -70,9 +70,15 @@ public class WatchedFilesCollection extends RubyObject {
             default :
                 throw context.runtime.newArgumentError("sort_by: '" + sort_by + "' not supported");
         }
-
-        if ("desc".equals(sort_direction)) {
-            comparator = comparator.reversed();
+        switch (sort_direction) {
+            case "asc" :
+                // all good - comparator uses ascending order
+                break;
+            case "desc" :
+                comparator = comparator.reversed();
+                break;
+            default :
+                throw context.runtime.newArgumentError("sort_direction: '" + sort_direction + "' not supported");
         }
 
         this.files = new TreeMap<>(comparator);
