@@ -1,13 +1,15 @@
 # encoding: utf-8
 require 'java'
-java_import java.io.InputStream
-java_import java.io.InputStreamReader
-java_import java.io.FileInputStream
-java_import java.io.BufferedReader
-java_import java.util.zip.GZIPInputStream
-java_import java.util.zip.ZipException
 
 module FileWatch module ReadMode module Handlers
+
+  java_import java.io.InputStream
+  java_import java.io.InputStreamReader
+  java_import java.io.FileInputStream
+  java_import java.io.BufferedReader
+  java_import java.util.zip.GZIPInputStream
+  java_import java.util.zip.ZipException
+
   class ReadZipFile < Base
     def handle_specifically(watched_file)
       add_or_update_sincedb_collection(watched_file) unless sincedb_collection.member?(watched_file.sincedb_key)

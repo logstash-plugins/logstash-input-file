@@ -7,11 +7,9 @@ module FileWatch module TailMode module Handlers
       # TODO consider trying to find the renamed file - it will have the same inode.
       # Needs a rotate scheme rename hint from user e.g. "<name>-YYYY-MM-DD-N.<ext>" or "<name>.<ext>.N"
       # send the found content to the same listener (stream identity)
-      logger.trace("info",
-        "watched_file details" => watched_file.details,
-        "path" => watched_file.path)
+      logger.trace("delete", :path => watched_file.path, :watched_file => watched_file.details)
       if watched_file.bytes_unread > 0
-        logger.warn(DATA_LOSS_WARNING, "unread_bytes" => watched_file.bytes_unread, "path" => watched_file.path)
+        logger.warn(DATA_LOSS_WARNING, :path => watched_file.path, :unread_bytes => watched_file.bytes_unread)
       end
       watched_file.listener.deleted
       # no need to worry about data in the buffer

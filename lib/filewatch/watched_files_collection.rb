@@ -1,89 +1,22 @@
 # encoding: utf-8
+
+require 'java'
+
 module FileWatch
+  # @see `org.logstash.filewatch.WatchedFilesCollection`
   class WatchedFilesCollection
 
-    def initialize(settings)
-      @sort_by = settings.file_sort_by # "last_modified" | "path"
-      @sort_direction = settings.file_sort_direction # "asc" | "desc"
-      @sort_method = method("#{@sort_by}_#{@sort_direction}".to_sym)
-      @files = Concurrent::Array.new
-      @pointers = Concurrent::Hash.new
-    end
-
-    def add(watched_file)
-      @files << watched_file
-      @sort_method.call
-    end
-
-    def remove_paths(paths)
-      removed_files = Array(paths).map do |path|
-        index = @pointers.delete(path)
-        if index
-          watched_file = @files.delete_at(index)
-          refresh_pointers
-          watched_file
-        end
-      end
-      @sort_method.call
-      removed_files
-    end
-
+    # Closes all managed watched files.
+    # @see FileWatch::WatchedFile#file_close
     def close_all
-      @files.each(&:file_close)
+      each_file(&:file_close) # synchronized
     end
 
-    def empty?
-      @files.empty?
-    end
+    # @return [Enumerable<String>] managed path keys (snapshot)
+    alias keys paths
 
-    def keys
-      @pointers.keys
-    end
+    # @return [Enumerable<WatchedFile>] managed files (snapshot)
+    alias values files
 
-    def values
-      @files
-    end
-
-    def watched_file_by_path(path)
-      index = @pointers[path]
-      return nil unless index
-      @files[index]
-    end
-
-    private
-
-    def last_modified_asc
-      @files.sort! do |left, right|
-        left.modified_at <=> right.modified_at
-      end
-      refresh_pointers
-    end
-
-    def last_modified_desc
-      @files.sort! do |left, right|
-        right.modified_at <=> left.modified_at
-      end
-      refresh_pointers
-    end
-
-    def path_asc
-      @files.sort! do |left, right|
-        left.path <=> right.path
-      end
-      refresh_pointers
-    end
-
-    def path_desc
-      @files.sort! do |left, right|
-        right.path <=> left.path
-      end
-      refresh_pointers
-    end
-
-    def refresh_pointers
-      @files.each_with_index do |watched_file, index|
-        @pointers[watched_file.path] = index
-      end
-    end
   end
 end

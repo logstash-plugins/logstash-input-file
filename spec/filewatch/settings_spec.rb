@@ -1,3 +1,6 @@
+require 'logstash/devutils/rspec/spec_helper'
+require 'logstash/inputs/friendly_durations'
+
 describe FileWatch::Settings do
 
   context "when create from options" do

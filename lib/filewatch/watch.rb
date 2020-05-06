@@ -1,26 +1,25 @@
 # encoding: utf-8
 require "logstash/util/loggable"
+require "concurrent/atomic/atomic_boolean"
 
 module FileWatch
   class Watch
     include LogStash::Util::Loggable
 
     attr_accessor :lastwarn_max_files
-    attr_reader :discoverer, :watched_files_collection
+    attr_reader :discoverer, :processor, :watched_files_collection
 
-    def initialize(discoverer, watched_files_collection, settings)
+    def initialize(discoverer, processor, settings)
+      @discoverer = discoverer
+      @watched_files_collection = discoverer.watched_files_collection
       @settings = settings
+
       # we need to be threadsafe about the quit mutation
       @quit = Concurrent::AtomicBoolean.new(false)
       @lastwarn_max_files = 0
-      @discoverer = discoverer
-      @watched_files_collection = watched_files_collection
-    end
 
-    def add_processor(processor)
       @processor = processor
       @processor.add_watch(self)
-      self
     end
 
     def watch(path)
@@ -67,20 +66,16 @@ module FileWatch
         watched_files = @watched_files_collection.values
         @processor.process_all_states(watched_files)
       ensure
-        @watched_files_collection.remove_paths(@processor.deletable_filepaths)
-        @processor.deletable_filepaths.clear
+        @watched_files_collection.remove_paths(@processor.clear_deletable_paths)
       end
-    end # def each
+    end
 
     def quit
       @quit.make_true
     end
 
     def quit?
-      if @settings.exit_after_read
-        @exit = @watched_files_collection.empty?
-      end
-      @quit.true? || @exit
+      @quit.true? || (@settings.exit_after_read && @watched_files_collection.empty?)
     end
 
     private

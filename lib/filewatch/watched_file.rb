@@ -6,7 +6,7 @@ module FileWatch
     IO_BASED_STAT = 1
 
     attr_reader :bytes_read, :state, :file, :buffer, :recent_states, :bytes_unread
-    attr_reader :path, :accessed_at, :modified_at, :pathname, :filename
+    attr_reader :path, :accessed_at, :pathname, :filename
     attr_reader :listener, :read_loop_count, :read_chunk_size, :stat
     attr_reader :loop_count_type, :loop_count_mode
     attr_accessor :last_open_warning_at
@@ -16,16 +16,12 @@ module FileWatch
     def initialize(pathname, stat, settings)
       @settings = settings
       @pathname = Pathname.new(pathname) # given arg pathname might be a string or a Pathname object
-      @path = @pathname.to_path
+      @path = @pathname.to_path.freeze
       @filename = @pathname.basename.to_s
       full_state_reset(stat)
       watch
       set_standard_read_loop
       set_accessed_at
-    end
-
-    def no_restat_reset
-      full_state_reset(@stat)
     end
 
     def full_state_reset(this_stat = nil)
@@ -75,6 +71,7 @@ module FileWatch
       @size = @stat.size
       @sdb_key_v1 = @stat.inode_struct
     end
+    private :set_stat
 
     def rotate_as_file(bytes_read = 0)
       # rotation, when a sincedb record exists for new inode, but no watched file to rotate from
@@ -100,19 +97,33 @@ module FileWatch
       stat_sincedb_key != sincedb_key
     end
 
-    def restat
+    # @return true if the file was modified since last stat
+    def restat!
+      modified_at # to always be able to detect changes
       @stat.restat
       if rotation_detected?
         # switch to new state now
         rotation_in_progress
+        return true
       else
         @size = @stat.size
         update_bytes_unread
+        modified_at_changed?
       end
     end
 
-    def modified_at
-      @stat.modified_at
+    def modified_at(update = false)
+      if update || @modified_at.nil?
+        @modified_at = @stat.modified_at
+      else
+        @modified_at
+      end
+    end
+
+    # @return whether modified_at changed since it was last read
+    # @see #restat!
+    def modified_at_changed?
+      modified_at != @stat.modified_at
     end
 
     def position_for_new_sincedb_value
@@ -405,14 +416,14 @@ module FileWatch
     end
 
     def details
-      detail = "@filename='#{filename}', @state='#{state}', @recent_states='#{@recent_states.inspect}', "
-      detail.concat("@bytes_read='#{@bytes_read}', @bytes_unread='#{@bytes_unread}', current_size='#{current_size}', ")
-      detail.concat("last_stat_size='#{last_stat_size}', file_open?='#{file_open?}', @initial=#{@initial}")
-      "<FileWatch::WatchedFile: #{detail}, @sincedb_key='#{sincedb_key}'>"
+      detail = "@filename='#{@filename}', @state=#{@state.inspect}, @recent_states=#{@recent_states.inspect}, "
+      detail.concat("@bytes_read=#{@bytes_read}, @bytes_unread=#{@bytes_unread}, current_size=#{current_size}, ")
+      detail.concat("last_stat_size=#{last_stat_size}, file_open?=#{file_open?}, @initial=#{@initial}")
+      "<FileWatch::WatchedFile: #{detail}, sincedb_key='#{sincedb_key}'>"
     end
 
     def inspect
-      "\"<FileWatch::WatchedFile: @filename='#{filename}', @state='#{state}', @sincedb_key='#{sincedb_key}, size=#{@size}>\""
+      "<FileWatch::WatchedFile: @filename='#{@filename}', @state=#{@state.inspect}, current_size=#{current_size}, sincedb_key='#{sincedb_key}'>"
     end
 
     def to_s

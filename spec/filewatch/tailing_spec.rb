@@ -10,15 +10,19 @@ module FileWatch
     let(:file_path)  { ::File.join(directory, "1#{suffix}.log") }
     let(:file_path2) { ::File.join(directory, "2#{suffix}.log") }
     let(:file_path3) { ::File.join(directory, "3#{suffix}.log") }
-    let(:max)   { 4095 }
+    let(:max) { 4095 }
     let(:stat_interval) { 0.1 }
     let(:discover_interval) { 4 }
     let(:start_new_files_at) { :end }
     let(:sincedb_path) { ::File.join(directory, "tailing.sdb") }
     let(:opts) do
       {
-        :stat_interval => stat_interval, :start_new_files_at => start_new_files_at, :max_open_files => max,
-        :delimiter => "\n", :discover_interval => discover_interval, :sincedb_path => sincedb_path,
+        :stat_interval => stat_interval,
+        :start_new_files_at => start_new_files_at,
+        :max_open_files => max,
+        :delimiter => "\n",
+        :discover_interval => discover_interval,
+        :sincedb_path => sincedb_path,
         :file_sort_by => "path"
       }
     end
@@ -30,12 +34,11 @@ module FileWatch
 
     before do
       directory
-      wait(1.0).for{Dir.exist?(directory)}.to eq(true)
+      wait(1.0).for { Dir.exist?(directory) }.to eq(true)
     end
 
     after do
       FileUtils.rm_rf(directory)
-      wait(1.0).for{Dir.exist?(directory)}.to eq(false)
     end
 
     describe "max open files (set to 1)" do
@@ -95,16 +98,16 @@ module FileWatch
       let(:actions) do
         RSpec::Sequencing
           .run("create file") do
-            File.open(file_path, "wb") { |file|  file.write("lineA\nlineB\n") }
+            File.open(file_path, "wb") { |file| file.write("lineA\nlineB\n") }
           end
           .then_after(0.1, "begin watching") do
             tailing.watch_this(watch_dir)
           end
-          .then_after(2, "add content") do
-            File.open(file_path, "ab") { |file|  file.write("line1\nline2\n") }
+          .then_after(1.0, "add content") do
+            File.open(file_path, "ab") { |file| file.write("line1\nline2\n") }
           end
           .then("wait") do
-            wait(0.75).for{listener1.lines}.to eq(["line1", "line2"])
+            wait(0.75).for { listener1.lines }.to_not be_empty
           end
           .then("quit") do
             tailing.quit
@@ -113,7 +116,6 @@ module FileWatch
 
       it "only the new content is read" do
         actions.activate_quietly
-        tailing.watch_this(watch_dir)
         tailing.subscribe(observer)
         actions.assert_no_errors
         expect(listener1.calls).to eq([:open, :accept, :accept])
@@ -132,7 +134,7 @@ module FileWatch
             File.open(file_path, "wb") { |file|  file.write("line1\nline2\n") }
           end
           .then("wait") do
-            wait(0.75).for{listener1.lines.size}.to eq(2)
+            wait(0.75).for { listener1.lines }.to_not be_empty
           end
           .then("quit") do
             tailing.quit
@@ -154,7 +156,7 @@ module FileWatch
       # so when a stat is taken on the file an error is raised
       let(:suffix) { "E" }
       let(:quit_after) { 0.2 }
-      let(:stat)  { double("stat", :size => 100, :modified_at => Time.now.to_f, :identifier => nil, :inode => 234567, :inode_struct => InodeStruct.new("234567", 1, 5)) }
+      let(:stat)  { double("stat", :size => 100, :modified_at => Time.now.to_f, :inode => 234567, :inode_struct => InodeStruct.new("234567", 1, 5)) }
       let(:watched_file) { WatchedFile.new(file_path, stat, tailing.settings) }
       before do
         allow(stat).to receive(:restat).and_raise(Errno::ENOENT)

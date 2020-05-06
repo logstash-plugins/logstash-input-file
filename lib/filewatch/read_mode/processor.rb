@@ -1,6 +1,5 @@
 # encoding: utf-8
-require "logstash/util/loggable"
-
+require 'filewatch/processor'
 require_relative "handlers/base"
 require_relative "handlers/read_file"
 require_relative "handlers/read_zip_file"
@@ -9,20 +8,7 @@ module FileWatch module ReadMode
   # Must handle
   #   :read_file
   #   :read_zip_file
-  class Processor
-    include LogStash::Util::Loggable
-
-    attr_reader :watch, :deletable_filepaths
-
-    def initialize(settings)
-      @settings = settings
-      @deletable_filepaths = []
-    end
-
-    def add_watch(watch)
-      @watch = watch
-      self
-    end
+  class Processor < FileWatch::Processor
 
     def initialize_handlers(sincedb_collection, observer)
       # we deviate from the tail mode handler initialization here
@@ -48,24 +34,23 @@ module FileWatch module ReadMode
     private
 
     def process_watched(watched_files)
-      logger.trace("Watched processing")
+      logger.trace(__method__.to_s)
       # Handles watched_files in the watched state.
       # for a slice of them:
       #   move to the active state
       #   should never have been active before
       # how much of the max active window is available
-      to_take = @settings.max_active - watched_files.count{|wf| wf.active?}
+      to_take = @settings.max_active - watched_files.count { |wf| wf.active? }
       if to_take > 0
-        watched_files.select {|wf| wf.watched?}.take(to_take).each do |watched_file|
-          path = watched_file.path
+        watched_files.select(&:watched?).take(to_take).each do |watched_file|
           begin
-            watched_file.restat
+            restat(watched_file)
             watched_file.activate
           rescue Errno::ENOENT
-            common_deleted_reaction(watched_file, "Watched")
+            common_deleted_reaction(watched_file, __method__)
             next
           rescue => e
-            common_error_reaction(path, e, "Watched")
+            common_error_reaction(watched_file, e, __method__)
             next
           end
           break if watch.quit?
@@ -74,7 +59,7 @@ module FileWatch module ReadMode
         now = Time.now.to_i
         if (now - watch.lastwarn_max_files) > MAX_FILES_WARN_INTERVAL
           waiting = watched_files.size - @settings.max_active
-          logger.warn(@settings.max_warn_msg + ", files yet to open: #{waiting}")
+          logger.warn("#{@settings.max_warn_msg}, files yet to open: #{waiting}")
           watch.lastwarn_max_files = now
         end
       end
@@ -83,17 +68,18 @@ module FileWatch module ReadMode
     ## TODO add process_rotation_in_progress
 
     def process_active(watched_files)
-      logger.trace("Active processing")
+      logger.trace(__method__.to_s)
       # Handles watched_files in the active state.
-      watched_files.select {|wf| wf.active? }.each do |watched_file|
-        path = watched_file.path
+      watched_files.each do |watched_file|
+        next unless watched_file.active?
+
         begin
-          watched_file.restat
+          restat(watched_file)
         rescue Errno::ENOENT
-          common_deleted_reaction(watched_file, "Active")
+          common_deleted_reaction(watched_file, __method__)
           next
         rescue => e
-          common_error_reaction(path, e, "Active")
+          common_error_reaction(watched_file, e, __method__)
           next
         end
         break if watch.quit?
@@ -114,19 +100,19 @@ module FileWatch module ReadMode
     def common_detach_when_allread(watched_file)
       watched_file.unwatch
       watched_file.listener.reading_completed
-      deletable_filepaths << watched_file.path
-      logger.trace("Whole file read: #{watched_file.path}, removing from collection")
+      add_deletable_path watched_file.path
+      logger.trace? && logger.trace("whole file read, removing from collection", :path => watched_file.path)
     end
 
     def common_deleted_reaction(watched_file, action)
       # file has gone away or we can't read it anymore.
       watched_file.unwatch
-      deletable_filepaths << watched_file.path
-      logger.trace("#{action} - stat failed: #{watched_file.path}, removing from collection")
+      add_deletable_path watched_file.path
+      logger.trace? && logger.trace("#{action} - stat failed, removing from collection", :path => watched_file.path)
     end
 
-    def common_error_reaction(path, error, action)
-      logger.error("#{action} - other error #{path}: (#{error.message}, #{error.backtrace.take(8).inspect})")
+    def common_error_reaction(watched_file, error, action)
+      logger.error("#{action} - other error", error_details(error, watched_file))
     end
   end
 end end

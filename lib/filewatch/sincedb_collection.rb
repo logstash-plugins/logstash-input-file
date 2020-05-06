@@ -56,12 +56,12 @@ module FileWatch
         logger.trace("open: count of keys read: #{@sincedb.keys.size}")
       rescue => e
         #No existing sincedb to load
-        logger.trace("open: error: #{path}: #{e.inspect}")
+        logger.trace("open: error:", :path => path, :exception => e.class, :message => e.message)
       end
     end
 
     def associate(watched_file)
-      logger.trace("associate: finding", "inode" => watched_file.sincedb_key.inode, "path" => watched_file.path)
+      logger.trace? && logger.trace("associate: finding", :path => watched_file.path, :inode => watched_file.sincedb_key.inode)
       sincedb_value = find(watched_file)
       if sincedb_value.nil?
         # sincedb has no record of this inode
@@ -71,7 +71,8 @@ module FileWatch
         logger.trace("associate: unmatched")
         return true
       end
-      logger.trace("associate: found sincedb record", "filename" => watched_file.filename, "sincedb key" => watched_file.sincedb_key,"sincedb_value" => sincedb_value)
+      logger.trace? && logger.trace("associate: found sincedb record", :filename => watched_file.filename,
+                                    :sincedb_key => watched_file.sincedb_key, :sincedb_value => sincedb_value)
       if sincedb_value.watched_file.nil?
         # not associated
         if sincedb_value.path_in_sincedb.nil?
@@ -106,7 +107,8 @@ module FileWatch
       #   after the original is deleted
       # are not yet in the delete phase, let this play out
       existing_watched_file = sincedb_value.watched_file
-      logger.trace("----------------- >> associate: the found sincedb_value has a watched_file - this is a rename", "this watched_file details" => watched_file.details, "other watched_file details" => existing_watched_file.details)
+      logger.trace? && logger.trace("----------------- >> associate: the found sincedb_value has a watched_file - this is a rename",
+                                    :this_watched_file => watched_file.details, :existing_watched_file => existing_watched_file.details)
       watched_file.rotation_in_progress
       true
     end
@@ -149,8 +151,8 @@ module FileWatch
     end
 
     def watched_file_deleted(watched_file)
-      return unless member?(watched_file.sincedb_key)
-      get(watched_file.sincedb_key).unset_watched_file
+      value = @sincedb[watched_file.sincedb_key]
+      value.unset_watched_file if value
     end
 
     def store_last_read(key, pos)
@@ -195,7 +197,7 @@ module FileWatch
       watched_file.initial_completed
       if watched_file.all_read?
         watched_file.ignore
-        logger.trace("handle_association fully read, ignoring.....", "watched file" => watched_file.details, "sincedb value" => sincedb_value)
+        logger.trace? && logger.trace("handle_association fully read, ignoring.....", :watched_file => watched_file.details, :sincedb_value => sincedb_value)
       end
     end
 
@@ -214,8 +216,8 @@ module FileWatch
         @write_method.call
         @serializer.expired_keys.each do |key|
           @sincedb[key].unset_watched_file
-          delete(key)
-          logger.trace("sincedb_write: cleaned", "key" => "'#{key}'")
+          delete(key) # delete
+          logger.trace? && logger.trace("sincedb_write: cleaned", :key => key)
         end
         @sincedb_last_write = time
         @write_requested = false

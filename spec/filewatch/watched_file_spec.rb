@@ -35,5 +35,35 @@ module FileWatch
         expect(watched_file.recent_states).to eq([:watched, :active, :watched, :closed, :watched, :active, :unwatched, :active])
       end
     end
+
+    context 'restat' do
+
+      let(:directory) { Stud::Temporary.directory }
+      let(:file_path) { ::File.join(directory, "restat.file.txt") }
+      let(:pathname) { Pathname.new(file_path) }
+
+      before { FileUtils.touch file_path, :mtime => Time.now - 300 }
+
+      it 'reports false value when no changes' do
+        file = WatchedFile.new(pathname, PathStatClass.new(pathname), Settings.new)
+        mtime = file.modified_at
+        expect( file.modified_at_changed? ).to be false
+        expect( file.restat! ).to be_falsy
+        expect( file.modified_at_changed? ).to be false
+        expect( file.modified_at ).to eql mtime
+        expect( file.modified_at(true) ).to eql mtime
+      end
+
+      it 'reports truthy when changes detected' do
+        file = WatchedFile.new(pathname, PathStatClass.new(pathname), Settings.new)
+        mtime = file.modified_at
+        expect( file.modified_at_changed? ).to be false
+        FileUtils.touch file_path
+        expect( file.restat! ).to be_truthy
+        expect( file.modified_at_changed? ).to be true
+        expect( file.modified_at ).to eql mtime # until updated
+        expect( file.modified_at(true) ).to be > mtime
+      end
+    end
   end
 end

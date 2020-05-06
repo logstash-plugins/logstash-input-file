@@ -84,6 +84,7 @@ public class JrubyFileWatchLibrary implements Library {
         clazz = runtime.defineClassUnder("Fnv", runtime.getObject(), JrubyFileWatchLibrary.Fnv::new, module);
         clazz.defineAnnotatedMethods(JrubyFileWatchLibrary.Fnv.class);
 
+        WatchedFilesCollection.load(runtime);
     }
 
     @JRubyClass(name = "FileExt")
