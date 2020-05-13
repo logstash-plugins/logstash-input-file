@@ -6,7 +6,7 @@ module FileWatch
     attr_reader :max_active, :max_warn_msg, :lastwarn_max_files
     attr_reader :sincedb_write_interval, :stat_interval, :discover_interval
     attr_reader :exclude, :start_new_files_at, :file_chunk_count, :file_chunk_size
-    attr_reader :sincedb_path, :sincedb_write_interval, :sincedb_expiry_duration
+    attr_reader :sincedb_path, :sincedb_expiry_duration
     attr_reader :file_sort_by, :file_sort_direction
     attr_reader :exit_after_read
     attr_reader :check_archive_validity
@@ -41,7 +41,6 @@ module FileWatch
       @file_chunk_size = @opts[:file_chunk_size]
       @close_older = @opts[:close_older]
       @ignore_older = @opts[:ignore_older]
-      @sincedb_write_interval = @opts[:sincedb_write_interval]
       @stat_interval = @opts[:stat_interval]
       @discover_interval = @opts[:discover_interval]
       @exclude = Array(@opts[:exclude])

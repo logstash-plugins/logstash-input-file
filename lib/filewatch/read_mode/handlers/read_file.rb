@@ -19,8 +19,10 @@ module FileWatch module ReadMode module Handlers
           watched_file.listener.eof
           watched_file.file_close
           key = watched_file.sincedb_key
-          sincedb_collection.reading_completed(key)
-          sincedb_collection.clear_watched_file(key)
+          if sincedb_collection.get(key)
+            sincedb_collection.reading_completed(key)
+            sincedb_collection.clear_watched_file(key)
+          end
           watched_file.listener.deleted
           # NOTE: on top of un-watching we should also remove from the watched files collection
           # if the file is getting deleted (on completion), that part currently resides in

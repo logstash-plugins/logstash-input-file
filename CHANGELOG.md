@@ -1,3 +1,6 @@
+## 4.2.1
+  - Fix: skip sincedb eviction if read mode completion deletes file during flush [#273](https://github.com/logstash-plugins/logstash-input-file/pull/273)
+  
 ## 4.2.0
   - Fix: watched files performance with huge filesets [#268](https://github.com/logstash-plugins/logstash-input-file/pull/268) 
   - Updated logging to include full traces in debug (and trace) levels

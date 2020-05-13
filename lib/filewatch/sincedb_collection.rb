@@ -216,7 +216,7 @@ module FileWatch
         @write_method.call
         @serializer.expired_keys.each do |key|
           @sincedb[key].unset_watched_file
-          delete(key) # delete
+          delete(key)
           logger.trace? && logger.trace("sincedb_write: cleaned", :key => key)
         end
         @sincedb_last_write = time
