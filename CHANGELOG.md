@@ -1,3 +1,6 @@
+## 4.2.2
+  - Fix: sincedb_clean_after not being respected [#276](https://github.com/logstash-plugins/logstash-input-file/pull/276)
+
 ## 4.2.1
   - Fix: skip sincedb eviction if read mode completion deletes file during flush [#273](https://github.com/logstash-plugins/logstash-input-file/pull/273)
   
