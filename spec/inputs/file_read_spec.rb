@@ -309,7 +309,7 @@ describe LogStash::Inputs::File do
       super.merge(
           'sincedb_path' => sincedb_path,
           'sincedb_clean_after' => '1.0 seconds',
-          'sincedb_write_interval' => 0.5,
+          'sincedb_write_interval' => 0.25,
           'stat_interval' => 0.1,
       )
     end
@@ -338,10 +338,12 @@ describe LogStash::Inputs::File do
       sincedb_content = File.read(sincedb_path).strip
       expect( sincedb_content ).to_not be_empty
 
-      sleep(1.5) # > sincedb_clean_after
+      Stud.try(3.times) do
+        sleep(1.5) # > sincedb_clean_after
 
-      sincedb_content = File.read(sincedb_path).strip
-      expect( sincedb_content ).to be_empty
+        sincedb_content = File.read(sincedb_path).strip
+        expect( sincedb_content ).to be_empty
+      end
     end
 
   end
