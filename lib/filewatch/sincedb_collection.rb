@@ -183,8 +183,8 @@ module FileWatch
     private
 
     def flush_at_interval
-      now = Time.now.to_i
-      delta = now - @sincedb_last_write
+      now = Time.now
+      delta = now.to_i - @sincedb_last_write
       if delta >= @settings.sincedb_write_interval
         logger.debug("writing sincedb (delta since last write = #{delta})")
         sincedb_write(now)
@@ -210,33 +210,33 @@ module FileWatch
       end
     end
 
-    def sincedb_write(time = Time.now.to_i)
-      logger.trace("sincedb_write: to: #{path}")
+    def sincedb_write(time = Time.now)
+      logger.trace("sincedb_write: #{path} (time = #{time})")
       begin
-        @write_method.call
+        @write_method.call(time)
         @serializer.expired_keys.each do |key|
           @sincedb[key].unset_watched_file
           delete(key)
           logger.trace? && logger.trace("sincedb_write: cleaned", :key => key)
         end
-        @sincedb_last_write = time
+        @sincedb_last_write = time.to_i
         @write_requested = false
       rescue Errno::EACCES
         # no file handles free perhaps
         # maybe it will work next time
-        logger.trace("sincedb_write: error: #{path}: #{$!}")
+        logger.trace("sincedb_write: #{path} error: #{$!}")
       end
     end
 
-    def atomic_write
+    def atomic_write(time)
       FileHelper.write_atomically(@full_path) do |io|
-        @serializer.serialize(@sincedb, io)
+        @serializer.serialize(@sincedb, io, time.to_f)
       end
     end
 
-    def non_atomic_write
+    def non_atomic_write(time)
       IO.open(IO.sysopen(@full_path, "w+")) do |io|
-        @serializer.serialize(@sincedb, io)
+        @serializer.serialize(@sincedb, io, time.to_f)
       end
     end
   end
