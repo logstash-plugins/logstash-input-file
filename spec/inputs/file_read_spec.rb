@@ -301,25 +301,67 @@ describe LogStash::Inputs::File do
       watched_files = plugin.watcher.watch.watched_files_collection
       expect( watched_files ).to be_empty
     end
+  end
 
-    private
+  describe 'sincedb cleanup' do
 
-    def wait_for_start_processing(run_thread, timeout: 1.0)
-      begin
-        Timeout.timeout(timeout) do
-          sleep(0.01) while run_thread.status != 'sleep'
-          sleep(timeout) unless plugin.queue
-        end
-      rescue Timeout::Error
-        raise "plugin did not start processing (timeout: #{timeout})" unless plugin.queue
-      else
-        raise "plugin did not start processing" unless plugin.queue
+    let(:options) do
+      super.merge(
+          'sincedb_path' => sincedb_path,
+          'sincedb_clean_after' => '1.0 seconds',
+          'sincedb_write_interval' => 0.5,
+          'stat_interval' => 0.1,
+      )
+    end
+
+    let(:sincedb_path) { "#{temp_directory}/.sincedb" }
+
+    let(:sample_file) { File.join(temp_directory, "sample.txt") }
+
+    before do
+      plugin.register
+      @run_thread = Thread.new(plugin) do |plugin|
+        Thread.current.abort_on_exception = true
+        plugin.run queue
       end
+
+      File.open(sample_file, 'w') { |fd| fd.write("line1\nline2\n") }
+
+      wait_for_start_processing(@run_thread)
     end
 
-    def wait_for_file_removal(path, timeout: 3 * interval)
-      wait(timeout).for { File.exist?(path) }.to be_falsey
+    after { plugin.stop }
+
+    it 'cleans up sincedb entry' do
+      wait_for_file_removal(sample_file) # watched discovery
+
+      sincedb_content = File.read(sincedb_path).strip
+      expect( sincedb_content ).to_not be_empty
+
+      sleep(1.5) # > sincedb_clean_after
+
+      sincedb_content = File.read(sincedb_path).strip
+      expect( sincedb_content ).to be_empty
     end
 
+  end
+
+  private
+
+  def wait_for_start_processing(run_thread, timeout: 1.0)
+    begin
+      Timeout.timeout(timeout) do
+        sleep(0.01) while run_thread.status != 'sleep'
+        sleep(timeout) unless plugin.queue
+      end
+    rescue Timeout::Error
+      raise "plugin did not start processing (timeout: #{timeout})" unless plugin.queue
+    else
+      raise "plugin did not start processing" unless plugin.queue
+    end
+  end
+
+  def wait_for_file_removal(path, timeout: 3 * interval)
+    wait(timeout).for { File.exist?(path) }.to be_falsey
   end
 end

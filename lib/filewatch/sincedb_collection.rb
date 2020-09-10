@@ -180,8 +180,6 @@ module FileWatch
       get(key).watched_file.nil?
     end
 
-    private
-
     def flush_at_interval
       now = Time.now
       delta = now.to_i - @sincedb_last_write
@@ -190,6 +188,8 @@ module FileWatch
         sincedb_write(now)
       end
     end
+
+    private
 
     def handle_association(sincedb_value, watched_file)
       watched_file.update_bytes_read(sincedb_value.position)
