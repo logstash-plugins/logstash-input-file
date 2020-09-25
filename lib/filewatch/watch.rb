@@ -51,7 +51,10 @@ module FileWatch
           glob = 0
         end
         break if quit?
+        # NOTE: maybe the plugin should validate stat_interval <= sincedb_write_interval <= sincedb_clean_after
         sleep(@settings.stat_interval)
+        # we need to check potential expired keys (sincedb_clean_after) periodically
+        sincedb_collection.flush_at_interval
       end
       sincedb_collection.write_if_requested # does nothing if no requests to write were lodged.
       @watched_files_collection.close_all
