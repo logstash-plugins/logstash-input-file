@@ -209,8 +209,8 @@ module FileWatch
     def sincedb_write(time = Time.now)
       logger.trace? && logger.trace("sincedb_write: #{path} (time = #{time})")
       begin
-        @write_method.call(time)
-        @serializer.expired_keys.each do |key|
+        expired_keys = @write_method.call(time)
+        expired_keys.each do |key|
           @sincedb[key].unset_watched_file
           delete(key)
           logger.trace? && logger.trace("sincedb_write: cleaned", :key => key)
@@ -223,12 +223,14 @@ module FileWatch
       end
     end
 
+    # @return expired keys
     def atomic_write(time)
       FileHelper.write_atomically(@full_path) do |io|
         @serializer.serialize(@sincedb, io, time.to_f)
       end
     end
 
+    # @return expired keys
     def non_atomic_write(time)
       IO.open(IO.sysopen(@full_path, "w+")) do |io|
         @serializer.serialize(@sincedb, io, time.to_f)
