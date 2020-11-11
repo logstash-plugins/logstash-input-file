@@ -7,9 +7,9 @@ module LogStash module Inputs
   class FileListener
     attr_reader :input, :path, :data
     # construct with link back to the input plugin instance.
-    def initialize(path, input)
+    def initialize(path, input, data = nil)
       @path, @input = path, input
-      @data = nil
+      @data = data
     end
 
     def opened
@@ -36,7 +36,7 @@ module LogStash module Inputs
     def accept(data)
       # and push transient data filled dup listener downstream
       input.log_line_received(path, data)
-      input.codec.accept(dup_adding_state(data))
+      input.codec.accept(self.class.new(path, input, data))
     end
 
     def process_event(event)
@@ -45,17 +45,6 @@ module LogStash module Inputs
       input.post_process_this(event)
     end
 
-    def add_state(data)
-      @data = data
-      self
-    end
-
-    private
-
-    # duplicate and add state for downstream
-    def dup_adding_state(line)
-      self.class.new(path, input).add_state(line)
-    end
   end
 
   class FlushableListener < FileListener
