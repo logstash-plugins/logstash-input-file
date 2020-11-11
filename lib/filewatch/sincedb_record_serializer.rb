@@ -14,10 +14,6 @@ module FileWatch
       @expired_keys = []
     end
 
-    def update_sincedb_value_expiry_from_days(days)
-      @sincedb_value_expiry = SincedbRecordSerializer.days_to_seconds(days)
-    end
-
     def serialize(db, io, as_of = Time.now.to_f)
       @expired_keys.clear
       db.each do |key, value|
@@ -36,8 +32,7 @@ module FileWatch
     end
 
     def serialize_record(k, v)
-      # effectively InodeStruct#to_s SincedbValue#to_s
-      "#{k} #{v}\n"
+      "#{k} #{v}\n" # effectively InodeStruct#to_s SincedbValue#to_s
     end
 
     def deserialize_record(record)
