@@ -1,3 +1,43 @@
+## 4.2.2
+  - Fix: sincedb_clean_after not being respected [#276](https://github.com/logstash-plugins/logstash-input-file/pull/276)
+
+## 4.2.1
+  - Fix: skip sincedb eviction if read mode completion deletes file during flush [#273](https://github.com/logstash-plugins/logstash-input-file/pull/273)
+  
+## 4.2.0
+  - Fix: watched files performance with huge filesets [#268](https://github.com/logstash-plugins/logstash-input-file/pull/268) 
+  - Updated logging to include full traces in debug (and trace) levels
+
+## 4.1.18
+  - Fix: release watched files on completion (in read-mode) [#271](https://github.com/logstash-plugins/logstash-input-file/pull/271)
+
+## 4.1.17
+  - Added configuration setting `check_archive_validity` settings to enable
+  gzipped files verification, issue
+  [#261](https://github.com/logstash-plugins/logstash-input-file/issues/261)
+  - [DOC] Added clarification for settings available with `read` mode [#235](https://github.com/logstash-plugins/logstash-input-file/pull/235)
+  - [DOC] Rearranged text and fixed formatting for `mode` setting [266](https://github.com/logstash-plugins/logstash-input-file/pull/266)  
+
+## 4.1.16
+  - Added configuration setting exit_after_read to read to EOF and terminate
+  the input [#240](https://github.com/logstash-plugins/logstash-input-file/pull/240)
+
+## 4.1.15
+  - Fixed bug in conversion of sincedb_clean_after setting [#257](https://github.com/logstash-plugins/logstash-input-file/pull/257)
+
+## 4.1.14
+  - Fixed bug in delete of multiple watched files [#254](https://github.com/logstash-plugins/logstash-input-file/pull/254)
+
+## 4.1.13
+  - Fixed sinceDB to work spaces filename [#249](https://github.com/logstash-plugins/logstash-input-file/pull/249)
+
+## 4.1.12
+  - Fix regression in `exclude` handling. Patterns are matched against the filename, not full path.
+    [Issue #237](https://github.com/logstash-plugins/logstash-input-file/issues/237)
+
+## 4.1.11
+  - Fixed link to FAQ [#247](https://github.com/logstash-plugins/logstash-input-file/pull/247)
+
 ## 4.1.10
   - Fixed problem in Windows where some paths would fail to return an identifier ("inode"). Make path into a C style String before encoding to UTF-16LE. [#232](https://github.com/logstash-plugins/logstash-input-file/issues/232)
 

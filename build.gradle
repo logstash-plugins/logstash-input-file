@@ -59,10 +59,3 @@ task cleanGemjar {
 
 clean.dependsOn(cleanGemjar)
 jar.finalizedBy(copyGemjar)
-
-
-// See http://www.gradle.org/docs/current/userguide/gradle_wrapper.html
-task wrapper(type: Wrapper) {
-    description = 'Install Gradle wrapper'
-    gradleVersion = '4.9'
-}

@@ -1,6 +1,7 @@
 # encoding: utf-8
 
 require "logstash/devutils/rspec/spec_helper"
+require "rspec/wait"
 require "rspec_sequencing"
 
 module FileInput
@@ -14,6 +15,13 @@ module FileInput
 
   def self.make_fixture_current(path, time = Time.now)
     ::File.utime(time, time, path)
+  end
+
+  def self.corrupt_gzip(file_path)
+    f = File.open(file_path, "w")
+    f.seek(12)
+    f.puts 'corrupting_string'
+    f.close()
   end
 
   class TracerBase

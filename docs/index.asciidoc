@@ -164,10 +164,12 @@ see <<plugins-{type}s-{plugin}-string_duration,string_duration>> for the details
 [cols="<,<,<",options="header",]
 |=======================================================================
 |Setting |Input type|Required
+| <<plugins-{type}s-{plugin}-check_archive_validity>> |<<boolean,boolean>>|No
 | <<plugins-{type}s-{plugin}-close_older>> |<<number,number>> or <<plugins-{type}s-{plugin}-string_duration,string_duration>>|No
 | <<plugins-{type}s-{plugin}-delimiter>> |<<string,string>>|No
 | <<plugins-{type}s-{plugin}-discover_interval>> |<<number,number>>|No
 | <<plugins-{type}s-{plugin}-exclude>> |<<array,array>>|No
+| <<plugins-{type}s-{plugin}-exit_after_read>> |<<boolean,boolean>>|No
 | <<plugins-{type}s-{plugin}-file_chunk_count>> |<<number,number>>|No
 | <<plugins-{type}s-{plugin}-file_chunk_size>> |<<number,number>>|No
 | <<plugins-{type}s-{plugin}-file_completed_action>> |<<string,string>>, one of `["delete", "log", "log_and_delete"]`|No
@@ -189,6 +191,20 @@ Also see <<plugins-{type}s-{plugin}-common-options>> for a list of options suppo
 input plugins.
 
 &nbsp;
+
+[id="plugins-{type}s-{plugin}-check_archive_validity"]
+===== `check_archive_validity`
+
+  * Value type is <<boolean,boolean>>
+  * The default is `false`.
+
+When set to `true`, this setting verifies that a compressed file is valid before
+processing it. There are two passes through the file--one pass to
+verify that the file is valid, and another pass to process the file.
+
+Validating a compressed file requires more processing time, but can prevent a
+corrupt archive from causing looping.
+
 
 [id="plugins-{type}s-{plugin}-close_older"]
 ===== `close_older`
@@ -240,6 +256,19 @@ patterns are valid here, too. For example, if you have
 In Tail mode, you might want to exclude gzipped files:
 [source,ruby]
     exclude => "*.gz"
+
+[id="plugins-{type}s-{plugin}-exit_after_read"]
+===== `exit_after_read`
+
+  * Value type is <<boolean,boolean>>
+  * Default value is `false`
+
+This option can be used in `read` mode to enforce closing all watchers when file gets read.
+Can be used in situation when content of the file is static and won't change during execution.
+When set to `true` it also disables active discovery of the files - only files that were in 
+the directories when process was started will be read.
+It supports `sincedb` entries. When file was processed once, then modified - next run will only
+read newly added entries.
 
 [id="plugins-{type}s-{plugin}-file_chunk_count"]
 ===== `file_chunk_count`
@@ -341,16 +370,17 @@ A default of 4095 is set in internally.
 
 What mode do you want the file input to operate in. Tail a few files or
 read many content-complete files. Read mode now supports gzip file processing.
-If "read" is specified then the following other settings are ignored:
 
-. `start_position` (files are always read from the beginning)
-. `close_older` (files are automatically 'closed' when EOF is reached)
+If `read` is specified, these settings can be used:
 
-If "read" is specified then the following settings are heeded:
+* `ignore_older` (older files are not processed)
+* `file_completed_action` (what action should be taken when the file is processed)
+* `file_completed_log_path` (which file should the completed file path be logged to)
 
-. `ignore_older` (older files are not processed)
-. `file_completed_action` (what action should be taken when the file is processed)
-. `file_completed_log_path` (which file should the completed file path be logged to)
+If `read` is specified, these settings are ignored:
+
+* `start_position` (files are always read from the beginning)
+* `close_older` (files are automatically 'closed' when EOF is reached)
 
 [id="plugins-{type}s-{plugin}-path"]
 ===== `path`
@@ -379,7 +409,7 @@ The sincedb record now has a last active timestamp associated with it.
 If no changes are detected in a tracked file in the last N days its sincedb
 tracking record expires and will not be persisted.
 This option helps protect against the inode recycling problem.
-Filebeat has a {filebeat-ref}/faq.html#inode-reuse-issue[FAQ about inode recycling].
+Filebeat has a {filebeat-ref}/inode-reuse-issue.html[FAQ about inode recycling].
 
 [id="plugins-{type}s-{plugin}-sincedb_path"]
 ===== `sincedb_path`

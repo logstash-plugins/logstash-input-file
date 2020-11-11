@@ -6,15 +6,13 @@ module FileWatch
     attr_reader :max_active, :max_warn_msg, :lastwarn_max_files
     attr_reader :sincedb_write_interval, :stat_interval, :discover_interval
     attr_reader :exclude, :start_new_files_at, :file_chunk_count, :file_chunk_size
-    attr_reader :sincedb_path, :sincedb_write_interval, :sincedb_expiry_duration
+    attr_reader :sincedb_path, :sincedb_expiry_duration
     attr_reader :file_sort_by, :file_sort_direction
+    attr_reader :exit_after_read
+    attr_reader :check_archive_validity
 
     def self.from_options(opts)
       new.add_options(opts)
-    end
-
-    def self.days_to_seconds(days)
-      (24 * 3600) * days.to_f
     end
 
     def initialize
@@ -43,7 +41,6 @@ module FileWatch
       @file_chunk_size = @opts[:file_chunk_size]
       @close_older = @opts[:close_older]
       @ignore_older = @opts[:ignore_older]
-      @sincedb_write_interval = @opts[:sincedb_write_interval]
       @stat_interval = @opts[:stat_interval]
       @discover_interval = @opts[:discover_interval]
       @exclude = Array(@opts[:exclude])
@@ -51,9 +48,11 @@ module FileWatch
       @file_chunk_count = @opts[:file_chunk_count]
       @sincedb_path = @opts[:sincedb_path]
       @sincedb_write_interval = @opts[:sincedb_write_interval]
-      @sincedb_expiry_duration =  self.class.days_to_seconds(@opts.fetch(:sincedb_clean_after, 14))
+      @sincedb_expiry_duration =  @opts.fetch(:sincedb_clean_after)
       @file_sort_by = @opts[:file_sort_by]
       @file_sort_direction = @opts[:file_sort_direction]
+      @exit_after_read = @opts[:exit_after_read]
+      @check_archive_validity = @opts[:check_archive_validity]
       self
     end
 

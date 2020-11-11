@@ -73,7 +73,8 @@ module FileWatch
             FileUtils.mv(directory.join("1.logtmp").to_path, file1_path)
           end
           .then("wait for expectation") do
-            wait(2).for{listener1.calls}.to eq([:open, :accept, :accept, :accept])
+            sleep(0.25) # if ENV['CI']
+            wait(2).for { listener1.calls }.to eq([:open, :accept, :accept, :accept])
           end
           .then("quit") do
             tailing.quit

@@ -6,6 +6,7 @@ require "logstash/codecs/identity_map_codec"
 require "pathname"
 require "socket" # for Socket.gethostname
 require "fileutils"
+require "concurrent/atomic/atomic_reference"
 
 require_relative "file/patch"
 require_relative "file_listener"
@@ -222,6 +223,16 @@ class File < LogStash::Inputs::Base
   # perhaps path + asc will help to achieve the goal of controlling the order of file ingestion
   config :file_sort_direction, :validate => ["asc", "desc"], :default => "asc"
 
+  # When in 'read' mode - this option is closing all file watchers when EOF is hit
+  # This option also disables discovery of new/changes files. It works only on files found at the beginning
+  # Sincedb still works, if you run LS once again after doing some changes - only new values will be read
+  config :exit_after_read, :validate => :boolean, :default => false
+
+  # Before start read a compressed file, checks for its validity.
+  # This request a full read of the archive, so potentially could cost time.
+  # If not specified to true, and the file is corrupted, could end in cyclic processing of the broken file.
+  config :check_archive_validity, :validate => :boolean, :default => false
+
   public
 
   class << self
@@ -236,6 +247,9 @@ class File < LogStash::Inputs::Base
       old_validate_value(value, validator)
     end
   end
+
+  # @private used in specs
+  attr_reader :watcher
 
   def register
     require "addressable/uri"
@@ -260,9 +274,9 @@ class File < LogStash::Inputs::Base
       :file_chunk_size => @file_chunk_size,
       :file_sort_by => @file_sort_by,
       :file_sort_direction => @file_sort_direction,
+      :exit_after_read => @exit_after_read,
+      :check_archive_validity => @check_archive_validity,
     }
-
-    @completed_file_handlers = []
 
     @path.each do |path|
       if Pathname.new(path).relative?
@@ -280,7 +294,7 @@ class File < LogStash::Inputs::Base
         raise ArgumentError.new("The \"sincedb_path\" argument must point to a file, received a directory: \"#{@sincedb_path}\"")
       end
     end
-
+    
     @filewatch_config[:sincedb_path] = @sincedb_path
 
     @filewatch_config[:start_new_files_at] = @start_position.to_sym
@@ -301,18 +315,16 @@ class File < LogStash::Inputs::Base
     end
 
     if tail_mode?
+      if @exit_after_read
+        raise ArgumentError.new('The "exit_after_read" setting only works when the "mode" is set to "read"')
+      end
       @watcher_class = FileWatch::ObservingTail
     else
       @watcher_class = FileWatch::ObservingRead
-      if @file_completed_action.include?('log')
-        @completed_file_handlers << LogCompletedFileHandler.new(@file_completed_log_path)
-      end
-      if @file_completed_action.include?('delete')
-        @completed_file_handlers << DeleteCompletedFileHandler.new
-      end
     end
     @codec = LogStash::Codecs::IdentityMapCodec.new(@codec)
     @completely_stopped = Concurrent::AtomicBoolean.new
+    @queue = Concurrent::AtomicReference.new
   end # def register
 
   def completely_stopped?
@@ -320,8 +332,9 @@ class File < LogStash::Inputs::Base
     @completely_stopped.true?
   end
 
+  # The WatchedFile calls back here as `observer.listener_for(@path)`
+  # @param [String] path the identity
   def listener_for(path)
-    # path is the identity
     FileListener.new(path, self)
   end
 
@@ -329,13 +342,25 @@ class File < LogStash::Inputs::Base
     # if the pipeline restarts this input,
     # make sure previous files are closed
     stop
+
     @watcher = @watcher_class.new(@filewatch_config)
+
+    @completed_file_handlers = []
+    if read_mode?
+      if @file_completed_action.include?('log')
+        @completed_file_handlers << LogCompletedFileHandler.new(@file_completed_log_path)
+      end
+      if @file_completed_action.include?('delete')
+        @completed_file_handlers << DeleteCompletedFileHandler.new(@watcher.watch)
+      end
+    end
+
     @path.each { |path| @watcher.watch_this(path) }
   end
 
   def run(queue)
     start_processing
-    @queue = queue
+    @queue.set queue
     @watcher.subscribe(self) # halts here until quit is called
     # last action of the subscribe call is to write the sincedb
     exit_flush
@@ -346,7 +371,7 @@ class File < LogStash::Inputs::Base
     event.set("[@metadata][host]", @host)
     event.set("host", @host) unless event.include?("host")
     decorate(event)
-    @queue << event
+    @queue.get << event
   end
 
   def handle_deletable_path(path)
@@ -365,6 +390,11 @@ class File < LogStash::Inputs::Base
       @codec.close
       @watcher.quit
     end
+  end
+
+  # @private used in specs
+  def queue
+    @queue.get
   end
 
   private

@@ -1,6 +1,7 @@
 # encoding: utf-8
 
 require "helpers/spec_helper"
+require "logstash/devutils/rspec/shared_examples"
 require "logstash/inputs/file"
 
 require "tempfile"
@@ -66,7 +67,7 @@ describe LogStash::Inputs::File do
               path => "#{path_path}"
               start_position => "beginning"
               sincedb_path => "#{sincedb_path}"
-              "file_sort_by" => "path"
+              file_sort_by => "path"
               delimiter => "#{TEST_FILE_DELIMITER}"
             }
           }
@@ -184,6 +185,15 @@ describe LogStash::Inputs::File do
         expect { subject.register }.to raise_error(ArgumentError)
       end
     end
+
+    context "when mode it set to tail and exit_after_read equals true" do
+        subject { LogStash::Inputs::File.new("path" => path_path, "exit_after_read" => true, "mode" => "tail") }
+
+      it "should raise exception" do
+        expect { subject.register }.to raise_error(ArgumentError)
+      end
+    end
+
   end
 
   describe "testing with new, register, run and stop" do

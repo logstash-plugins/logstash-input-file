@@ -1,6 +1,6 @@
 # encoding: utf-8
 require "rspec_sequencing"
-# require 'rspec/wait'
+require 'rspec/wait'
 require "logstash/devutils/rspec/spec_helper"
 require "concurrent"
 require "timecop"
@@ -117,15 +117,10 @@ module FileWatch
     class Listener
       attr_reader :path, :lines, :calls
 
-      def initialize(path)
+      def initialize(path, lines)
         @path = path
-        @lines = Concurrent::Array.new
+        @lines = lines || Concurrent::Array.new
         @calls = Concurrent::Array.new
-      end
-
-      def add_lines(lines)
-        @lines = lines
-        self
       end
 
       def accept(line)
@@ -152,17 +147,16 @@ module FileWatch
       def timed_out
         @calls << :timed_out
       end
+
+      def reading_completed
+        @calls << :reading_completed
+      end
     end
 
     attr_reader :listeners
 
     def initialize(combined_lines = nil)
-      listener_proc = if combined_lines.nil?
-        lambda{|k| Listener.new(k) }
-      else
-        lambda{|k| Listener.new(k).add_lines(combined_lines) }
-      end
-      @listeners = Concurrent::Hash.new {|hash, key| hash[key] = listener_proc.call(key) }
+      @listeners = Concurrent::Hash.new { |hash, key| hash[key] = new_listener(key, combined_lines) }
     end
 
     def listener_for(path)
@@ -170,6 +164,14 @@ module FileWatch
     end
 
     def clear
-      @listeners.clear; end
+      @listeners.clear
+    end
+
+    private
+
+    def new_listener(path, lines = nil)
+      Listener.new(path, lines)
+    end
+
   end
 end

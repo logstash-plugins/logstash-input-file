@@ -1,26 +1,25 @@
 # encoding: utf-8
 require "logstash/util/loggable"
+require "concurrent/atomic/atomic_boolean"
 
 module FileWatch
   class Watch
     include LogStash::Util::Loggable
 
     attr_accessor :lastwarn_max_files
-    attr_reader :discoverer, :watched_files_collection
+    attr_reader :discoverer, :processor, :watched_files_collection
 
-    def initialize(discoverer, watched_files_collection, settings)
+    def initialize(discoverer, processor, settings)
+      @discoverer = discoverer
+      @watched_files_collection = discoverer.watched_files_collection
       @settings = settings
+
       # we need to be threadsafe about the quit mutation
       @quit = Concurrent::AtomicBoolean.new(false)
       @lastwarn_max_files = 0
-      @discoverer = discoverer
-      @watched_files_collection = watched_files_collection
-    end
 
-    def add_processor(processor)
       @processor = processor
       @processor.add_watch(self)
-      self
     end
 
     def watch(path)
@@ -43,15 +42,19 @@ module FileWatch
       reset_quit
       until quit?
         iterate_on_state
+        # Don't discover new files when files to read are known at the beginning
         break if quit?
         sincedb_collection.write_if_requested
         glob += 1
-        if glob == interval
+        if glob == interval && !@settings.exit_after_read
           discover
           glob = 0
         end
         break if quit?
+        # NOTE: maybe the plugin should validate stat_interval <= sincedb_write_interval <= sincedb_clean_after
         sleep(@settings.stat_interval)
+        # we need to check potential expired keys (sincedb_clean_after) periodically
+        sincedb_collection.flush_at_interval
       end
       sincedb_collection.write_if_requested # does nothing if no requests to write were lodged.
       @watched_files_collection.close_all
@@ -66,17 +69,16 @@ module FileWatch
         watched_files = @watched_files_collection.values
         @processor.process_all_states(watched_files)
       ensure
-        @watched_files_collection.delete(@processor.deletable_filepaths)
-        @processor.deletable_filepaths.clear
+        @watched_files_collection.remove_paths(@processor.clear_deletable_paths)
       end
-    end # def each
+    end
 
     def quit
       @quit.make_true
     end
 
     def quit?
-      @quit.true?
+      @quit.true? || (@settings.exit_after_read && @watched_files_collection.empty?)
     end
 
     private

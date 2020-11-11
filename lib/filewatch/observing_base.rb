@@ -62,8 +62,7 @@ module FileWatch
       @sincedb_collection = SincedbCollection.new(@settings)
       @sincedb_collection.open
       discoverer = Discoverer.new(watched_files_collection, @sincedb_collection, @settings)
-      @watch = Watch.new(discoverer, watched_files_collection, @settings)
-      @watch.add_processor build_specific_processor(@settings)
+      @watch = Watch.new(discoverer, build_specific_processor(@settings), @settings)
     end
 
     def watch_this(path)
@@ -84,15 +83,5 @@ module FileWatch
       # sincedb_write("shutting down")
     end
 
-    # close_file(path) is to be used by external code
-    # when it knows that it is completely done with a file.
-    # Other files or folders may still be being watched.
-    # Caution, once unwatched, a file can't be watched again
-    # unless a new instance of this class begins watching again.
-    # The sysadmin should rename, move or delete the file.
-    def close_file(path)
-      @watch.unwatch(path)
-      sincedb_write
-    end
   end
 end

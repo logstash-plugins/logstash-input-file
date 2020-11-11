@@ -39,6 +39,11 @@ bundle install
 bundle install
 ```
 
+ - Build the jar library used for watching files
+```bash
+./gradlew build
+```
+
 - Run tests
 
 ```sh

@@ -56,12 +56,12 @@ module FileWatch
         logger.trace("open: count of keys read: #{@sincedb.keys.size}")
       rescue => e
         #No existing sincedb to load
-        logger.trace("open: error: #{path}: #{e.inspect}")
+        logger.trace("open: error:", :path => path, :exception => e.class, :message => e.message)
       end
     end
 
     def associate(watched_file)
-      logger.trace("associate: finding", "inode" => watched_file.sincedb_key.inode, "path" => watched_file.path)
+      logger.trace? && logger.trace("associate: finding", :path => watched_file.path, :inode => watched_file.sincedb_key.inode)
       sincedb_value = find(watched_file)
       if sincedb_value.nil?
         # sincedb has no record of this inode
@@ -71,7 +71,8 @@ module FileWatch
         logger.trace("associate: unmatched")
         return true
       end
-      logger.trace("associate: found sincedb record", "filename" => watched_file.filename, "sincedb key" => watched_file.sincedb_key,"sincedb_value" => sincedb_value)
+      logger.trace? && logger.trace("associate: found sincedb record", :filename => watched_file.filename,
+                                    :sincedb_key => watched_file.sincedb_key, :sincedb_value => sincedb_value)
       if sincedb_value.watched_file.nil?
         # not associated
         if sincedb_value.path_in_sincedb.nil?
@@ -106,7 +107,8 @@ module FileWatch
       #   after the original is deleted
       # are not yet in the delete phase, let this play out
       existing_watched_file = sincedb_value.watched_file
-      logger.trace("----------------- >> associate: the found sincedb_value has a watched_file - this is a rename", "this watched_file details" => watched_file.details, "other watched_file details" => existing_watched_file.details)
+      logger.trace? && logger.trace("----------------- >> associate: the found sincedb_value has a watched_file - this is a rename",
+                                    :this_watched_file => watched_file.details, :existing_watched_file => existing_watched_file.details)
       watched_file.rotation_in_progress
       true
     end
@@ -149,8 +151,8 @@ module FileWatch
     end
 
     def watched_file_deleted(watched_file)
-      return unless member?(watched_file.sincedb_key)
-      get(watched_file.sincedb_key).unset_watched_file
+      value = @sincedb[watched_file.sincedb_key]
+      value.unset_watched_file if value
     end
 
     def store_last_read(key, pos)
@@ -178,16 +180,16 @@ module FileWatch
       get(key).watched_file.nil?
     end
 
-    private
-
     def flush_at_interval
-      now = Time.now.to_i
-      delta = now - @sincedb_last_write
+      now = Time.now
+      delta = now.to_i - @sincedb_last_write
       if delta >= @settings.sincedb_write_interval
         logger.debug("writing sincedb (delta since last write = #{delta})")
         sincedb_write(now)
       end
     end
+
+    private
 
     def handle_association(sincedb_value, watched_file)
       watched_file.update_bytes_read(sincedb_value.position)
@@ -202,7 +204,7 @@ module FileWatch
       watched_file.initial_completed
       if watched_file.all_read?
         watched_file.ignore
-        logger.trace("handle_association fully read, ignoring.....", "watched file" => watched_file.details, "sincedb value" => sincedb_value)
+        logger.trace? && logger.trace("handle_association fully read, ignoring.....", :watched_file => watched_file.details, :sincedb_value => sincedb_value)
       end
     end
 
@@ -215,33 +217,33 @@ module FileWatch
       end
     end
 
-    def sincedb_write(time = Time.now.to_i)
-      logger.trace("sincedb_write: to: #{path}")
+    def sincedb_write(time = Time.now)
+      logger.trace("sincedb_write: #{path} (time = #{time})")
       begin
-        @write_method.call
+        @write_method.call(time)
         @serializer.expired_keys.each do |key|
           @sincedb[key].unset_watched_file
           delete(key)
-          logger.trace("sincedb_write: cleaned", "key" => "'#{key}'")
+          logger.trace? && logger.trace("sincedb_write: cleaned", :key => key)
         end
-        @sincedb_last_write = time
+        @sincedb_last_write = time.to_i
         @write_requested = false
       rescue Errno::EACCES
         # no file handles free perhaps
         # maybe it will work next time
-        logger.trace("sincedb_write: error: #{path}: #{$!}")
+        logger.trace("sincedb_write: #{path} error: #{$!}")
       end
     end
 
-    def atomic_write
+    def atomic_write(time)
       FileHelper.write_atomically(@full_path) do |io|
-        @serializer.serialize(@sincedb, io)
+        @serializer.serialize(@sincedb, io, time.to_f)
       end
     end
 
-    def non_atomic_write
+    def non_atomic_write(time)
       IO.open(IO.sysopen(@full_path, "w+")) do |io|
-        @serializer.serialize(@sincedb, io)
+        @serializer.serialize(@sincedb, io, time.to_f)
       end
     end
   end
