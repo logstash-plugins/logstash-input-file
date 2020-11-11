@@ -47,16 +47,16 @@ module FileWatch
       @time_sdb_opened = Time.now.to_f
       begin
         path.open do |file|
-          logger.trace("open: reading from #{path}")
+          logger.debug("open: reading from #{path}")
           @serializer.deserialize(file) do |key, value|
-            logger.trace("open: importing ... '#{key}' => '#{value}'")
+            logger.trace? && logger.trace("open: importing #{key.inspect} => #{value.inspect}")
             set_key_value(key, value)
           end
         end
         logger.trace("open: count of keys read: #{@sincedb.keys.size}")
       rescue => e
         #No existing sincedb to load
-        logger.trace("open: error:", :path => path, :exception => e.class, :message => e.message)
+        logger.debug("open: error opening #{path}", :exception => e.class, :message => e.message)
       end
     end
 
@@ -68,35 +68,32 @@ module FileWatch
         # and due to the window handling of many files
         # this file may not be opened in this session.
         # a new value will be added when the file is opened
-        logger.trace("associate: unmatched")
+        logger.trace("associate: unmatched", :filename => watched_file.filename)
         return true
       end
       logger.trace? && logger.trace("associate: found sincedb record", :filename => watched_file.filename,
                                     :sincedb_key => watched_file.sincedb_key, :sincedb_value => sincedb_value)
-      if sincedb_value.watched_file.nil?
-        # not associated
+      if sincedb_value.watched_file.nil? # not associated
         if sincedb_value.path_in_sincedb.nil?
           handle_association(sincedb_value, watched_file)
-          logger.trace("associate: inode matched but no path in sincedb")
+          logger.trace? && logger.trace("associate: inode matched but no path in sincedb", :filename => watched_file.filename)
           return true
         end
         if sincedb_value.path_in_sincedb == watched_file.path
-          # the path on disk is the same as discovered path
-          # and the inode is the same.
+          # the path on disk is the same as discovered path and the inode is the same.
           handle_association(sincedb_value, watched_file)
-          logger.trace("associate: inode and path matched")
+          logger.trace? && logger.trace("associate: inode and path matched", :filename => watched_file.filename)
           return true
         end
-        # the path on disk is different from discovered unassociated path
-        # but they have the same key (inode)
+        # the path on disk is different from discovered unassociated path but they have the same key (inode)
         # treat as a new file, a new value will be added when the file is opened
         sincedb_value.clear_watched_file
         delete(watched_file.sincedb_key)
-        logger.trace("associate: matched but allocated to another")
+        logger.trace? && logger.trace("associate: matched but allocated to another", :filename => watched_file.filename)
         return true
       end
       if sincedb_value.watched_file.equal?(watched_file) # pointer equals
-        logger.trace("associate: already associated")
+        logger.trace? && logger.trace("associate: already associated", :filename => watched_file.filename)
         return true
       end
       # sincedb_value.watched_file is not this discovered watched_file but they have the same key (inode)
@@ -107,7 +104,7 @@ module FileWatch
       #   after the original is deleted
       # are not yet in the delete phase, let this play out
       existing_watched_file = sincedb_value.watched_file
-      logger.trace? && logger.trace("----------------- >> associate: the found sincedb_value has a watched_file - this is a rename",
+      logger.trace? && logger.trace("associate: found sincedb_value has a watched_file - this is a rename",
                                     :this_watched_file => watched_file.details, :existing_watched_file => existing_watched_file.details)
       watched_file.rotation_in_progress
       true
@@ -197,21 +194,20 @@ module FileWatch
       watched_file.initial_completed
       if watched_file.all_read?
         watched_file.ignore
-        logger.trace? && logger.trace("handle_association fully read, ignoring.....", :watched_file => watched_file.details, :sincedb_value => sincedb_value)
+        logger.trace? && logger.trace("handle_association fully read, ignoring", :watched_file => watched_file.details, :sincedb_value => sincedb_value)
       end
     end
 
     def set_key_value(key, value)
       if @time_sdb_opened < value.last_changed_at_expires(@settings.sincedb_expiry_duration)
-        logger.trace("open: setting #{key.inspect} to #{value.inspect}")
         set(key, value)
       else
-        logger.trace("open: record has expired, skipping: #{key.inspect} #{value.inspect}")
+        logger.debug("set_key_value: record has expired, skipping: #{key.inspect} => #{value.inspect}")
       end
     end
 
     def sincedb_write(time = Time.now)
-      logger.trace("sincedb_write: #{path} (time = #{time})")
+      logger.trace? && logger.trace("sincedb_write: #{path} (time = #{time})")
       begin
         @write_method.call(time)
         @serializer.expired_keys.each do |key|
@@ -221,10 +217,9 @@ module FileWatch
         end
         @sincedb_last_write = time.to_i
         @write_requested = false
-      rescue Errno::EACCES
-        # no file handles free perhaps
-        # maybe it will work next time
-        logger.trace("sincedb_write: #{path} error: #{$!}")
+      rescue Errno::EACCES => e
+        # no file handles free perhaps - maybe it will work next time
+        logger.debug("sincedb_write: #{path} error:", :exception => e.class, :message => e.message)
       end
     end
 

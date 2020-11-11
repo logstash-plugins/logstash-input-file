@@ -377,6 +377,7 @@ class File < LogStash::Inputs::Base
   def handle_deletable_path(path)
     return if tail_mode?
     return if @completed_file_handlers.empty?
+    @logger.debug(__method__.to_s, :path => path)
     @completed_file_handlers.each { |handler| handler.handle(path) }
   end
 

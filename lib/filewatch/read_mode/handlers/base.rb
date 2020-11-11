@@ -19,7 +19,7 @@ module FileWatch module ReadMode module Handlers
     end
 
     def handle(watched_file)
-      logger.trace("handling: #{watched_file.path}")
+      logger.trace? && logger.trace("handling:", :path => watched_file.path)
       unless watched_file.has_listener?
         watched_file.set_listener(@observer)
       end
