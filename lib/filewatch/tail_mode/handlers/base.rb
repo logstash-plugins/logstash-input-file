@@ -57,13 +57,13 @@ module FileWatch module TailMode module Handlers
             # sincedb position is now independent from the watched_file bytes_read
             sincedb_collection.increment(watched_file.sincedb_key, line.bytesize + @settings.delimiter_byte_size)
           end
-        rescue EOFError
+        rescue EOFError => e
           # it only makes sense to signal EOF in "read" mode not "tail"
-          logger.debug("#{__method__} EOF", :path => watched_file.path)
+          logger.debug(__method__.to_s, exception_details(watched_file.path, e, false))
           loop_control.flag_read_error
           break
         rescue Errno::EWOULDBLOCK, Errno::EINTR => e
-          logger.debug("#{__method__} #{e.inspect}", :path => watched_file.path)
+          logger.debug(__method__.to_s, exception_details(watched_file.path, e, false))
           watched_file.listener.error
           loop_control.flag_read_error
           break
