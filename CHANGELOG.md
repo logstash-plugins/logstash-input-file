@@ -1,3 +1,6 @@
+## 4.2.3
+  - Refactor: improve debug logging (log catched exceptions) [#280](https://github.com/logstash-plugins/logstash-input-file/pull/280)
+
 ## 4.2.2
   - Fix: sincedb_clean_after not being respected [#276](https://github.com/logstash-plugins/logstash-input-file/pull/276)
 

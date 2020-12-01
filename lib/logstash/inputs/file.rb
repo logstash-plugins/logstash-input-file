@@ -377,12 +377,12 @@ class File < LogStash::Inputs::Base
   def handle_deletable_path(path)
     return if tail_mode?
     return if @completed_file_handlers.empty?
+    @logger.debug? && @logger.debug(__method__.to_s, :path => path)
     @completed_file_handlers.each { |handler| handler.handle(path) }
   end
 
   def log_line_received(path, line)
-    return unless @logger.debug?
-    @logger.debug("Received line", :path => path, :text => line)
+    @logger.debug? && @logger.debug("Received line", :path => path, :text => line)
   end
 
   def stop

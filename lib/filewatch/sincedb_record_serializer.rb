@@ -3,30 +3,25 @@
 module FileWatch
   class SincedbRecordSerializer
 
-    attr_reader :expired_keys
-
     def self.days_to_seconds(days)
       (24 * 3600) * days.to_f
     end
 
     def initialize(sincedb_value_expiry)
       @sincedb_value_expiry = sincedb_value_expiry
-      @expired_keys = []
     end
 
-    def update_sincedb_value_expiry_from_days(days)
-      @sincedb_value_expiry = SincedbRecordSerializer.days_to_seconds(days)
-    end
-
+    # @return Array expired keys (ones that were not written to the file)
     def serialize(db, io, as_of = Time.now.to_f)
-      @expired_keys.clear
+      expired_keys = []
       db.each do |key, value|
         if as_of > value.last_changed_at_expires(@sincedb_value_expiry)
-          @expired_keys << key
+          expired_keys << key
           next
         end
         io.write(serialize_record(key, value))
       end
+      expired_keys
     end
 
     def deserialize(io)
@@ -36,8 +31,7 @@ module FileWatch
     end
 
     def serialize_record(k, v)
-      # effectively InodeStruct#to_s SincedbValue#to_s
-      "#{k} #{v}\n"
+      "#{k} #{v}\n" # effectively InodeStruct#to_s SincedbValue#to_s
     end
 
     def deserialize_record(record)

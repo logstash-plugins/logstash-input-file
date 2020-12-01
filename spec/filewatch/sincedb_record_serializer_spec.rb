@@ -9,7 +9,9 @@ module FileWatch
     let(:io) { StringIO.new }
     let(:db) { Hash.new }
 
-    subject { SincedbRecordSerializer.new(SincedbRecordSerializer.days_to_seconds(14)) }
+    let(:sincedb_value_expiry) { SincedbRecordSerializer.days_to_seconds(14) }
+
+    subject { SincedbRecordSerializer.new(sincedb_value_expiry) }
 
     context "deserialize from IO" do
       it 'reads V1 records' do
@@ -82,8 +84,10 @@ module FileWatch
     end
 
     context "given a non default `sincedb_clean_after`" do
+
+      let(:sincedb_value_expiry) { SincedbRecordSerializer.days_to_seconds(2) }
+
       it "does not write expired db entries to an IO object" do
-        subject.update_sincedb_value_expiry_from_days(2)
         one_day_ago = Time.now.to_f - (1.0*24*3600)
         three_days_ago = one_day_ago - (2.0*24*3600)
         db[InodeStruct.new("42424242", 2, 5)] = SincedbValue.new(42, one_day_ago)
