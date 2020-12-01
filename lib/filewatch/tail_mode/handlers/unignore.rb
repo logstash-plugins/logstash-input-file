@@ -15,7 +15,7 @@ module FileWatch module TailMode module Handlers
       # logger.trace("get_new_value_specifically", "watched_file" => watched_file.inspect)
       SincedbValue.new(watched_file.bytes_read).tap do |sincedb_value|
         sincedb_value.set_watched_file(watched_file)
-        logger.trace("get_new_value_specifically: unignore", :watched_file => watched_file.details, :sincedb_value => sincedb_value)
+        logger.trace? && logger.trace("get_new_value_specifically: unignore", :watched_file => watched_file.details, :sincedb_value => sincedb_value)
       end
     end
 
@@ -26,7 +26,7 @@ module FileWatch module TailMode module Handlers
       # we will handle grow or shrink
       # for now we seek to where we were before the file got ignored (grow)
       # or to the start (shrink)
-      logger.trace("update_existing_specifically: unignore", :watched_file => watched_file.details, :sincedb_value => sincedb_value)
+      logger.trace? && logger.trace("update_existing_specifically: unignore", :watched_file => watched_file.details, :sincedb_value => sincedb_value)
       position = 0
       if watched_file.shrunk?
         watched_file.update_bytes_read(0)

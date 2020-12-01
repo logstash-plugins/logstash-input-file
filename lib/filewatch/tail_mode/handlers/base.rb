@@ -37,7 +37,7 @@ module FileWatch module TailMode module Handlers
 
     def controlled_read(watched_file, loop_control)
       changed = false
-      logger.trace(__method__.to_s, :iterations => loop_control.count, :amount => loop_control.size, :filename => watched_file.filename)
+      logger.trace? && logger.trace(__method__.to_s, :iterations => loop_control.count, :amount => loop_control.size, :filename => watched_file.filename)
       # from a real config (has 102 file inputs)
       # -- This cfg creates a file input for every log file to create a dedicated file pointer and read all file simultaneously
       # -- If we put all log files in one file input glob we will have indexing delay, because Logstash waits until the first file becomes EOF
@@ -48,7 +48,7 @@ module FileWatch module TailMode module Handlers
       loop_control.count.times do
         break if quit?
         begin
-          logger.debug("#{__method__} get chunk")
+          logger.debug? && logger.debug("#{__method__} get chunk")
           result = watched_file.read_extract_lines(loop_control.size) # expect BufferExtractResult
           logger.trace(result.warning, result.additional) unless result.warning.empty?
           changed = true
@@ -110,8 +110,8 @@ module FileWatch module TailMode module Handlers
         update_existing_sincedb_collection_value(watched_file, sincedb_value)
         watched_file.initial_completed
       else
-        logger.trace("add_or_update_sincedb_collection: found sincedb record",
-                     :sincedb_key => watched_file.sincedb_key, :sincedb_value => sincedb_value)
+        logger.trace? && logger.trace("add_or_update_sincedb_collection: found sincedb record",
+                                      :sincedb_key => watched_file.sincedb_key, :sincedb_value => sincedb_value)
         # detected a rotation, Discoverer can't handle this because this watched file is not a new discovery.
         # we must handle it here, by transferring state and have the sincedb value track this watched file
         # rotate_as_file and rotate_from will switch the sincedb key to the inode that the path is now pointing to
@@ -120,12 +120,12 @@ module FileWatch module TailMode module Handlers
         existing_watched_file = sincedb_value.watched_file
         if existing_watched_file.nil?
           sincedb_value.set_watched_file(watched_file)
-          logger.trace("add_or_update_sincedb_collection: switching as new file")
+          logger.trace? && logger.trace("add_or_update_sincedb_collection: switching as new file")
           watched_file.rotate_as_file
           watched_file.update_bytes_read(sincedb_value.position)
         else
           sincedb_value.set_watched_file(watched_file)
-          logger.trace("add_or_update_sincedb_collection: switching from:", :watched_file => watched_file.details)
+          logger.trace? && logger.trace("add_or_update_sincedb_collection: switching from:", :watched_file => watched_file.details)
           watched_file.rotate_from(existing_watched_file)
         end
       end
@@ -133,14 +133,15 @@ module FileWatch module TailMode module Handlers
     end
 
     def update_existing_sincedb_collection_value(watched_file, sincedb_value)
-      logger.trace("update_existing_sincedb_collection_value", :position => sincedb_value.position,
-                   :filename => watched_file.filename, :last_stat_size => watched_file.last_stat_size)
+      logger.trace? && logger.trace("update_existing_sincedb_collection_value", :position => sincedb_value.position,
+                                    :filename => watched_file.filename, :last_stat_size => watched_file.last_stat_size)
       update_existing_specifically(watched_file, sincedb_value)
     end
 
     def add_new_value_sincedb_collection(watched_file)
       sincedb_value = get_new_value_specifically(watched_file)
-      logger.trace("add_new_value_sincedb_collection", :position => sincedb_value.position, :watched_file => watched_file.details)
+      logger.trace? && logger.trace("add_new_value_sincedb_collection", :position => sincedb_value.position,
+                                    :watched_file => watched_file.details)
       sincedb_collection.set(watched_file.sincedb_key, sincedb_value)
       sincedb_value
     end

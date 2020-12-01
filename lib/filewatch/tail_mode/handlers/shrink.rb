@@ -17,7 +17,7 @@ module FileWatch module TailMode module Handlers
       # we have a match but size is smaller - set all to zero
       watched_file.reset_bytes_unread
       sincedb_value.update_position(0)
-      logger.trace("update_existing_specifically: was truncated seeking to beginning", :watched_file => watched_file.details, :sincedb_value => sincedb_value)
+      logger.trace? && logger.trace("update_existing_specifically: was truncated seeking to beginning", :watched_file => watched_file.details, :sincedb_value => sincedb_value)
     end
   end
 end end end
