@@ -201,7 +201,10 @@ describe LogStash::Inputs::File do
     let(:conf)         { Hash.new }
     let(:mlconf)       { Hash.new }
     let(:events)       { Array.new }
-    let(:mlcodec)      { LogStash::Codecs::Multiline.new(mlconf) }
+    let(:mlcodec)      {
+      puts " The value of mlconf is #{mlconf}"
+      LogStash::Codecs::Multiline.new(mlconf)
+    }
     let(:tracer_codec) { FileInput::CodecTracer.new }
     let(:tmpdir_path)  { Stud::Temporary.directory }
     let(:tmpfile_path) { ::File.join(tmpdir_path, "#{suffix}.txt") }
