@@ -4,5 +4,6 @@ import:
 before_install:
   - mkdir -p .ci && curl -sL https://github.com/logstash-plugins/.ci/archive/1.x.tar.gz | tar zxvf - --skip-old-files --strip-components=1 -C .ci --wildcards "*Dockerfile*" "*docker*" "*.sh"
   - sudo apt-get install jq
+  - sudo apt-get install libseccomp-dev
 arch:
   - arm64
