@@ -4,6 +4,8 @@ import:
 before_install:
   - sudo apt-get install jq
   - sudo apt-get install libseccomp-dev
+  - sudo locale-gen en_US.UTF-8
+  - sudo dpkg-reconfigure locales
 arch:
   - arm64
   - amd64
