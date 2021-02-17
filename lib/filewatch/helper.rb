@@ -38,8 +38,13 @@ module FileHelper
     return return_val if old_stat.nil?
 
     # Set correct uid/gid on new file
-    File.chown(old_stat.uid, old_stat.gid, file_name) if old_stat
-
+    if old_stat
+      begin
+        File.chown(old_stat.uid, old_stat.gid, file_name)
+      rescue Errno::EPERM => e
+        logger.error("sincedb_write: #{file_name} error:", :old_stat => old_stat, :exception => e.class, :message => e.message)
+      end
+    end
     return_val
   end
 
