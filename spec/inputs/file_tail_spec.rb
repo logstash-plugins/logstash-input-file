@@ -225,7 +225,7 @@ describe LogStash::Inputs::File do
           fd.puts("ignore me 2")
           fd.fsync
         end
-        mlconf.update("pattern" => "^\s", "what" => "previous")
+        mlconf.update("pattern" => "^\\s", "what" => "previous")
         conf.update("type" => "blah",
               "path" => path_path,
               "sincedb_path" => sincedb_path,
@@ -344,7 +344,7 @@ describe LogStash::Inputs::File do
       let(:suffix)       { "J" }
       let(:tmpfile_path2) { ::File.join(tmpdir_path, "K.txt") }
       before do
-        mlconf.update("pattern" => "^\s", "what" => "previous")
+        mlconf.update("pattern" => "^\\s", "what" => "previous")
         conf.update(
               "type" => "blah",
               "path" => path_path,
