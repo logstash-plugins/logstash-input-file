@@ -3,8 +3,10 @@
 # https://raw.githubusercontent.com/rails/rails/v4.2.1/activesupport/lib/active_support/core_ext/file/atomic.rb
 # change method name to avoid borking active_support and vice versa
 require 'fileutils'
+require "logstash/util/loggable"
 
 module FileHelper
+  include LogStash::Util::Loggable
   extend self
   # Write to a file atomically. Useful for situations where you don't
   # want other processes or threads to see half-written files.
