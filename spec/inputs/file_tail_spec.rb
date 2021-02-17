@@ -196,316 +196,316 @@ describe LogStash::Inputs::File do
 
   end
 
-  # describe "testing with new, register, run and stop" do
-  #   let(:suffix)       { "A" }
-  #   let(:conf)         { Hash.new }
-  #   let(:mlconf)       { Hash.new }
-  #   let(:events)       { Array.new }
-  #   let(:mlcodec)      { LogStash::Codecs::Multiline.new(mlconf) }
-  #   let(:tracer_codec) { FileInput::CodecTracer.new }
-  #   let(:tmpdir_path)  { Stud::Temporary.directory }
-  #   let(:tmpfile_path) { ::File.join(tmpdir_path, "#{suffix}.txt") }
-  #   let(:path_path)    { ::File.join(tmpdir_path, "*.txt") }
-  #   let(:sincedb_path) { ::File.join(tmpdir_path, "sincedb-#{suffix}") }
-  #
-  #   after :each do
-  #     sleep(0.1) until subject.completely_stopped?
-  #     FileUtils.rm_rf(sincedb_path)
-  #   end
-  #
-  #   context "when data exists and then more data is appended" do
-  #     subject { described_class.new(conf) }
-  #
-  #     before do
-  #       File.open(tmpfile_path, "w") do |fd|
-  #         fd.puts("ignore me 1")
-  #         fd.puts("ignore me 2")
-  #         fd.fsync
-  #       end
-  #       mlconf.update("pattern" => "^\s", "what" => "previous")
-  #       conf.update("type" => "blah",
-  #             "path" => path_path,
-  #             "sincedb_path" => sincedb_path,
-  #             "stat_interval" => 0.1,
-  #             "codec" => mlcodec,
-  #             "delimiter" => TEST_FILE_DELIMITER)
-  #     end
-  #
-  #     it "reads the appended data only" do
-  #       subject.register
-  #       actions = RSpec::Sequencing
-  #         .run_after(1, "append two lines after delay") do
-  #           File.open(tmpfile_path, "a") { |fd| fd.puts("hello"); fd.puts("world") }
-  #         end
-  #         .then("wait for one event") do
-  #           wait(0.75).for{events.size}.to eq(1)
-  #         end
-  #         .then("quit") do
-  #           subject.stop
-  #         end
-  #         .then("wait for flushed event") do
-  #           wait(0.75).for{events.size}.to eq(2)
-  #         end
-  #
-  #       subject.run(events)
-  #       actions.assert_no_errors
-  #
-  #       event1 = events[0]
-  #       expect(event1).not_to be_nil
-  #       expect(event1.get("path")).to eq tmpfile_path
-  #       expect(event1.get("[@metadata][path]")).to eq tmpfile_path
-  #       expect(event1.get("message")).to eq "hello"
-  #
-  #       event2 = events[1]
-  #       expect(event2).not_to be_nil
-  #       expect(event2.get("path")).to eq tmpfile_path
-  #       expect(event2.get("[@metadata][path]")).to eq tmpfile_path
-  #       expect(event2.get("message")).to eq "world"
-  #     end
-  #   end
-  #
-  #   context "when close_older config is specified" do
-  #     let(:line)         { "line1.1-of-a" }
-  #     let(:suffix)       { "X" }
-  #     subject { described_class.new(conf) }
-  #
-  #     before do
-  #       conf.update(
-  #             "type" => "blah",
-  #             "path" => path_path,
-  #             "sincedb_path" => sincedb_path,
-  #             "stat_interval" => 0.02,
-  #             "codec" => tracer_codec,
-  #             "close_older" => "100 ms",
-  #             "start_position" => "beginning",
-  #             "delimiter" => TEST_FILE_DELIMITER)
-  #
-  #       subject.register
-  #     end
-  #
-  #     it "having timed_out, the codec is auto flushed" do
-  #       actions = RSpec::Sequencing
-  #         .run("create file") do
-  #           File.open(tmpfile_path, "wb") { |file|  file.puts(line) }
-  #         end
-  #         .then_after(0.1, "identity is mapped") do
-  #           wait(0.75).for{subject.codec.identity_map[tmpfile_path]}.not_to be_nil, "identity is not mapped"
-  #         end
-  #         .then("wait for auto_flush") do
-  #           wait(0.75).for{subject.codec.identity_map[tmpfile_path].codec.trace_for(:auto_flush)}.to eq([true]), "autoflush didn't"
-  #         end
-  #         .then("quit") do
-  #           subject.stop
-  #         end
-  #       subject.run(events)
-  #       actions.assert_no_errors
-  #       expect(subject.codec.identity_map[tmpfile_path].codec.trace_for(:accept)).to eq([true])
-  #     end
-  #   end
-  #
-  #   context "when ignore_older config is specified" do
-  #     let(:suffix) { "Y" }
-  #     before do
-  #       conf.update(
-  #             "type" => "blah",
-  #             "path" => path_path,
-  #             "sincedb_path" => sincedb_path,
-  #             "stat_interval" => 0.02,
-  #             "codec" => tracer_codec,
-  #             "ignore_older" => "500 ms",
-  #             "delimiter" => TEST_FILE_DELIMITER)
-  #     end
-  #     subject { described_class.new(conf) }
-  #     let(:line) { "line1.1-of-a" }
-  #
-  #     it "the file is not read" do
-  #       subject.register
-  #       RSpec::Sequencing
-  #         .run("create file") do
-  #           File.open(tmp_dir_file, "a") do |fd|
-  #             fd.puts(line)
-  #             fd.fsync
-  #           end
-  #           FileInput.make_file_older(tmp_dir_file, 2)
-  #         end
-  #         .then_after(0.5, "stop") do
-  #           subject.stop
-  #         end
-  #       subject.run(events)
-  #       expect(subject.codec.identity_map[tmpfile_path].codec.trace_for(:accept)).to be_falsey
-  #     end
-  #   end
-  #
-  #   context "when wildcard path and a multiline codec is specified" do
-  #     subject { described_class.new(conf) }
-  #     let(:suffix)       { "J" }
-  #     let(:tmpfile_path2) { ::File.join(tmpdir_path, "K.txt") }
-  #     before do
-  #       mlconf.update("pattern" => "^\s", "what" => "previous")
-  #       conf.update(
-  #             "type" => "blah",
-  #             "path" => path_path,
-  #             "start_position" => "beginning",
-  #             "sincedb_path" => sincedb_path,
-  #             "stat_interval" => 0.05,
-  #             "codec" => mlcodec,
-  #             "file_sort_by" => "path",
-  #             "delimiter" => TEST_FILE_DELIMITER)
-  #
-  #       subject.register
-  #     end
-  #
-  #     it "collects separate multiple line events from each file" do
-  #       subject
-  #       actions = RSpec::Sequencing
-  #         .run_after(0.1, "create files") do
-  #           File.open(tmpfile_path, "wb") do |fd|
-  #             fd.puts("line1.1-of-J")
-  #             fd.puts("  line1.2-of-J")
-  #             fd.puts("  line1.3-of-J")
-  #           end
-  #           File.open(tmpfile_path2, "wb") do |fd|
-  #             fd.puts("line1.1-of-K")
-  #             fd.puts("  line1.2-of-K")
-  #             fd.puts("  line1.3-of-K")
-  #           end
-  #         end
-  #         .then("assert both files are mapped as identities and stop") do
-  #           wait(2).for {subject.codec.identity_count}.to eq(2), "both files are not mapped as identities"
-  #         end
-  #         .then("stop") do
-  #           subject.stop
-  #         end
-  #       subject.run(events)
-  #       # wait for actions to complete
-  #       actions.assert_no_errors
-  #       expect(events.size).to eq(2)
-  #       e1, e2 = events
-  #       e1_message = e1.get("message")
-  #       e2_message = e2.get("message")
-  #
-  #       expect(e1.get("path")).to match(/J.txt/)
-  #       expect(e2.get("path")).to match(/K.txt/)
-  #       expect(e1_message).to eq("line1.1-of-J#{TEST_FILE_DELIMITER}  line1.2-of-J#{TEST_FILE_DELIMITER}  line1.3-of-J")
-  #       expect(e2_message).to eq("line1.1-of-K#{TEST_FILE_DELIMITER}  line1.2-of-K#{TEST_FILE_DELIMITER}  line1.3-of-K")
-  #     end
-  #
-  #     context "if auto_flush is enabled on the multiline codec" do
-  #       let(:mlconf) { { "auto_flush_interval" => 0.5 } }
-  #       let(:suffix)       { "M" }
-  #       it "an event is generated via auto_flush" do
-  #         actions = RSpec::Sequencing
-  #           .run_after(0.1, "create files") do
-  #             File.open(tmpfile_path, "wb") do |fd|
-  #               fd.puts("line1.1-of-a")
-  #               fd.puts("  line1.2-of-a")
-  #               fd.puts("  line1.3-of-a")
-  #             end
-  #           end
-  #           .then("wait for auto_flush") do
-  #             wait(2).for{events.size}.to eq(1), "events size is not 1"
-  #           end
-  #           .then("stop") do
-  #             subject.stop
-  #           end
-  #         subject.run(events)
-  #         # wait for actions to complete
-  #         actions.assert_no_errors
-  #         e1 = events.first
-  #         e1_message = e1.get("message")
-  #         expect(e1_message).to eq("line1.1-of-a#{TEST_FILE_DELIMITER}  line1.2-of-a#{TEST_FILE_DELIMITER}  line1.3-of-a")
-  #         expect(e1.get("path")).to match(/M.txt$/)
-  #       end
-  #     end
-  #   end
-  #
-  #   describe "specifying max_open_files" do
-  #     let(:suffix)       { "P" }
-  #     let(:tmpfile_path2) { ::File.join(tmpdir_path, "Q.txt") }
-  #     subject { described_class.new(conf) }
-  #     before do
-  #       File.open(tmpfile_path, "w") do |fd|
-  #         fd.puts("line1-of-P")
-  #         fd.puts("line2-of-P")
-  #         fd.fsync
-  #       end
-  #       File.open(tmpfile_path2, "w") do |fd|
-  #         fd.puts("line1-of-Q")
-  #         fd.puts("line2-of-Q")
-  #         fd.fsync
-  #       end
-  #     end
-  #
-  #     context "when close_older is NOT specified" do
-  #       before do
-  #         conf.clear
-  #         conf.update(
-  #               "type" => "blah",
-  #               "path" => path_path,
-  #               "sincedb_path" => sincedb_path,
-  #               "stat_interval" => 0.1,
-  #               "max_open_files" => 1,
-  #               "start_position" => "beginning",
-  #               "file_sort_by" => "path",
-  #               "delimiter" => TEST_FILE_DELIMITER)
-  #         subject.register
-  #       end
-  #       it "collects line events from only one file" do
-  #         actions = RSpec::Sequencing
-  #           .run("assert one identity is mapped") do
-  #             wait(0.4).for{subject.codec.identity_count}.to be > 0, "no identity is mapped"
-  #           end
-  #           .then("stop") do
-  #             subject.stop
-  #           end
-  #           .then("stop flushes last event") do
-  #             wait(0.4).for{events.size}.to eq(2), "events size does not equal 2"
-  #           end
-  #         subject.run(events)
-  #         # wait for actions future value
-  #         actions.assert_no_errors
-  #         e1, e2 = events
-  #         expect(e1.get("message")).to eq("line1-of-P")
-  #         expect(e2.get("message")).to eq("line2-of-P")
-  #       end
-  #     end
-  #
-  #     context "when close_older IS specified" do
-  #       before do
-  #         conf.update(
-  #               "type" => "blah",
-  #               "path" => path_path,
-  #               "sincedb_path" => sincedb_path,
-  #               "stat_interval" => 0.1,
-  #               "max_open_files" => 1,
-  #               "close_older" => 0.5,
-  #               "start_position" => "beginning",
-  #               "file_sort_by" => "path",
-  #               "delimiter" => TEST_FILE_DELIMITER)
-  #         subject.register
-  #       end
-  #
-  #       it "collects line events from both files" do
-  #         actions = RSpec::Sequencing
-  #           .run("assert both identities are mapped and the first two events are built") do
-  #             wait(0.4).for{subject.codec.identity_count == 1 && events.size == 2}.to eq(true), "both identities are not mapped and the first two events are not built"
-  #           end
-  #           .then("wait for close to flush last event of each identity") do
-  #             wait(0.8).for{events.size}.to eq(4), "close does not flush last event of each identity"
-  #           end
-  #           .then_after(0.1, "stop") do
-  #             subject.stop
-  #           end
-  #         subject.run(events)
-  #         # wait for actions future value
-  #         actions.assert_no_errors
-  #         e1, e2, e3, e4 = events
-  #         expect(e1.get("message")).to eq("line1-of-P")
-  #         expect(e2.get("message")).to eq("line2-of-P")
-  #         expect(e3.get("message")).to eq("line1-of-Q")
-  #         expect(e4.get("message")).to eq("line2-of-Q")
-  #       end
-  #     end
-  #   end
-  # end
+  describe "testing with new, register, run and stop" do
+    let(:suffix)       { "A" }
+    let(:conf)         { Hash.new }
+    let(:mlconf)       { Hash.new }
+    let(:events)       { Array.new }
+    let(:mlcodec)      { LogStash::Codecs::Multiline.new(mlconf) }
+    let(:tracer_codec) { FileInput::CodecTracer.new }
+    let(:tmpdir_path)  { Stud::Temporary.directory }
+    let(:tmpfile_path) { ::File.join(tmpdir_path, "#{suffix}.txt") }
+    let(:path_path)    { ::File.join(tmpdir_path, "*.txt") }
+    let(:sincedb_path) { ::File.join(tmpdir_path, "sincedb-#{suffix}") }
+
+    after :each do
+      sleep(0.1) until subject.completely_stopped?
+      FileUtils.rm_rf(sincedb_path)
+    end
+
+    context "when data exists and then more data is appended" do
+      subject { described_class.new(conf) }
+
+      before do
+        File.open(tmpfile_path, "w") do |fd|
+          fd.puts("ignore me 1")
+          fd.puts("ignore me 2")
+          fd.fsync
+        end
+        mlconf.update("pattern" => "^\s", "what" => "previous")
+        conf.update("type" => "blah",
+              "path" => path_path,
+              "sincedb_path" => sincedb_path,
+              "stat_interval" => 0.1,
+              "codec" => mlcodec,
+              "delimiter" => TEST_FILE_DELIMITER)
+      end
+
+      it "reads the appended data only" do
+        subject.register
+        actions = RSpec::Sequencing
+          .run_after(1, "append two lines after delay") do
+            File.open(tmpfile_path, "a") { |fd| fd.puts("hello"); fd.puts("world") }
+          end
+          .then("wait for one event") do
+            wait(0.75).for{events.size}.to eq(1)
+          end
+          .then("quit") do
+            subject.stop
+          end
+          .then("wait for flushed event") do
+            wait(0.75).for{events.size}.to eq(2)
+          end
+
+        subject.run(events)
+        actions.assert_no_errors
+
+        event1 = events[0]
+        expect(event1).not_to be_nil
+        expect(event1.get("path")).to eq tmpfile_path
+        expect(event1.get("[@metadata][path]")).to eq tmpfile_path
+        expect(event1.get("message")).to eq "hello"
+
+        event2 = events[1]
+        expect(event2).not_to be_nil
+        expect(event2.get("path")).to eq tmpfile_path
+        expect(event2.get("[@metadata][path]")).to eq tmpfile_path
+        expect(event2.get("message")).to eq "world"
+      end
+    end
+
+    context "when close_older config is specified" do
+      let(:line)         { "line1.1-of-a" }
+      let(:suffix)       { "X" }
+      subject { described_class.new(conf) }
+
+      before do
+        conf.update(
+              "type" => "blah",
+              "path" => path_path,
+              "sincedb_path" => sincedb_path,
+              "stat_interval" => 0.02,
+              "codec" => tracer_codec,
+              "close_older" => "100 ms",
+              "start_position" => "beginning",
+              "delimiter" => TEST_FILE_DELIMITER)
+
+        subject.register
+      end
+
+      it "having timed_out, the codec is auto flushed" do
+        actions = RSpec::Sequencing
+          .run("create file") do
+            File.open(tmpfile_path, "wb") { |file|  file.puts(line) }
+          end
+          .then_after(0.1, "identity is mapped") do
+            wait(0.75).for{subject.codec.identity_map[tmpfile_path]}.not_to be_nil, "identity is not mapped"
+          end
+          .then("wait for auto_flush") do
+            wait(0.75).for{subject.codec.identity_map[tmpfile_path].codec.trace_for(:auto_flush)}.to eq([true]), "autoflush didn't"
+          end
+          .then("quit") do
+            subject.stop
+          end
+        subject.run(events)
+        actions.assert_no_errors
+        expect(subject.codec.identity_map[tmpfile_path].codec.trace_for(:accept)).to eq([true])
+      end
+    end
+
+    context "when ignore_older config is specified" do
+      let(:suffix) { "Y" }
+      before do
+        conf.update(
+              "type" => "blah",
+              "path" => path_path,
+              "sincedb_path" => sincedb_path,
+              "stat_interval" => 0.02,
+              "codec" => tracer_codec,
+              "ignore_older" => "500 ms",
+              "delimiter" => TEST_FILE_DELIMITER)
+      end
+      subject { described_class.new(conf) }
+      let(:line) { "line1.1-of-a" }
+
+      it "the file is not read" do
+        subject.register
+        RSpec::Sequencing
+          .run("create file") do
+            File.open(tmp_dir_file, "a") do |fd|
+              fd.puts(line)
+              fd.fsync
+            end
+            FileInput.make_file_older(tmp_dir_file, 2)
+          end
+          .then_after(0.5, "stop") do
+            subject.stop
+          end
+        subject.run(events)
+        expect(subject.codec.identity_map[tmpfile_path].codec.trace_for(:accept)).to be_falsey
+      end
+    end
+
+    context "when wildcard path and a multiline codec is specified" do
+      subject { described_class.new(conf) }
+      let(:suffix)       { "J" }
+      let(:tmpfile_path2) { ::File.join(tmpdir_path, "K.txt") }
+      before do
+        mlconf.update("pattern" => "^\s", "what" => "previous")
+        conf.update(
+              "type" => "blah",
+              "path" => path_path,
+              "start_position" => "beginning",
+              "sincedb_path" => sincedb_path,
+              "stat_interval" => 0.05,
+              "codec" => mlcodec,
+              "file_sort_by" => "path",
+              "delimiter" => TEST_FILE_DELIMITER)
+
+        subject.register
+      end
+
+      it "collects separate multiple line events from each file" do
+        subject
+        actions = RSpec::Sequencing
+          .run_after(0.1, "create files") do
+            File.open(tmpfile_path, "wb") do |fd|
+              fd.puts("line1.1-of-J")
+              fd.puts("  line1.2-of-J")
+              fd.puts("  line1.3-of-J")
+            end
+            File.open(tmpfile_path2, "wb") do |fd|
+              fd.puts("line1.1-of-K")
+              fd.puts("  line1.2-of-K")
+              fd.puts("  line1.3-of-K")
+            end
+          end
+          .then("assert both files are mapped as identities and stop") do
+            wait(2).for {subject.codec.identity_count}.to eq(2), "both files are not mapped as identities"
+          end
+          .then("stop") do
+            subject.stop
+          end
+        subject.run(events)
+        # wait for actions to complete
+        actions.assert_no_errors
+        expect(events.size).to eq(2)
+        e1, e2 = events
+        e1_message = e1.get("message")
+        e2_message = e2.get("message")
+
+        expect(e1.get("path")).to match(/J.txt/)
+        expect(e2.get("path")).to match(/K.txt/)
+        expect(e1_message).to eq("line1.1-of-J#{TEST_FILE_DELIMITER}  line1.2-of-J#{TEST_FILE_DELIMITER}  line1.3-of-J")
+        expect(e2_message).to eq("line1.1-of-K#{TEST_FILE_DELIMITER}  line1.2-of-K#{TEST_FILE_DELIMITER}  line1.3-of-K")
+      end
+
+      context "if auto_flush is enabled on the multiline codec" do
+        let(:mlconf) { { "auto_flush_interval" => 0.5 } }
+        let(:suffix)       { "M" }
+        it "an event is generated via auto_flush" do
+          actions = RSpec::Sequencing
+            .run_after(0.1, "create files") do
+              File.open(tmpfile_path, "wb") do |fd|
+                fd.puts("line1.1-of-a")
+                fd.puts("  line1.2-of-a")
+                fd.puts("  line1.3-of-a")
+              end
+            end
+            .then("wait for auto_flush") do
+              wait(2).for{events.size}.to eq(1), "events size is not 1"
+            end
+            .then("stop") do
+              subject.stop
+            end
+          subject.run(events)
+          # wait for actions to complete
+          actions.assert_no_errors
+          e1 = events.first
+          e1_message = e1.get("message")
+          expect(e1_message).to eq("line1.1-of-a#{TEST_FILE_DELIMITER}  line1.2-of-a#{TEST_FILE_DELIMITER}  line1.3-of-a")
+          expect(e1.get("path")).to match(/M.txt$/)
+        end
+      end
+    end
+
+    describe "specifying max_open_files" do
+      let(:suffix)       { "P" }
+      let(:tmpfile_path2) { ::File.join(tmpdir_path, "Q.txt") }
+      subject { described_class.new(conf) }
+      before do
+        File.open(tmpfile_path, "w") do |fd|
+          fd.puts("line1-of-P")
+          fd.puts("line2-of-P")
+          fd.fsync
+        end
+        File.open(tmpfile_path2, "w") do |fd|
+          fd.puts("line1-of-Q")
+          fd.puts("line2-of-Q")
+          fd.fsync
+        end
+      end
+
+      context "when close_older is NOT specified" do
+        before do
+          conf.clear
+          conf.update(
+                "type" => "blah",
+                "path" => path_path,
+                "sincedb_path" => sincedb_path,
+                "stat_interval" => 0.1,
+                "max_open_files" => 1,
+                "start_position" => "beginning",
+                "file_sort_by" => "path",
+                "delimiter" => TEST_FILE_DELIMITER)
+          subject.register
+        end
+        it "collects line events from only one file" do
+          actions = RSpec::Sequencing
+            .run("assert one identity is mapped") do
+              wait(0.4).for{subject.codec.identity_count}.to be > 0, "no identity is mapped"
+            end
+            .then("stop") do
+              subject.stop
+            end
+            .then("stop flushes last event") do
+              wait(0.4).for{events.size}.to eq(2), "events size does not equal 2"
+            end
+          subject.run(events)
+          # wait for actions future value
+          actions.assert_no_errors
+          e1, e2 = events
+          expect(e1.get("message")).to eq("line1-of-P")
+          expect(e2.get("message")).to eq("line2-of-P")
+        end
+      end
+
+      context "when close_older IS specified" do
+        before do
+          conf.update(
+                "type" => "blah",
+                "path" => path_path,
+                "sincedb_path" => sincedb_path,
+                "stat_interval" => 0.1,
+                "max_open_files" => 1,
+                "close_older" => 0.5,
+                "start_position" => "beginning",
+                "file_sort_by" => "path",
+                "delimiter" => TEST_FILE_DELIMITER)
+          subject.register
+        end
+
+        it "collects line events from both files" do
+          actions = RSpec::Sequencing
+            .run("assert both identities are mapped and the first two events are built") do
+              wait(0.4).for{subject.codec.identity_count == 1 && events.size == 2}.to eq(true), "both identities are not mapped and the first two events are not built"
+            end
+            .then("wait for close to flush last event of each identity") do
+              wait(0.8).for{events.size}.to eq(4), "close does not flush last event of each identity"
+            end
+            .then_after(0.1, "stop") do
+              subject.stop
+            end
+          subject.run(events)
+          # wait for actions future value
+          actions.assert_no_errors
+          e1, e2, e3, e4 = events
+          expect(e1.get("message")).to eq("line1-of-P")
+          expect(e2.get("message")).to eq("line2-of-P")
+          expect(e3.get("message")).to eq("line1-of-Q")
+          expect(e4.get("message")).to eq("line2-of-Q")
+        end
+      end
+    end
+  end
 end
