@@ -219,7 +219,7 @@ module FileWatch
     end
 
     context "create + rename rotation: when a new logfile is renamed to a path we have seen before but not all content from the previous the file is read" do
-      let(:opts) { super.merge(
+      let(:opts) { super().merge(
           :file_chunk_size => line1.bytesize.succ,
           :file_chunk_count => 1
         ) }
@@ -296,7 +296,7 @@ module FileWatch
     end
 
     context "copy + truncate rotation: when a logfile is copied to a new path and truncated before the open file is fully read" do
-      let(:opts) { super.merge(
+      let(:opts) { super().merge(
           :file_chunk_size => line1.bytesize.succ,
           :file_chunk_count => 1
         ) }
@@ -370,7 +370,7 @@ module FileWatch
     end
 
     context "? rotation: when an active file is renamed inside the glob and the reading lags behind" do
-      let(:opts) { super.merge(
+      let(:opts) { super().merge(
           :file_chunk_size => line1.bytesize.succ,
           :file_chunk_count => 2
         ) }
@@ -409,7 +409,7 @@ module FileWatch
     end
 
     context "? rotation: when a not active file is rotated outside the glob before the file is read" do
-      let(:opts) { super.merge(
+      let(:opts) { super().merge(
           :close_older => 3600,
           :max_open_files => 1,
           :file_sort_by => "path"

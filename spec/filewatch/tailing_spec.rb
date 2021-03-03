@@ -77,7 +77,7 @@ module FileWatch
 
       context "when close_older is set" do
         let(:wait_before_quit) { 0.8 }
-        let(:opts) { super.merge(:close_older => 0.1, :max_open_files => 1, :stat_interval => 0.1) }
+        let(:opts) { super().merge(:close_older => 0.1, :max_open_files => 1, :stat_interval => 0.1) }
         let(:suffix) { "B" }
         it "opens both files" do
           actions.activate_quietly
@@ -278,7 +278,7 @@ module FileWatch
 
     context "when watching a directory with files and a file is renamed to match glob", :unix => true do
       let(:suffix) { "H" }
-      let(:opts) { super.merge(:close_older => 0) }
+      let(:opts) { super().merge(:close_older => 0) }
       let(:listener2) { observer.listener_for(file_path2) }
       let(:actions) do
         RSpec::Sequencing
@@ -346,7 +346,7 @@ module FileWatch
     end
 
     context "when close older expiry is enabled" do
-      let(:opts) { super.merge(:close_older => 1) }
+      let(:opts) { super().merge(:close_older => 1) }
       let(:suffix) { "J" }
       let(:actions) do
         RSpec::Sequencing.run("create file") do
@@ -370,7 +370,7 @@ module FileWatch
     end
 
     context "when close older expiry is enabled and after timeout the file is appended-to" do
-      let(:opts) { super.merge(:close_older => 0.5) }
+      let(:opts) { super().merge(:close_older => 0.5) }
       let(:suffix) { "K" }
       let(:actions) do
         RSpec::Sequencing
@@ -406,7 +406,7 @@ module FileWatch
     end
 
     context "when ignore older expiry is enabled and all files are already expired" do
-      let(:opts) { super.merge(:ignore_older => 1) }
+      let(:opts) { super().merge(:ignore_older => 1) }
       let(:suffix) { "L" }
       let(:actions) do
         RSpec::Sequencing
@@ -430,7 +430,7 @@ module FileWatch
 
     context "when a file is renamed before it gets activated", :unix => true do
       let(:max) { 1 }
-      let(:opts) { super.merge(:file_chunk_count => 8, :file_chunk_size => 6, :close_older => 0.1, :discover_interval => 6) }
+      let(:opts) { super().merge(:file_chunk_count => 8, :file_chunk_size => 6, :close_older => 0.1, :discover_interval => 6) }
       let(:suffix) { "M" }
       let(:start_new_files_at) { :beginning } # we are creating files and sincedb record before hand
       let(:actions) do
@@ -469,7 +469,7 @@ module FileWatch
     end
 
     context "when ignore_older is less than close_older and all files are not expired" do
-      let(:opts) { super.merge(:ignore_older => 1, :close_older => 1.1) }
+      let(:opts) { super().merge(:ignore_older => 1, :close_older => 1.1) }
       let(:suffix) { "N" }
       let(:start_new_files_at) { :beginning }
       let(:actions) do
@@ -497,7 +497,7 @@ module FileWatch
     end
 
     context "when ignore_older is less than close_older and all files are expired" do
-      let(:opts) { super.merge(:ignore_older => 10, :close_older => 1) }
+      let(:opts) { super().merge(:ignore_older => 10, :close_older => 1) }
       let(:suffix) { "P" }
       let(:actions) do
         RSpec::Sequencing
@@ -522,7 +522,7 @@ module FileWatch
     end
 
     context "when ignore older and close older expiry is enabled and after timeout the file is appended-to" do
-      let(:opts) { super.merge(:ignore_older => 20, :close_older => 0.5) }
+      let(:opts) { super().merge(:ignore_older => 20, :close_older => 0.5) }
       let(:suffix) { "Q" }
       let(:actions) do
         RSpec::Sequencing
@@ -551,7 +551,7 @@ module FileWatch
     end
 
     context "when a non default delimiter is specified and it is not in the content" do
-      let(:opts) { super.merge(:ignore_older => 20, :close_older => 1, :delimiter => "\nø") }
+      let(:opts) { super().merge(:ignore_older => 20, :close_older => 1, :delimiter => "\nø") }
       let(:suffix) { "R" }
       let(:actions) do
         RSpec::Sequencing

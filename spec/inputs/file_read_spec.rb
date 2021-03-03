@@ -267,7 +267,7 @@ describe LogStash::Inputs::File do
   describe 'delete on complete' do
 
     let(:options) do
-      super.merge({ 'file_completed_action' => "delete", 'exit_after_read' => false })
+      super().merge({ 'file_completed_action' => "delete", 'exit_after_read' => false })
     end
 
     let(:sample_file) { File.join(temp_directory, "sample.log") }
@@ -306,7 +306,7 @@ describe LogStash::Inputs::File do
   describe 'sincedb cleanup' do
 
     let(:options) do
-      super.merge(
+      super().merge(
           'sincedb_path' => sincedb_path,
           'sincedb_clean_after' => '1.0 seconds',
           'sincedb_write_interval' => 0.25,

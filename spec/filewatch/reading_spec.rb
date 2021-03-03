@@ -91,7 +91,7 @@ module FileWatch
     context "when watching a directory with files using striped reading" do
       let(:file_path2) { ::File.join(directory, "2.log") }
       # use a chunk size that does not align with the line boundaries
-      let(:opts) { super.merge(:file_chunk_size => 10, :file_chunk_count => 1, :file_sort_by => "path")}
+      let(:opts) { super().merge(:file_chunk_size => 10, :file_chunk_count => 1, :file_sort_by => "path")}
       let(:lines) { [] }
       let(:observer) { TestObserver.new(lines) }
       let(:listener2) { observer.listener_for(file_path2) }
@@ -121,7 +121,7 @@ module FileWatch
     end
 
     context "when a non default delimiter is specified and it is not in the content" do
-      let(:opts) { super.merge(:delimiter => "\nø") }
+      let(:opts) { super().merge(:delimiter => "\nø") }
       let(:actions) do
         RSpec::Sequencing.run("create file") do
           File.open(file_path, "wb") { |file|  file.write("line1\nline2") }
@@ -154,7 +154,7 @@ module FileWatch
       let(:file_path2) { ::File.join(directory, "2.log") }
       let(:file_path3) { ::File.join(directory, "3.log") }
 
-      let(:opts) { super.merge(:file_sort_by => "last_modified") }
+      let(:opts) { super().merge(:file_sort_by => "last_modified") }
       let(:lines) { [] }
       let(:observer) { TestObserver.new(lines) }
 
@@ -195,7 +195,7 @@ module FileWatch
     end
 
     context "when watching a directory with files using exit_after_read" do
-      let(:opts) { super.merge(:exit_after_read => true, :max_open_files => 2) }
+      let(:opts) { super().merge(:exit_after_read => true, :max_open_files => 2) }
       let(:file_path3) { ::File.join(directory, "3.log") }
       let(:file_path4) { ::File.join(directory, "4.log") }
       let(:file_path5) { ::File.join(directory, "5.log") }
