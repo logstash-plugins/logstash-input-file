@@ -338,7 +338,7 @@ describe LogStash::Inputs::File do
       sincedb_content = File.read(sincedb_path).strip
       expect( sincedb_content ).to_not be_empty
 
-      Stud.try(3.times) do
+      Stud.try(10.times) do
         sleep(1.5) # > sincedb_clean_after
 
         sincedb_content = File.read(sincedb_path).strip
