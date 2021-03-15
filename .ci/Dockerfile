@@ -1,10 +1,9 @@
 ARG ELASTIC_STACK_VERSION
 ARG DISTRIBUTION_SUFFIX
 FROM docker.elastic.co/logstash/logstash${DISTRIBUTION_SUFFIX}:${ELASTIC_STACK_VERSION}
-RUN sudo localedef -i en_US -f UTF-8 en_US.UTF-8
-RUN locale
+USER root
+RUN localedef -i en_US -f UTF-8 en_US.UTF-8
 RUN locale -a
-RUN localectl set-locale LANG=en_US.UTF-8
 USER logstash
 
 COPY --chown=logstash:logstash Gemfile /usr/share/plugins/plugin/Gemfile
