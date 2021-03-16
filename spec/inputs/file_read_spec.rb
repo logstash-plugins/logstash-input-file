@@ -36,7 +36,7 @@ describe LogStash::Inputs::File do
       end
 
       events = input(conf) do |pipeline, queue|
-        wait(0.5).for{File.exist?(tmpfile_path)}.to be_falsey
+        wait(2).for{File.exist?(tmpfile_path)}.to be_falsey
         2.times.collect { queue.pop }
       end
 
