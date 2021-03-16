@@ -338,10 +338,11 @@ describe LogStash::Inputs::File do
       sincedb_content = File.read(sincedb_path).strip
       expect( sincedb_content ).to_not be_empty
 
-      Stud.try(10.times) do
+      Stud.try(10.times, RSpec::Expectations::ExpectationNotMetError) do
         sleep(1.5) # > sincedb_clean_after
 
         sincedb_content = File.read(sincedb_path).strip
+        puts "sincedb content is #{sincedb_content}"
         expect( sincedb_content ).to be_empty
       end
     end
