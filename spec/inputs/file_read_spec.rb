@@ -296,7 +296,7 @@ describe LogStash::Inputs::File do
 
     it 'removes watched file from collection' do
       wait_for_file_removal(sample_file) # watched discovery
-      sleep(0.25) # give CI some space to execute the removal
+      sleep(1) # give CI some space to execute the removal
       # TODO shouldn't be necessary once WatchedFileCollection does proper locking
       watched_files = plugin.watcher.watch.watched_files_collection
       expect( watched_files ).to be_empty
