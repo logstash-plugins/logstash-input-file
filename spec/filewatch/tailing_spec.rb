@@ -450,7 +450,7 @@ module FileWatch
             FileUtils.mv(file_path2, file_path3)
           end
           .then("wait") do
-            wait(4).for do
+            wait(8).for do
               listener1.lines.size == 32 && listener2.calls == [:delete] && listener3.calls == [:open, :accept, :timed_out]
             end.to eq(true), "listener1.lines != 32 or listener2.calls != [:delete] or listener3.calls != [:open, :accept, :timed_out]"
           end
