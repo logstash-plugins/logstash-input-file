@@ -58,6 +58,7 @@ module FileWatch
         ENV["FILEWATCH_MAX_FILES_WARN_INTERVAL"] = "0"
         File.open(file_path, "wb")  { |file| file.write("line1\nline2\n") }
         File.open(file_path2, "wb") { |file| file.write("line-A\nline-B\n") }
+        sleep(0.25) # if ENV['CI']
       end
 
       context "when max_active is 1" do
@@ -76,7 +77,7 @@ module FileWatch
       end
 
       context "when close_older is set" do
-        let(:wait_before_quit) { 0.8 }
+        let(:wait_before_quit) { 1.5 }
         let(:opts) { super().merge(:close_older => 0.1, :max_open_files => 1, :stat_interval => 0.1) }
         let(:suffix) { "B" }
         it "opens both files" do
@@ -134,7 +135,7 @@ module FileWatch
             File.open(file_path, "wb") { |file|  file.write("line1\nline2\n") }
           end
           .then("wait") do
-            wait(0.75).for { listener1.lines }.to_not be_empty
+            wait(1.5).for { listener1.lines }.to_not be_empty
           end
           .then("quit") do
             tailing.quit
@@ -155,7 +156,7 @@ module FileWatch
       # it simulates that the user deleted the file
       # so when a stat is taken on the file an error is raised
       let(:suffix) { "E" }
-      let(:quit_after) { 0.2 }
+      let(:quit_after) { 1 }
       let(:stat)  { double("stat", :size => 100, :modified_at => Time.now.to_f, :inode => 234567, :inode_struct => InodeStruct.new("234567", 1, 5)) }
       let(:watched_file) { WatchedFile.new(file_path, stat, tailing.settings) }
       before do
@@ -253,10 +254,10 @@ module FileWatch
             # create file after first discovery, will be read from the beginning
             File.open(file_path, "wb") { |file|  file.write("line1\nline2\n") }
           end
-          .then_after(0.55, "rename file") do
+          .then_after(0.75, "rename file") do
             FileUtils.mv(file_path, new_file_path)
           end
-          .then_after(0.55, "then write to renamed file") do
+          .then_after(0.75, "then write to renamed file") do
             File.open(new_file_path, "ab") { |file|  file.write("line3\nline4\n") }
             wait(0.5).for{listener1.lines.size}.to eq(2), "listener1.lines.size not eq(2)"
           end
@@ -354,7 +355,7 @@ module FileWatch
         end
         .then("watch and wait") do
           tailing.watch_this(watch_dir)
-          wait(1.25).for{listener1.calls}.to eq([:open, :timed_out])
+          wait(2).for{listener1.calls}.to eq([:open, :timed_out])
         end
         .then("quit") do
           tailing.quit

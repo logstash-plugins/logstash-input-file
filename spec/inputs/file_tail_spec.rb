@@ -288,7 +288,7 @@ describe LogStash::Inputs::File do
           .run("create file") do
             File.open(tmpfile_path, "wb") { |file|  file.puts(line) }
           end
-          .then_after(0.1, "identity is mapped") do
+          .then_after(0.25, "identity is mapped") do
             wait(0.75).for{subject.codec.identity_map[tmpfile_path]}.not_to be_nil, "identity is not mapped"
           end
           .then("wait for auto_flush") do
@@ -395,7 +395,7 @@ describe LogStash::Inputs::File do
         let(:suffix)       { "M" }
         it "an event is generated via auto_flush" do
           actions = RSpec::Sequencing
-            .run_after(0.1, "create files") do
+            .run_after(0.25, "create files") do
               File.open(tmpfile_path, "wb") do |fd|
                 fd.puts("line1.1-of-a")
                 fd.puts("  line1.2-of-a")
@@ -478,7 +478,7 @@ describe LogStash::Inputs::File do
                 "sincedb_path" => sincedb_path,
                 "stat_interval" => 0.1,
                 "max_open_files" => 1,
-                "close_older" => 0.5,
+                "close_older" => 1,
                 "start_position" => "beginning",
                 "file_sort_by" => "path",
                 "delimiter" => TEST_FILE_DELIMITER)
@@ -491,9 +491,9 @@ describe LogStash::Inputs::File do
               wait(0.4).for{subject.codec.identity_count == 1 && events.size == 2}.to eq(true), "both identities are not mapped and the first two events are not built"
             end
             .then("wait for close to flush last event of each identity") do
-              wait(0.8).for{events.size}.to eq(4), "close does not flush last event of each identity"
+              wait(1.6).for{events.size}.to eq(4), "close does not flush last event of each identity"
             end
-            .then_after(0.1, "stop") do
+            .then_after(0.2, "stop") do
               subject.stop
             end
           subject.run(events)

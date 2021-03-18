@@ -102,7 +102,7 @@ describe LogStash::Inputs::File do
       end
 
       events = input(conf) do |pipeline, queue|
-        wait(0.5).for{File.exist?(tmpfile_path)}.to be_falsey
+        wait(1).for{File.exist?(tmpfile_path)}.to be_falsey
         3.times.collect { queue.pop }
       end
 
@@ -363,7 +363,7 @@ describe LogStash::Inputs::File do
     end
   end
 
-  def wait_for_file_removal(path, timeout: 5 * interval)
-    wait(timeout).for { File.exist?(path) }.to be_falsey
+  def wait_for_file_removal(path)
+    wait(5).for { File.exist?(path) }.to be_falsey
   end
 end
