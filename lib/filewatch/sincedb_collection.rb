@@ -232,7 +232,7 @@ module FileWatch
 
     # @return expired keys
     def non_atomic_write(time)
-      IO.open(IO.sysopen(@full_path, "w+")) do |io|
+      File.open(@full_path, "w+") do |io|
         @serializer.serialize(@sincedb, io, time.to_f)
       end
     end
