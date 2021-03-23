@@ -1,3 +1,6 @@
+## 4.2.4
+  - Fix: sincedb_write issue on Windows machines [#283](https://github.com/logstash-plugins/logstash-input-file/pull/283)
+
 ## 4.2.3
   - Refactor: improve debug logging (log catched exceptions) [#280](https://github.com/logstash-plugins/logstash-input-file/pull/280)
 
