@@ -55,6 +55,7 @@ module FileWatch module ReadMode module Handlers
           close_and_ignore_ioexception(file_stream) unless file_stream.nil?
         end
       end
+      sincedb_collection.reading_completed(key)
       sincedb_collection.clear_watched_file(key)
     end
 
