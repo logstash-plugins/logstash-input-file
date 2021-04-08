@@ -482,7 +482,7 @@ module FileWatch
             tailing.watch_this(watch_dir)
           end
           .then("wait for lines") do
-            wait(1.5).for{listener1.calls}.to eq([:open, :accept, :accept, :timed_out])
+            wait(2.5).for{listener1.calls}.to eq([:open, :accept, :accept, :timed_out])
           end
           .then("quit") do
             tailing.quit

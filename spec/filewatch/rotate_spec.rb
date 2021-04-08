@@ -193,19 +193,19 @@ module FileWatch
       let(:listener2) { observer.listener_for(second_file.to_path) }
       let(:actions) do
         RSpec::Sequencing
-          .run_after(0.25, "create original - write line 1, 66 bytes") do
+          .run_after(1.5, "create original - write line 1, 66 bytes") do
             file_path.open("wb") { |file|  file.write("#{line1}\n") }
           end
-          .then_after(0.25, "rename to 2.log") do
+          .then_after(1.5, "rename to 2.log") do
             file_path.rename(second_file)
             file_path.open("wb") { |file|  file.write("#{line2}\n") }
           end
-          .then_after(0.25, "rename to 2.log again") do
+          .then_after(1.5, "rename to 2.log again") do
             file_path.rename(second_file)
             file_path.open("wb") { |file|  file.write("#{line3}\n") }
           end
           .then("wait for expectations to be met") do
-            wait(0.5).for{listener1.lines.size == 3 && listener2.lines.empty?}.to eq(true)
+            wait(1).for{listener1.lines.size == 3 && listener2.lines.empty?}.to eq(true)
           end
           .then("quit") do
             tailing.quit

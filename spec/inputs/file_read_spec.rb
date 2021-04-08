@@ -284,7 +284,10 @@ describe LogStash::Inputs::File do
       wait_for_start_processing(@run_thread)
     end
 
-    after { plugin.stop }
+    after {
+      plugin.stop
+      @run_thread.join
+    }
 
     it 'processes a file' do
       wait_for_file_removal(sample_file) # watched discovery
@@ -330,7 +333,10 @@ describe LogStash::Inputs::File do
       wait_for_start_processing(@run_thread)
     end
 
-    after { plugin.stop }
+    after {
+      plugin.stop
+      @run_thread.join
+    }
 
     it 'cleans up sincedb entry' do
       wait_for_file_removal(sample_file) # watched discovery
@@ -350,7 +356,7 @@ describe LogStash::Inputs::File do
 
   private
 
-  def wait_for_start_processing(run_thread, timeout: 1.0)
+  def wait_for_start_processing(run_thread, timeout: 10.0)
     begin
       Timeout.timeout(timeout) do
         # sleep(0.01) while run_thread.status != 'sleep'
@@ -363,7 +369,13 @@ describe LogStash::Inputs::File do
           sleep(0.1)
           puts "no queue"
         end
-      end
+        puts "the queue size is #{plugin.queue.size}"
+          # sleep(0.1) while !plugin.queue
+          while plugin.queue.size == 0
+            sleep(0.1)
+            puts "no item on queue"
+          end
+        end
     rescue Timeout::Error => e
       puts "plugin timed out #{e}"
       raise "plugin did not start processing (timeout: #{timeout})" unless plugin.queue
