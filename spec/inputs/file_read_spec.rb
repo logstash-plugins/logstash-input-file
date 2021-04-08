@@ -255,7 +255,7 @@ describe LogStash::Inputs::File do
         'mode' => "read",
         'path' => "#{temp_directory}/*",
         'stat_interval' => interval,
-        'discover_interval' => interval,
+        'discover_interval' => 1,
         'sincedb_path' => "#{temp_directory}/.sincedb",
         'sincedb_write_interval' => interval
     }
