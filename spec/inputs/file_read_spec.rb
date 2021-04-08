@@ -353,12 +353,22 @@ describe LogStash::Inputs::File do
   def wait_for_start_processing(run_thread, timeout: 1.0)
     begin
       Timeout.timeout(timeout) do
-        sleep(0.01) while run_thread.status != 'sleep'
-        sleep(timeout) unless plugin.queue
+        # sleep(0.01) while run_thread.status != 'sleep'
+        while run_thread.status != 'sleep'
+          puts "not sleep"
+          sleep(0.01)
+        end
+        # sleep(0.1) while !plugin.queue
+        while !plugin.queue
+          sleep(0.1)
+          puts "no queue"
+        end
       end
-    rescue Timeout::Error
+    rescue Timeout::Error => e
+      puts "plugin timed out #{e}"
       raise "plugin did not start processing (timeout: #{timeout})" unless plugin.queue
     else
+      puts "plugin did not time out"
       raise "plugin did not start processing" unless plugin.queue
     end
   end
