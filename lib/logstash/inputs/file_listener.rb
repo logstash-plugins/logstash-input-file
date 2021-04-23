@@ -41,7 +41,6 @@ module LogStash module Inputs
 
     def process_event(event)
       event.set("[@metadata][path]", path)
-      event.set("path", path) unless event.include?("path")
       input.post_process_this(event)
     end
 
