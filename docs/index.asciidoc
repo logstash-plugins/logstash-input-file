@@ -78,6 +78,7 @@ Read mode also allows for an action to take place after processing the file comp
 In the past attempts to simulate a Read mode while still assuming infinite streams
 was not ideal and a dedicated Read mode is an improvement.
 
+[id="plugins-{type}s-{plugin}-ecs"]
 ==== Compatibility with the Elastic Common Schema (ECS)
 
 This plugin adds metadata about event's source, and can be configured to do so
@@ -269,8 +270,7 @@ In practice, this will be the best case because the time taken to read new conte
 ** Otherwise, the default value is `disabled`.
 
 Controls this plugin's compatibility with the
-{ecs-ref}[Elastic Common Schema (ECS)]
-(ECS)].
+{ecs-ref}[Elastic Common Schema (ECS)].
 
 [id="plugins-{type}s-{plugin}-exclude"]
 ===== `exclude`

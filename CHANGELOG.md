@@ -1,5 +1,5 @@
 ## 4.3.0
-  - Add ECS Compatibility Mode [#259](https://github.com/logstash-plugins/logstash-input-file/issues/259)
+  - Add ECS Compatibility Mode [#291](https://github.com/logstash-plugins/logstash-input-file/pull/291)
 
 ## 4.2.4
   - Fix: sincedb_write issue on Windows machines [#283](https://github.com/logstash-plugins/logstash-input-file/pull/283)
