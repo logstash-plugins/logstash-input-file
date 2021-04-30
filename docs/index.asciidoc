@@ -78,6 +78,21 @@ Read mode also allows for an action to take place after processing the file comp
 In the past attempts to simulate a Read mode while still assuming infinite streams
 was not ideal and a dedicated Read mode is an improvement.
 
+[id="plugins-{type}s-{plugin}-ecs"]
+==== Compatibility with the Elastic Common Schema (ECS)
+
+This plugin adds metadata about event's source, and can be configured to do so
+in an {ecs-ref}[ECS-compatible] way with <<plugins-{type}s-{plugin}-ecs_compatibility>>.
+This metadata is added after the event has been decoded by the appropriate codec,
+and will never overwrite existing values.
+
+|========
+| ECS Disabled | ECS v1 | Description
+
+| `host` | `[host][name]` | The name of the {ls} host that processed the event
+| `path` | `[log][file][path]` | The full path to the log file from which the event originates
+|========
+
 ==== Tracking of current position in watched files
 
 The plugin keeps track of the current position in each file by
@@ -168,6 +183,7 @@ see <<plugins-{type}s-{plugin}-string_duration,string_duration>> for the details
 | <<plugins-{type}s-{plugin}-close_older>> |<<number,number>> or <<plugins-{type}s-{plugin}-string_duration,string_duration>>|No
 | <<plugins-{type}s-{plugin}-delimiter>> |<<string,string>>|No
 | <<plugins-{type}s-{plugin}-discover_interval>> |<<number,number>>|No
+| <<plugins-{type}s-{plugin}-ecs_compatibility>> |<<string,string>>|No
 | <<plugins-{type}s-{plugin}-exclude>> |<<array,array>>|No
 | <<plugins-{type}s-{plugin}-exit_after_read>> |<<boolean,boolean>>|No
 | <<plugins-{type}s-{plugin}-file_chunk_count>> |<<number,number>>|No
@@ -241,6 +257,20 @@ How often we expand the filename patterns in the `path` option to discover new f
 This value is a multiple to `stat_interval`, e.g. if `stat_interval` is "500 ms" then new files
 files could be discovered every 15 X 500 milliseconds - 7.5 seconds.
 In practice, this will be the best case because the time taken to read new content needs to be factored in.
+
+[id="plugins-{type}s-{plugin}-ecs_compatibility"]
+===== `ecs_compatibility`
+
+* Value type is <<string,string>>
+* Supported values are:
+** `disabled`: sets non-ECS metadata on event (such as top-level `host`, `path`)
+** `v1`: sets ECS-compatible metadata on event (such as `[host][name]`, `[log][file][path]`)
+* Default value depends on which version of Logstash is running:
+** When Logstash provides a `pipeline.ecs_compatibility` setting, its value is used as the default
+** Otherwise, the default value is `disabled`.
+
+Controls this plugin's compatibility with the
+{ecs-ref}[Elastic Common Schema (ECS)].
 
 [id="plugins-{type}s-{plugin}-exclude"]
 ===== `exclude`

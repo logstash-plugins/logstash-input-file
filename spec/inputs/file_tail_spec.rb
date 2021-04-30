@@ -3,7 +3,9 @@
 require "helpers/spec_helper"
 require "logstash/devutils/rspec/shared_examples"
 require "logstash/inputs/file"
+require "logstash/plugin_mixins/ecs_compatibility_support/spec_helper"
 
+require "json"
 require "tempfile"
 require "stud/temporary"
 require "logstash/codecs/multiline"
@@ -99,41 +101,59 @@ describe LogStash::Inputs::File do
       end
     end
 
-    context "when path and host fields exist" do
-      let(:name) { "C" }
-      it "should not overwrite them" do
-        conf = <<-CONFIG
-          input {
-            file {
-              type => "blah"
-              path => "#{path_path}"
-              start_position => "beginning"
-              sincedb_path => "#{sincedb_path}"
-              delimiter => "#{TEST_FILE_DELIMITER}"
-              codec => "json"
+
+    context "when path and host fields exist", :ecs_compatibility_support do
+      ecs_compatibility_matrix(:disabled, :v1) do |ecs_select|
+
+        before(:each) do
+          allow_any_instance_of(described_class).to receive(:ecs_compatibility).and_return(ecs_compatibility)
+        end
+
+        let(:file_path_target_field  ) { ecs_select[disabled: "path", v1: '[log][file][path]'] }
+        let(:source_host_target_field) { ecs_select[disabled: "host", v1: '[host][name]'] }
+
+        let(:event_with_existing) do
+          LogStash::Event.new.tap do |e|
+            e.set(file_path_target_field, 'my_path')
+            e.set(source_host_target_field, 'my_host')
+          end.to_hash
+        end
+
+        let(:name) { "C" }
+        it "should not overwrite them" do
+          conf = <<-CONFIG
+            input {
+              file {
+                type => "blah"
+                path => "#{path_path}"
+                start_position => "beginning"
+                sincedb_path => "#{sincedb_path}"
+                delimiter => "#{TEST_FILE_DELIMITER}"
+                codec => "json"
+              }
             }
-          }
-        CONFIG
+          CONFIG
 
-        File.open(tmpfile_path, "w") do |fd|
-          fd.puts('{"path": "my_path", "host": "my_host"}')
-          fd.puts('{"my_field": "my_val"}')
-          fd.fsync
+          File.open(tmpfile_path, "w") do |fd|
+            fd.puts(event_with_existing.to_json)
+            fd.puts('{"my_field": "my_val"}')
+            fd.fsync
+          end
+
+          events = input(conf) do |pipeline, queue|
+            2.times.collect { queue.pop }
+          end
+
+          existing_path_index, added_path_index  = "my_val" == events[0].get("my_field") ? [1,0] : [0,1]
+
+          expect(events[existing_path_index].get(file_path_target_field)).to eq "my_path"
+          expect(events[existing_path_index].get(source_host_target_field)).to eq "my_host"
+          expect(events[existing_path_index].get("[@metadata][host]")).to eq "#{Socket.gethostname.force_encoding(Encoding::UTF_8)}"
+
+          expect(events[added_path_index].get(file_path_target_field)).to eq "#{tmpfile_path}"
+          expect(events[added_path_index].get(source_host_target_field)).to eq "#{Socket.gethostname.force_encoding(Encoding::UTF_8)}"
+          expect(events[added_path_index].get("[@metadata][host]")).to eq "#{Socket.gethostname.force_encoding(Encoding::UTF_8)}"
         end
-
-        events = input(conf) do |pipeline, queue|
-          2.times.collect { queue.pop }
-        end
-
-        existing_path_index, added_path_index  = "my_val" == events[0].get("my_field") ? [1,0] : [0,1]
-
-        expect(events[existing_path_index].get("path")).to eq "my_path"
-        expect(events[existing_path_index].get("host")).to eq "my_host"
-        expect(events[existing_path_index].get("[@metadata][host]")).to eq "#{Socket.gethostname.force_encoding(Encoding::UTF_8)}"
-
-        expect(events[added_path_index].get("path")).to eq "#{tmpfile_path}"
-        expect(events[added_path_index].get("host")).to eq "#{Socket.gethostname.force_encoding(Encoding::UTF_8)}"
-        expect(events[added_path_index].get("[@metadata][host]")).to eq "#{Socket.gethostname.force_encoding(Encoding::UTF_8)}"
       end
     end
 

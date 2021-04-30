@@ -2,6 +2,7 @@
 require "logstash/namespace"
 require "logstash/inputs/base"
 require "logstash/codecs/identity_map_codec"
+require 'logstash/plugin_mixins/ecs_compatibility_support'
 
 require "pathname"
 require "socket" # for Socket.gethostname
@@ -87,6 +88,8 @@ require "filewatch/bootstrap"
 module LogStash module Inputs
 class File < LogStash::Inputs::Base
   config_name "file"
+
+  include PluginMixins::ECSCompatibilitySupport(:disabled, :v1)
 
   # The path(s) to the file(s) to use as an input.
   # You can use filename patterns here, such as `/var/log/*.log`.
@@ -325,6 +328,9 @@ class File < LogStash::Inputs::Base
     @codec = LogStash::Codecs::IdentityMapCodec.new(@codec)
     @completely_stopped = Concurrent::AtomicBoolean.new
     @queue = Concurrent::AtomicReference.new
+
+    @source_host_field = ecs_select[disabled: 'host', v1:'[host][name]']
+    @source_path_field = ecs_select[disabled: 'path', v1:'[log][file][path]']
   end # def register
 
   def completely_stopped?
@@ -369,7 +375,11 @@ class File < LogStash::Inputs::Base
 
   def post_process_this(event)
     event.set("[@metadata][host]", @host)
-    event.set("host", @host) unless event.include?("host")
+    attempt_set(event, @source_host_field, @host)
+
+    source_path = event.get('[@metadata][path]') and
+      attempt_set(event, @source_path_field, source_path)
+
     decorate(event)
     @queue.get << event
   end
@@ -405,6 +415,17 @@ class File < LogStash::Inputs::Base
       # Ensure that the filepath exists before writing, since it's deeply nested.
       path.mkpath
     end
+  end
+
+  # Attempt to set an event's field to the provided value
+  # without overwriting an existing value or producing an error
+  def attempt_set(event, field_reference, value)
+    return false if event.include?(field_reference)
+
+    event.set(field_reference, value)
+  rescue => e
+    logger.trace("failed to set #{field_reference} to `#{value}`", :exception => e.message)
+    false
   end
 
   def build_sincedb_base_from_env
