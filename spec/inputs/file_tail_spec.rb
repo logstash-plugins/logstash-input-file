@@ -221,7 +221,10 @@ describe LogStash::Inputs::File do
     let(:conf)         { Hash.new }
     let(:mlconf)       { Hash.new }
     let(:events)       { Array.new }
-    let(:mlcodec)      { LogStash::Codecs::Multiline.new(mlconf) }
+    let(:mlcodec)      {
+      puts " The value of mlconf is #{mlconf}"
+      LogStash::Codecs::Multiline.new(mlconf)
+    }
     let(:tracer_codec) { FileInput::CodecTracer.new }
     let(:tmpdir_path)  { Stud::Temporary.directory }
     let(:tmpfile_path) { ::File.join(tmpdir_path, "#{suffix}.txt") }
@@ -242,7 +245,7 @@ describe LogStash::Inputs::File do
           fd.puts("ignore me 2")
           fd.fsync
         end
-        mlconf.update("pattern" => "^\s", "what" => "previous")
+        mlconf.update("pattern" => "^\\s", "what" => "previous")
         conf.update("type" => "blah",
               "path" => path_path,
               "sincedb_path" => sincedb_path,
@@ -361,7 +364,7 @@ describe LogStash::Inputs::File do
       let(:suffix)       { "J" }
       let(:tmpfile_path2) { ::File.join(tmpdir_path, "K.txt") }
       before do
-        mlconf.update("pattern" => "^\s", "what" => "previous")
+        mlconf.update("pattern" => "^\\s", "what" => "previous")
         conf.update(
               "type" => "blah",
               "path" => path_path,

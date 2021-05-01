@@ -1,2 +1,19 @@
 import:
 - logstash-plugins/.ci:travis/travis.yml@1.x
+
+before_install:
+  - sudo apt-get install jq
+  - sudo apt-get install libseccomp-dev
+  - sudo locale-gen en_US.UTF-8
+  - sudo dpkg-reconfigure locales
+arch:
+  - arm64
+  - amd64
+
+virt: vm
+
+env:
+  jobs:
+    - ELASTIC_STACK_VERSION=7.x
+    - SNAPSHOT=true ELASTIC_STACK_VERSION=8.0.0-SNAPSHOT
+    - SNAPSHOT=true ELASTIC_STACK_VERSION=7.11.0-SNAPSHOT
