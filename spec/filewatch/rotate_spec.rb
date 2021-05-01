@@ -53,6 +53,9 @@ module FileWatch
     end
 
     context "create + rename rotation: when a new logfile is renamed to a path we have seen before and the open file is fully read, renamed outside glob" do
+      let(:stat_interval) { 0.04 }
+      let(:discover_interval) { 15 }
+
       let(:watch_dir) { directory.join("*A.log") }
       let(:file_path) { directory.join("1A.log") }
       subject { described_class.new(conf) }
@@ -60,21 +63,23 @@ module FileWatch
       let(:listener2) { observer.listener_for(second_file.to_path) }
       let(:actions) do
         RSpec::Sequencing
-          .run_after(0.25, "create file") do
-            file_path.open("wb") { |file|  file.write("#{line1}\n") }
+          .run_after(1.25, "create file") do
+            file_path.open("wb") { |file| file.write("#{line1}\n") }
+        end
+          .then_after(1.25, "write a 'unfinished' line") do
+            file_path.open("ab") { |file| file.write("#{line2}") }
           end
-          .then_after(0.25, "write a 'unfinished' line") do
-            file_path.open("ab") { |file|  file.write(line2) }
-          end
-          .then_after(0.25, "rotate once") do
-            tmpfile = directory.join("1.logtmp")
-            tmpfile.open("wb") { |file|  file.write("\n#{line3}\n")}
+          .then_after(1.25, "rotate once") do
+                      tmpfile = directory.join("1.logtmp")
+            tmpfile.open("wb") { |file|
+              file.write("\n#{line3}\n")
+            }
             file_path.rename(directory.join("1.log.1"))
             FileUtils.mv(directory.join("1.logtmp").to_path, file1_path)
-          end
+        end
           .then("wait for expectation") do
-            sleep(0.25) # if ENV['CI']
-            wait(2).for { listener1.calls }.to eq([:open, :accept, :accept, :accept])
+            sleep(1.25) # if ENV['CI']
+            wait(2).for { listener1.calls }.to include(:open, :accept, :accept, :accept)
           end
           .then("quit") do
             tailing.quit
@@ -104,14 +109,14 @@ module FileWatch
       let(:listener3) { observer.listener_for(third_file.to_path) }
       let(:actions) do
         RSpec::Sequencing
-          .run_after(0.25, "create file") do
+          .run_after(0.75, "create file") do
             file_path.open("wb") { |file|  file.write("#{line1}\n") }
           end
-          .then_after(0.25, "rotate 1 - line1(66) is in 2B.log, line2(61) is in 1B.log") do
+          .then_after(0.75, "rotate 1 - line1(66) is in 2B.log, line2(61) is in 1B.log") do
             file_path.rename(second_file)
             file_path.open("wb") { |file|  file.write("#{line2}\n") }
           end
-          .then_after(0.25, "rotate 2 - line1(66) is in 3B.log, line2(61) is in 2B.log, line3(47) is in 1B.log") do
+          .then_after(0.75, "rotate 2 - line1(66) is in 3B.log, line2(61) is in 2B.log, line3(47) is in 1B.log") do
             second_file.rename(third_file)
             file_path.rename(second_file)
             file_path.open("wb") { |file|  file.write("#{line3}\n") }
@@ -145,19 +150,19 @@ module FileWatch
       let(:listener2) { observer.listener_for(second_file.to_path) }
       let(:actions) do
         RSpec::Sequencing
-          .run_after(0.25, "create original - write line 1, 66 bytes") do
+          .run_after(0.75, "create original - write line 1, 66 bytes") do
             file_path.open("wb") { |file|  file.write("#{line1}\n") }
           end
-          .then_after(0.25, "rename to 2.log") do
+          .then_after(0.75, "rename to 2.log") do
             file_path.rename(second_file)
           end
-          .then_after(0.25, "write line 2 to original, 61 bytes") do
+          .then_after(0.75, "write line 2 to original, 61 bytes") do
             file_path.open("wb") { |file|  file.write("#{line2}\n") }
           end
-          .then_after(0.25, "rename to 2.log again") do
+          .then_after(0.75, "rename to 2.log again") do
             file_path.rename(second_file)
           end
-          .then_after(0.25, "write line 3 to original, 47 bytes") do
+          .then_after(0.75, "write line 3 to original, 47 bytes") do
             file_path.open("wb") { |file|  file.write("#{line3}\n") }
           end
           .then("wait for expectations to be met") do
@@ -188,19 +193,19 @@ module FileWatch
       let(:listener2) { observer.listener_for(second_file.to_path) }
       let(:actions) do
         RSpec::Sequencing
-          .run_after(0.25, "create original - write line 1, 66 bytes") do
+          .run_after(1.5, "create original - write line 1, 66 bytes") do
             file_path.open("wb") { |file|  file.write("#{line1}\n") }
           end
-          .then_after(0.25, "rename to 2.log") do
+          .then_after(1.5, "rename to 2.log") do
             file_path.rename(second_file)
             file_path.open("wb") { |file|  file.write("#{line2}\n") }
           end
-          .then_after(0.25, "rename to 2.log again") do
+          .then_after(1.5, "rename to 2.log again") do
             file_path.rename(second_file)
             file_path.open("wb") { |file|  file.write("#{line3}\n") }
           end
           .then("wait for expectations to be met") do
-            wait(0.5).for{listener1.lines.size == 3 && listener2.lines.empty?}.to eq(true)
+            wait(1).for{listener1.lines.size == 3 && listener2.lines.empty?}.to eq(true)
           end
           .then("quit") do
             tailing.quit
@@ -267,14 +272,14 @@ module FileWatch
       let(:listener1) { observer.listener_for(file1_path) }
       let(:actions) do
         RSpec::Sequencing
-          .run_after(0.25, "create file") do
+          .run_after(0.75, "create file") do
             file_path.open("wb") { |file|  file.puts(line1); file.puts(line2) }
           end
-          .then_after(0.25, "rotate") do
+          .then_after(0.75, "rotate") do
             FileUtils.cp(file1_path, directory.join("1F.log.1").to_path)
             file_path.truncate(0)
           end
-          .then_after(0.25, "write to truncated file") do
+          .then_after(0.75, "write to truncated file") do
             file_path.open("wb") { |file|  file.puts(line3) }
           end
           .then("wait for expectations to be met") do
@@ -342,13 +347,13 @@ module FileWatch
       let(:listener2) { observer.listener_for(file2.to_path) }
       let(:actions) do
         RSpec::Sequencing
-          .run_after(0.25, "create file") do
+          .run_after(0.75, "create file") do
             file_path.open("wb") { |file|  file.puts(line1); file.puts(line2) }
           end
-          .then_after(0.25, "rename") do
+          .then_after(0.75, "rename") do
             FileUtils.mv(file1_path, file2.to_path)
           end
-          .then_after(0.25, "write to renamed file") do
+          .then_after(0.75, "write to renamed file") do
             file2.open("ab") { |file|  file.puts(line3) }
           end
           .then("wait for expectations to be met") do
@@ -464,14 +469,14 @@ module FileWatch
         .run_after(0.75, "create file") do
           file_path.open("wb") { |file|  file.puts(line1); file.puts(line2) }
         end
-        .then_after(0.5, "rename") do
+        .then_after(0.75, "rename") do
           file_path.rename(second_file)
           file_path.open("wb") { |file|  file.puts("#{line3}") }
         end
         .then("wait for expectations to be met") do
           wait(2.0).for{listener1.lines.size + listener2.lines.size}.to eq(3)
-        end
-        .then_after(0.5, "rename again") do
+      end
+        .then_after(0.75, "rename again") do
           file_path.rename(second_file)
           file_path.open("wb") { |file|  file.puts("#{line4}") }
         end

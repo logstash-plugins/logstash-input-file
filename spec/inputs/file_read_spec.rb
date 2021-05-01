@@ -36,7 +36,7 @@ describe LogStash::Inputs::File do
       end
 
       events = input(conf) do |pipeline, queue|
-        wait(0.5).for{File.exist?(tmpfile_path)}.to be_falsey
+        wait(2).for{File.exist?(tmpfile_path)}.to be_falsey
         2.times.collect { queue.pop }
       end
 
@@ -102,7 +102,7 @@ describe LogStash::Inputs::File do
       end
 
       events = input(conf) do |pipeline, queue|
-        wait(0.5).for{File.exist?(tmpfile_path)}.to be_falsey
+        wait(1).for{File.exist?(tmpfile_path)}.to be_falsey
         3.times.collect { queue.pop }
       end
 
@@ -255,7 +255,7 @@ describe LogStash::Inputs::File do
         'mode' => "read",
         'path' => "#{temp_directory}/*",
         'stat_interval' => interval,
-        'discover_interval' => interval,
+        'discover_interval' => 1,
         'sincedb_path' => "#{temp_directory}/.sincedb",
         'sincedb_write_interval' => interval
     }
@@ -284,7 +284,10 @@ describe LogStash::Inputs::File do
       wait_for_start_processing(@run_thread)
     end
 
-    after { plugin.stop }
+    after {
+      plugin.stop
+      @run_thread.join
+    }
 
     it 'processes a file' do
       wait_for_file_removal(sample_file) # watched discovery
@@ -296,7 +299,7 @@ describe LogStash::Inputs::File do
 
     it 'removes watched file from collection' do
       wait_for_file_removal(sample_file) # watched discovery
-      sleep(0.25) # give CI some space to execute the removal
+      sleep(1) # give CI some space to execute the removal
       # TODO shouldn't be necessary once WatchedFileCollection does proper locking
       watched_files = plugin.watcher.watch.watched_files_collection
       expect( watched_files ).to be_empty
@@ -330,7 +333,10 @@ describe LogStash::Inputs::File do
       wait_for_start_processing(@run_thread)
     end
 
-    after { plugin.stop }
+    after {
+      plugin.stop
+      @run_thread.join
+    }
 
     it 'cleans up sincedb entry' do
       wait_for_file_removal(sample_file) # watched discovery
@@ -338,7 +344,7 @@ describe LogStash::Inputs::File do
       sincedb_content = File.read(sincedb_path).strip
       expect( sincedb_content ).to_not be_empty
 
-      Stud.try(3.times) do
+      Stud.try(3.times, RSpec::Expectations::ExpectationNotMetError) do
         sleep(1.5) # > sincedb_clean_after
 
         sincedb_content = File.read(sincedb_path).strip
@@ -350,20 +356,36 @@ describe LogStash::Inputs::File do
 
   private
 
-  def wait_for_start_processing(run_thread, timeout: 1.0)
+  def wait_for_start_processing(run_thread, timeout: 10.0)
     begin
       Timeout.timeout(timeout) do
-        sleep(0.01) while run_thread.status != 'sleep'
-        sleep(timeout) unless plugin.queue
-      end
-    rescue Timeout::Error
+        # sleep(0.01) while run_thread.status != 'sleep'
+        while run_thread.status != 'sleep'
+          puts "not sleep"
+          sleep(0.01)
+        end
+        # sleep(0.1) while !plugin.queue
+        while !plugin.queue
+          sleep(0.1)
+          puts "no queue"
+        end
+        puts "the queue size is #{plugin.queue.size}"
+          # sleep(0.1) while !plugin.queue
+          while plugin.queue.size == 0
+            sleep(0.1)
+            puts "no item on queue"
+          end
+        end
+    rescue Timeout::Error => e
+      puts "plugin timed out #{e}"
       raise "plugin did not start processing (timeout: #{timeout})" unless plugin.queue
     else
+      puts "plugin did not time out"
       raise "plugin did not start processing" unless plugin.queue
     end
   end
 
-  def wait_for_file_removal(path, timeout: 3 * interval)
-    wait(timeout).for { File.exist?(path) }.to be_falsey
+  def wait_for_file_removal(path)
+    wait(5).for { File.exist?(path) }.to be_falsey
   end
 end
