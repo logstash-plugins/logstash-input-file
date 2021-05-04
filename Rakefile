@@ -1,13 +1,13 @@
-@files=[]
-
-task :default do
-  system("rake -T")
-end
-
-require "logstash/devutils/rake"
+require 'logstash/devutils/rake'
 
 desc "Compile and put filewatch jar into lib/jars"
 task :vendor do
-  exit(1) unless system './gradlew --no-daemon clean jar'
-  puts "-------------------> built filewatch jar via rake"
+  sh('./gradlew --no-daemon clean jar')
+end
+
+task :test do
+  require 'rspec'
+  require 'rspec/core/runner'
+  Rake::Task[:vendor].invoke
+  exit(RSpec::Core::Runner.run(Rake::FileList['spec/**/*_spec.rb']))
 end
