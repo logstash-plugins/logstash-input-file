@@ -225,8 +225,13 @@ module FileWatch
 
     # @return expired keys
     def atomic_write(time)
-      FileHelper.write_atomically(@full_path) do |io|
-        @serializer.serialize(@sincedb, io, time.to_f)
+      begin
+        FileHelper.write_atomically(@full_path) do |io|
+          @serializer.serialize(@sincedb, io, time.to_f)
+        end
+      rescue => e
+        logger.warn("sincedb_write: unable to write atomically, falling back to non-atomic write: #{path} error:", :exception => e.class, :message => e.message)
+        non_atomic_write(time)
       end
     end
 
