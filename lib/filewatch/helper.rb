@@ -30,6 +30,7 @@ module FileHelper
     temp_file.binmode
     return_val = yield temp_file
     temp_file.close
+    new_stat = File.stat(temp_file)
 
     # Overwrite original file with temp file
     File.rename(temp_file.path, file_name)
@@ -37,8 +38,10 @@ module FileHelper
     # Unable to get permissions of the original file => return
     return return_val if old_stat.nil?
 
-    # Set correct uid/gid on new file
-    File.chown(old_stat.uid, old_stat.gid, file_name) if old_stat
+    # Set correct uid/gid on new file if ownership is different.
+    if old_stat && (old_stat.gid != new_stat.gid || old_stat.uid != new_stat.uid)
+      File.chown(old_stat.uid, old_stat.gid, file_name) if old_stat
+    end
 
     return_val
   end

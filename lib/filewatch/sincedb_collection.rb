@@ -225,13 +225,24 @@ module FileWatch
 
     # @return expired keys
     def atomic_write(time)
-      FileHelper.write_atomically(@full_path) do |io|
-        @serializer.serialize(@sincedb, io, time.to_f)
+      logger.trace? && logger.trace("non_atomic_write: ", :time => time)
+      begin
+        FileHelper.write_atomically(@full_path) do |io|
+          @serializer.serialize(@sincedb, io, time.to_f)
+        end
+      rescue Errno::EPERM, Errno::EACCES => e
+        logger.warn("sincedb_write: unable to write atomically due to permissions error, falling back to non-atomic write: #{path} error:", :exception => e.class, :message => e.message)
+        @write_method = method(:non_atomic_write)
+        non_atomic_write(time)
+      rescue => e
+        logger.warn("sincedb_write: unable to write atomically, attempting non-atomic write: #{path} error:", :exception => e.class, :message => e.message)
+        non_atomic_write(time)
       end
     end
 
     # @return expired keys
     def non_atomic_write(time)
+      logger.trace? && logger.trace("non_atomic_write: ", :time => time)
       File.open(@full_path, "w+") do |io|
         @serializer.serialize(@sincedb, io, time.to_f)
       end

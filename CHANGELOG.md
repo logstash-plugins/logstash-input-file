@@ -1,3 +1,10 @@
+## 4.3.1
+  - Add extra safety to `chown` call in `atomic_write`, avoiding plugin crashes and falling back to a 
+  `non_atomic_write` in the event of failure [#295](https://github.com/logstash-plugins/logstash-input-file/pull/295)
+  - Refactor: unify event updates to happen in one place [#297](https://github.com/logstash-plugins/logstash-input-file/pull/297)
+  - Test: Actually retry tests on `RSpec::Expectations::ExpectationNotMetError` and retry instead of relying on timeout
+  [#297](https://github.com/logstash-plugins/logstash-input-file/pull/297)
+
 ## 4.3.0
   - Add ECS Compatibility Mode [#291](https://github.com/logstash-plugins/logstash-input-file/pull/291)
 
