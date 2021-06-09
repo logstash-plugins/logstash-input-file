@@ -363,7 +363,9 @@ describe LogStash::Inputs::File do
     end
   end
 
-  def wait_for_file_removal(path, timeout: 3 * interval)
-    wait(timeout).for { File.exist?(path) }.to be_falsey
+  def wait_for_file_removal(path, timeout: interval)
+    try(5) do
+      wait(timeout).for { File.exist?(path) }.to be_falsey
+    end
   end
 end
