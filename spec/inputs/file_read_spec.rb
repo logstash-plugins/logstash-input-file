@@ -338,7 +338,7 @@ describe LogStash::Inputs::File do
       sincedb_content = File.read(sincedb_path).strip
       expect( sincedb_content ).to_not be_empty
 
-      Stud.try(3.times) do
+      try(3) do
         sleep(1.5) # > sincedb_clean_after
 
         sincedb_content = File.read(sincedb_path).strip
@@ -363,7 +363,10 @@ describe LogStash::Inputs::File do
     end
   end
 
-  def wait_for_file_removal(path, timeout: 3 * interval)
-    wait(timeout).for { File.exist?(path) }.to be_falsey
+  def wait_for_file_removal(path)
+    timeout = interval
+    try(5) do
+      wait(timeout).for { File.exist?(path) }.to be_falsey
+    end
   end
 end

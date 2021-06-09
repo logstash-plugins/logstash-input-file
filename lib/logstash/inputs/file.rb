@@ -373,12 +373,11 @@ class File < LogStash::Inputs::Base
     @completely_stopped.make_true
   end # def run
 
-  def post_process_this(event)
+  def post_process_this(event, path)
+    event.set("[@metadata][path]", path)
     event.set("[@metadata][host]", @host)
     attempt_set(event, @source_host_field, @host)
-
-    source_path = event.get('[@metadata][path]') and
-      attempt_set(event, @source_path_field, source_path)
+    attempt_set(event, @source_path_field, path) if path
 
     decorate(event)
     @queue.get << event
