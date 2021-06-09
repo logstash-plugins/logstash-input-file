@@ -40,8 +40,7 @@ module LogStash module Inputs
     end
 
     def process_event(event)
-      event.set("[@metadata][path]", path)
-      input.post_process_this(event)
+      input.post_process_this(event, path)
     end
 
   end
