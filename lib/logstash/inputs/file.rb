@@ -325,7 +325,7 @@ class File < LogStash::Inputs::Base
     else
       @watcher_class = FileWatch::ObservingRead
     end
-    @codec = LogStash::Codecs::IdentityMapCodec.new(@codec)
+    set_new_identity_map_codec!(@codec)
     @completely_stopped = Concurrent::AtomicBoolean.new
     @queue = Concurrent::AtomicReference.new
 
@@ -350,6 +350,7 @@ class File < LogStash::Inputs::Base
     stop
 
     @watcher = @watcher_class.new(@filewatch_config)
+    set_new_identity_map_codec!(@codec.base_codec)
 
     @completed_file_handlers = []
     if read_mode?
@@ -407,6 +408,10 @@ class File < LogStash::Inputs::Base
   end
 
   private
+
+  def set_new_identity_map_codec!(base_codec)
+    @codec = LogStash::Codecs::IdentityMapCodec.new(base_codec)
+  end
 
   def build_sincedb_base_from_settings(settings)
     logstash_data_path = settings.get_value("path.data")
