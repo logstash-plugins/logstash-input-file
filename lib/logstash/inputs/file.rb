@@ -325,7 +325,7 @@ class File < LogStash::Inputs::Base
     else
       @watcher_class = FileWatch::ObservingRead
     end
-    set_new_identity_map_codec!(@codec)
+    @base_codec = @codec # TODO is there a way register would be called after run (on restart?)
     @completely_stopped = Concurrent::AtomicBoolean.new
     @queue = Concurrent::AtomicReference.new
 
@@ -345,12 +345,12 @@ class File < LogStash::Inputs::Base
   end
 
   def start_processing
-    # if the pipeline restarts this input,
-    # make sure previous files are closed
-    stop
+    # if the pipeline restarts this input, make sure previous files are closed
+    quit_watcher
+    @codec.close if @codec.is_a?(LogStash::Codecs::IdentityMapCodec)
 
     @watcher = @watcher_class.new(@filewatch_config)
-    set_new_identity_map_codec!(@codec.base_codec)
+    @codec = LogStash::Codecs::IdentityMapCodec.new(@base_codec)
 
     @completed_file_handlers = []
     if read_mode?
@@ -395,11 +395,11 @@ class File < LogStash::Inputs::Base
     @logger.debug? && @logger.debug("Received line", :path => path, :text => line)
   end
 
+  # @override LogStash::Inputs::Base#stop
   def stop
-    unless @watcher.nil?
-      @codec.close
-      @watcher.quit
-    end
+    @logger.trace? && @logger.trace(__method__.to_s, @path)
+    quit_watcher
+    @codec.close if @codec
   end
 
   # @private used in specs
@@ -409,8 +409,8 @@ class File < LogStash::Inputs::Base
 
   private
 
-  def set_new_identity_map_codec!(base_codec)
-    @codec = LogStash::Codecs::IdentityMapCodec.new(base_codec)
+  def quit_watcher
+    @watcher.quit if @watcher
   end
 
   def build_sincedb_base_from_settings(settings)
