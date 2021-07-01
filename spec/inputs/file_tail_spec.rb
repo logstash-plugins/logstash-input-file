@@ -391,7 +391,7 @@ describe LogStash::Inputs::File do
             end
           end
           .then("assert both files are mapped as identities and stop") do
-            wait(2).for {subject.codec.identity_count}.to eq(2), "both files are not mapped as identities"
+            wait(2).for { subject.codec.identity_count }.to eq(2), "both files are not mapped as identities"
           end
           .then("stop") do
             subject.stop
@@ -473,13 +473,13 @@ describe LogStash::Inputs::File do
         it "collects line events from only one file" do
           actions = RSpec::Sequencing
             .run("assert one identity is mapped") do
-              wait(0.4).for{subject.codec.identity_count}.to be > 0, "no identity is mapped"
+              wait(0.4).for{ subject.codec.respond_to?(:identity_count) ? subject.codec.identity_count : 0 }.to be > 0, "no identity is mapped"
             end
             .then("stop") do
               subject.stop
             end
             .then("stop flushes last event") do
-              wait(0.4).for{events.size}.to eq(2), "events size does not equal 2"
+              wait(0.4).for{ events.size }.to eq(2), "events size does not equal 2"
             end
           subject.run(events)
           # wait for actions future value
@@ -508,7 +508,7 @@ describe LogStash::Inputs::File do
         it "collects line events from both files" do
           actions = RSpec::Sequencing
             .run("assert both identities are mapped and the first two events are built") do
-              wait(0.4).for{subject.codec.identity_count == 1 && events.size == 2}.to eq(true), "both identities are not mapped and the first two events are not built"
+              wait(0.4).for{ events.size == 2 && subject.codec.identity_count == 1 }.to eq(true), "both identities are not mapped and the first two events are not built"
             end
             .then("wait for close to flush last event of each identity") do
               wait(0.8).for{events.size}.to eq(4), "close does not flush last event of each identity"
