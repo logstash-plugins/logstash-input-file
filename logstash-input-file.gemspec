@@ -33,7 +33,7 @@ Gem::Specification.new do |s|
 
   s.add_runtime_dependency 'concurrent-ruby', '~> 1.0'
   s.add_runtime_dependency 'logstash-codec-multiline', ['~> 3.0']
-  s.add_runtime_dependency 'logstash-mixin-ecs_compatibility_support', '~>1.1'
+  s.add_runtime_dependency 'logstash-mixin-ecs_compatibility_support', '~>1.3'
 
   s.add_development_dependency 'stud', ['~> 0.0.19']
   s.add_development_dependency 'logstash-devutils'

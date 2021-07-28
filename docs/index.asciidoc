@@ -87,7 +87,7 @@ This metadata is added after the event has been decoded by the appropriate codec
 and will never overwrite existing values.
 
 |========
-| ECS Disabled | ECS v1 | Description
+| ECS Disabled | ECS `v1`, `v8` | Description
 
 | `host` | `[host][name]` | The name of the {ls} host that processed the event
 | `path` | `[log][file][path]` | The full path to the log file from which the event originates
@@ -264,7 +264,7 @@ In practice, this will be the best case because the time taken to read new conte
 * Value type is <<string,string>>
 * Supported values are:
 ** `disabled`: sets non-ECS metadata on event (such as top-level `host`, `path`)
-** `v1`: sets ECS-compatible metadata on event (such as `[host][name]`, `[log][file][path]`)
+** `v1`,`v8`: sets ECS-compatible metadata on event (such as `[host][name]`, `[log][file][path]`)
 * Default value depends on which version of Logstash is running:
 ** When Logstash provides a `pipeline.ecs_compatibility` setting, its value is used as the default
 ** Otherwise, the default value is `disabled`.
