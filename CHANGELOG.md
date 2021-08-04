@@ -1,3 +1,6 @@
+## 4.4.0
+  - Add support for ECS v8 [#301](https://github.com/logstash-plugins/logstash-input-file/pull/301)
+
 ## 4.3.1
   - Add extra safety to `chown` call in `atomic_write`, avoiding plugin crashes and falling back to a 
   `non_atomic_write` in the event of failure [#295](https://github.com/logstash-plugins/logstash-input-file/pull/295)

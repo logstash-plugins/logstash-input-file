@@ -89,7 +89,7 @@ module LogStash module Inputs
 class File < LogStash::Inputs::Base
   config_name "file"
 
-  include PluginMixins::ECSCompatibilitySupport(:disabled, :v1)
+  include PluginMixins::ECSCompatibilitySupport(:disabled, :v1, :v8 => :v1)
 
   # The path(s) to the file(s) to use as an input.
   # You can use filename patterns here, such as `/var/log/*.log`.
