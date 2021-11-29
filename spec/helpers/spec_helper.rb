@@ -57,7 +57,8 @@ module FileInput
       @tracer.push [:close, true]
     end
     def clone
-      self.class.new
+      @tracer.push [:clone, true]
+      self
     end
   end
 end
