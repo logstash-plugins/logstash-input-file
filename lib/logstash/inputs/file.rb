@@ -325,7 +325,7 @@ class File < LogStash::Inputs::Base
     else
       @watcher_class = FileWatch::ObservingRead
     end
-    @codec = LogStash::Codecs::IdentityMapCodec.new(@codec)
+    @base_codec = @codec # TODO is there a way register would be called after run (on restart?)
     @completely_stopped = Concurrent::AtomicBoolean.new
     @queue = Concurrent::AtomicReference.new
 
@@ -345,11 +345,12 @@ class File < LogStash::Inputs::Base
   end
 
   def start_processing
-    # if the pipeline restarts this input,
-    # make sure previous files are closed
-    stop
+    # if the pipeline restarts this input, make sure previous files are closed
+    quit_watcher
+    @codec.close if @codec.is_a?(LogStash::Codecs::IdentityMapCodec)
 
     @watcher = @watcher_class.new(@filewatch_config)
+    @codec = LogStash::Codecs::IdentityMapCodec.new(@base_codec)
 
     @completed_file_handlers = []
     if read_mode?
@@ -386,7 +387,7 @@ class File < LogStash::Inputs::Base
   def handle_deletable_path(path)
     return if tail_mode?
     return if @completed_file_handlers.empty?
-    @logger.debug? && @logger.debug(__method__.to_s, :path => path)
+    @logger.trace? && @logger.trace(__method__.to_s, :path => path)
     @completed_file_handlers.each { |handler| handler.handle(path) }
   end
 
@@ -394,11 +395,11 @@ class File < LogStash::Inputs::Base
     @logger.debug? && @logger.debug("Received line", :path => path, :text => line)
   end
 
+  # @override LogStash::Inputs::Base#stop
   def stop
-    unless @watcher.nil?
-      @codec.close
-      @watcher.quit
-    end
+    @logger.trace? && @logger.trace(__method__.to_s, @path)
+    quit_watcher
+    @codec.close if @codec
   end
 
   # @private used in specs
@@ -407,6 +408,10 @@ class File < LogStash::Inputs::Base
   end
 
   private
+
+  def quit_watcher
+    @watcher.quit if @watcher
+  end
 
   def build_sincedb_base_from_settings(settings)
     logstash_data_path = settings.get_value("path.data")
@@ -423,7 +428,7 @@ class File < LogStash::Inputs::Base
 
     event.set(field_reference, value)
   rescue => e
-    logger.trace("failed to set #{field_reference} to `#{value}`", :exception => e.message)
+    logger.trace("failed to set #{field_reference} to `#{value}`", :exception => e.class, :message => e.message)
     false
   end
 
@@ -456,6 +461,7 @@ class File < LogStash::Inputs::Base
   end
 
   def exit_flush
+    @logger.trace? && @logger.trace(__method__.to_s, @path)
     listener = FlushableListener.new("none", self)
     if @codec.identity_count.zero?
       # using the base codec without identity/path info
@@ -463,7 +469,7 @@ class File < LogStash::Inputs::Base
         begin
           listener.process_event(event)
         rescue => e
-          @logger.error("File Input: flush on exit downstream error", :exception => e)
+          @logger.error("flush on exit downstream error", :exception => e.class, :message => e.message)
         end
       end
     else
