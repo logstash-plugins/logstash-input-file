@@ -4,11 +4,8 @@ module FileWatch module ReadMode module Handlers
   class ReadFile < Base
     def handle_specifically(watched_file)
       if open_file(watched_file)
-        add_or_update_sincedb_collection(watched_file) unless sincedb_collection.member?(watched_file.sincedb_key)
-        if sincedb_collection.member?(watched_file.sincedb_key)
-          previous_pos = sincedb_collection.find(watched_file).position
-          watched_file.file_seek([watched_file.bytes_read, previous_pos].max)
-        end
+        add_or_update_sincedb_collection(watched_file)
+        watched_file.file_seek(watched_file.bytes_read)
         loop do
           break if quit?
           loop_control = watched_file.loop_control_adjusted_for_stat_size
