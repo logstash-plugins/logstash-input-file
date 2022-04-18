@@ -4,7 +4,7 @@
 
 ifeval::["{versioned_docs}"=="true"]
 :branch: %BRANCH%
-:ecs_version: %BRANCH%
+:ecs_version: %ECS_VERSION%
 endif::[]
 
 ///////////////////////////////////////////
