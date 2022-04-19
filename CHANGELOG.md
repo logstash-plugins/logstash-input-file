@@ -1,5 +1,6 @@
-## Unreleased
+## 4.4.1
   - Fix: update to Gradle 7 [#305](https://github.com/logstash-plugins/logstash-input-file/pull/305)
+  - [DOC] Add version attributes to doc source file [#308](https://github.com/logstash-plugins/logstash-input-file/pull/308)
   
 ## 4.4.0
   - Add support for ECS v8 [#301](https://github.com/logstash-plugins/logstash-input-file/pull/301)
