@@ -157,39 +157,49 @@ describe LogStash::Inputs::File do
       end
     end
 
-    context "running the input twice" do
-      let(:name) { "D" }
-      it "should read old files" do
-        conf = <<-CONFIG
-          input {
-            file {
-              type => "blah"
-              path => "#{path_path}"
-              start_position => "beginning"
-              codec => "json"
+    context "running the input twice", :ecs_compatibility_support do
+      ecs_compatibility_matrix(:disabled, :v1, :v8 => :v1) do |ecs_select|
+
+        before(:each) do
+          allow_any_instance_of(described_class).to receive(:ecs_compatibility).and_return(ecs_compatibility)
+        end
+        
+        let(:file_path_target_field  ) { ecs_select[disabled: "path", v1: '[log][file][path]'] }
+        let(:source_host_target_field) { ecs_select[disabled: "host", v1: '[host][name]'] }
+        
+        let(:name) { "D" }
+        it "should read old files" do
+          conf = <<-CONFIG
+            input {
+              file {
+                type => "blah"
+                path => "#{path_path}"
+                start_position => "beginning"
+                codec => "json"
+              }
             }
-          }
-        CONFIG
+          CONFIG
 
-        File.open(tmpfile_path, "w") do |fd|
-          fd.puts('{"path": "my_path", "host": "my_host"}')
-          fd.puts('{"my_field": "my_val"}')
-          fd.fsync
+          File.open(tmpfile_path, "w") do |fd|
+            fd.puts('{"path": "my_path", "host": "my_host"}')
+            fd.puts('{"my_field": "my_val"}')
+            fd.fsync
+          end
+          # arbitrary old file (2 days)
+          FileInput.make_file_older(tmpfile_path, 48 * 60 * 60)
+
+          events = input(conf) do |pipeline, queue|
+            2.times.collect { queue.pop }
+          end
+          existing_path_index, added_path_index  = "my_val" == events[0].get("my_field") ? [1,0] : [0,1]
+          expect(events[existing_path_index].get("path")).to eq "my_path"
+          expect(events[existing_path_index].get("host")).to eq "my_host"
+          expect(events[existing_path_index].get("[@metadata][host]")).to eq "#{Socket.gethostname.force_encoding(Encoding::UTF_8)}"
+
+          expect(events[added_path_index].get(file_path_target_field)).to eq "#{tmpfile_path}"
+          expect(events[added_path_index].get(source_host_target_field)).to eq "#{Socket.gethostname.force_encoding(Encoding::UTF_8)}"
+          expect(events[added_path_index].get("[@metadata][host]")).to eq "#{Socket.gethostname.force_encoding(Encoding::UTF_8)}"
         end
-        # arbitrary old file (2 days)
-        FileInput.make_file_older(tmpfile_path, 48 * 60 * 60)
-
-        events = input(conf) do |pipeline, queue|
-          2.times.collect { queue.pop }
-        end
-        existing_path_index, added_path_index  = "my_val" == events[0].get("my_field") ? [1,0] : [0,1]
-        expect(events[existing_path_index].get("path")).to eq "my_path"
-        expect(events[existing_path_index].get("host")).to eq "my_host"
-        expect(events[existing_path_index].get("[@metadata][host]")).to eq "#{Socket.gethostname.force_encoding(Encoding::UTF_8)}"
-
-        expect(events[added_path_index].get("path")).to eq "#{tmpfile_path}"
-        expect(events[added_path_index].get("host")).to eq "#{Socket.gethostname.force_encoding(Encoding::UTF_8)}"
-        expect(events[added_path_index].get("[@metadata][host]")).to eq "#{Socket.gethostname.force_encoding(Encoding::UTF_8)}"
       end
     end
 
@@ -233,54 +243,62 @@ describe LogStash::Inputs::File do
       FileUtils.rm_rf(sincedb_path)
     end
 
-    context "when data exists and then more data is appended" do
-      subject { described_class.new(conf) }
+    context "when data exists and then more data is appended", :ecs_compatibility_support do
+      ecs_compatibility_matrix(:disabled, :v1, :v8 => :v1) do |ecs_select|
 
-      before do
-        File.open(tmpfile_path, "w") do |fd|
-          fd.puts("ignore me 1")
-          fd.puts("ignore me 2")
-          fd.fsync
+        before(:each) do
+          allow_any_instance_of(described_class).to receive(:ecs_compatibility).and_return(ecs_compatibility)
         end
-        mlconf.update("pattern" => "^\s", "what" => "previous")
-        conf.update("type" => "blah",
-              "path" => path_path,
-              "sincedb_path" => sincedb_path,
-              "stat_interval" => 0.1,
-              "codec" => mlcodec,
-              "delimiter" => TEST_FILE_DELIMITER)
-      end
 
-      it "reads the appended data only" do
-        subject.register
-        actions = RSpec::Sequencing
-          .run_after(1, "append two lines after delay") do
-            File.open(tmpfile_path, "a") { |fd| fd.puts("hello"); fd.puts("world") }
-          end
-          .then("wait for one event") do
-            wait(0.75).for{events.size}.to eq(1)
-          end
-          .then("quit") do
-            subject.stop
-          end
-          .then("wait for flushed event") do
-            wait(0.75).for{events.size}.to eq(2)
-          end
+        let(:file_path_target_field  ) { ecs_select[disabled: "path", v1: '[log][file][path]'] }
+        subject { described_class.new(conf) }
 
-        subject.run(events)
-        actions.assert_no_errors
+        before do
+          File.open(tmpfile_path, "w") do |fd|
+            fd.puts("ignore me 1")
+            fd.puts("ignore me 2")
+            fd.fsync
+          end
+          mlconf.update("pattern" => "^\s", "what" => "previous")
+          conf.update("type" => "blah",
+                "path" => path_path,
+                "sincedb_path" => sincedb_path,
+                "stat_interval" => 0.1,
+                "codec" => mlcodec,
+                "delimiter" => TEST_FILE_DELIMITER)
+        end
 
-        event1 = events[0]
-        expect(event1).not_to be_nil
-        expect(event1.get("path")).to eq tmpfile_path
-        expect(event1.get("[@metadata][path]")).to eq tmpfile_path
-        expect(event1.get("message")).to eq "hello"
+        it "reads the appended data only" do
+          subject.register
+          actions = RSpec::Sequencing
+            .run_after(1, "append two lines after delay") do
+              File.open(tmpfile_path, "a") { |fd| fd.puts("hello"); fd.puts("world") }
+            end
+            .then("wait for one event") do
+              wait(0.75).for{events.size}.to eq(1)
+            end
+            .then("quit") do
+              subject.stop
+            end
+            .then("wait for flushed event") do
+              wait(0.75).for{events.size}.to eq(2)
+            end
 
-        event2 = events[1]
-        expect(event2).not_to be_nil
-        expect(event2.get("path")).to eq tmpfile_path
-        expect(event2.get("[@metadata][path]")).to eq tmpfile_path
-        expect(event2.get("message")).to eq "world"
+          subject.run(events)
+          actions.assert_no_errors
+
+          event1 = events[0]
+          expect(event1).not_to be_nil
+          expect(event1.get(file_path_target_field)).to eq tmpfile_path
+          expect(event1.get("[@metadata][path]")).to eq tmpfile_path
+          expect(event1.get("message")).to eq "hello"
+
+          event2 = events[1]
+          expect(event2).not_to be_nil
+          expect(event2.get(file_path_target_field)).to eq tmpfile_path
+          expect(event2.get("[@metadata][path]")).to eq tmpfile_path
+          expect(event2.get("message")).to eq "world"
+        end
       end
     end
 
@@ -312,7 +330,11 @@ describe LogStash::Inputs::File do
             wait(0.75).for{subject.codec.identity_map[tmpfile_path]}.not_to be_nil, "identity is not mapped"
           end
           .then("wait for auto_flush") do
-            wait(0.75).for{subject.codec.identity_map[tmpfile_path].codec.trace_for(:auto_flush)}.to eq([true]), "autoflush didn't"
+            wait(0.75).for {
+              puts "DNADBG>> subject.codec.identity_map: #{subject.codec.identity_map} \n\t tmpfile_path: #{tmpfile_path} \n\t content: #{subject.codec.identity_map[tmpfile_path]}"
+              puts "DNADBG>> subject.codec.identity_map[tmpfile_path].codec class: #{subject.codec.identity_map[tmpfile_path].codec.class}\n\n"
+              subject.codec.identity_map[tmpfile_path].codec.trace_for(:auto_flush)
+            }.to eq([true]), "autoflush didn't"
           end
           .then("quit") do
             subject.stop
@@ -356,74 +378,50 @@ describe LogStash::Inputs::File do
       end
     end
 
-    context "when wildcard path and a multiline codec is specified" do
-      subject { described_class.new(conf) }
-      let(:suffix)       { "J" }
-      let(:tmpfile_path2) { ::File.join(tmpdir_path, "K.txt") }
-      before do
-        mlconf.update("pattern" => "^\s", "what" => "previous")
-        conf.update(
-              "type" => "blah",
-              "path" => path_path,
-              "start_position" => "beginning",
-              "sincedb_path" => sincedb_path,
-              "stat_interval" => 0.05,
-              "codec" => mlcodec,
-              "file_sort_by" => "path",
-              "delimiter" => TEST_FILE_DELIMITER)
+    context "when wildcard path and a multiline codec is specified", :ecs_compatibility_support do
+      ecs_compatibility_matrix(:disabled, :v1, :v8 => :v1) do |ecs_select|
 
-        subject.register
-      end
+        before(:each) do
+          allow_any_instance_of(described_class).to receive(:ecs_compatibility).and_return(ecs_compatibility)
+        end
 
-      it "collects separate multiple line events from each file" do
-        subject
-        actions = RSpec::Sequencing
-          .run_after(0.1, "create files") do
-            File.open(tmpfile_path, "wb") do |fd|
-              fd.puts("line1.1-of-J")
-              fd.puts("  line1.2-of-J")
-              fd.puts("  line1.3-of-J")
-            end
-            File.open(tmpfile_path2, "wb") do |fd|
-              fd.puts("line1.1-of-K")
-              fd.puts("  line1.2-of-K")
-              fd.puts("  line1.3-of-K")
-            end
-          end
-          .then("assert both files are mapped as identities and stop") do
-            wait(2).for {subject.codec.identity_count}.to eq(2), "both files are not mapped as identities"
-          end
-          .then("stop") do
-            subject.stop
-          end
-        subject.run(events)
-        # wait for actions to complete
-        actions.assert_no_errors
-        expect(events.size).to eq(2)
-        e1, e2 = events
-        e1_message = e1.get("message")
-        e2_message = e2.get("message")
+        let(:file_path_target_field  ) { ecs_select[disabled: "path", v1: '[log][file][path]'] }
 
-        expect(e1.get("path")).to match(/J.txt/)
-        expect(e2.get("path")).to match(/K.txt/)
-        expect(e1_message).to eq("line1.1-of-J#{TEST_FILE_DELIMITER}  line1.2-of-J#{TEST_FILE_DELIMITER}  line1.3-of-J")
-        expect(e2_message).to eq("line1.1-of-K#{TEST_FILE_DELIMITER}  line1.2-of-K#{TEST_FILE_DELIMITER}  line1.3-of-K")
-      end
+        subject { described_class.new(conf) }
+        let(:suffix)       { "J" }
+        let(:tmpfile_path2) { ::File.join(tmpdir_path, "K.txt") }
+        before do
+          mlconf.update("pattern" => "^\s", "what" => "previous")
+          conf.update(
+                "type" => "blah",
+                "path" => path_path,
+                "start_position" => "beginning",
+                "sincedb_path" => sincedb_path,
+                "stat_interval" => 0.05,
+                "codec" => mlcodec,
+                "file_sort_by" => "path",
+                "delimiter" => TEST_FILE_DELIMITER)
 
-      context "if auto_flush is enabled on the multiline codec" do
-        let(:mlconf) { { "auto_flush_interval" => 0.5 } }
-        let(:suffix)       { "M" }
-        it "an event is generated via auto_flush" do
+          subject.register
+        end
+
+        it "collects separate multiple line events from each file" do
+          subject
           actions = RSpec::Sequencing
             .run_after(0.1, "create files") do
               File.open(tmpfile_path, "wb") do |fd|
-                fd.puts("line1.1-of-a")
-                fd.puts("  line1.2-of-a")
-                fd.puts("  line1.3-of-a")
+                fd.puts("line1.1-of-J")
+                fd.puts("  line1.2-of-J")
+                fd.puts("  line1.3-of-J")
+              end
+              File.open(tmpfile_path2, "wb") do |fd|
+                fd.puts("line1.1-of-K")
+                fd.puts("  line1.2-of-K")
+                fd.puts("  line1.3-of-K")
               end
             end
-            .then("wait for auto_flush") do
-              wait(2).for{events.size}.to eq(1), "events size is not 1"
+            .then("assert both files are mapped as identities and stop") do
+              wait(2).for {subject.codec.identity_count}.to eq(2), "both files are not mapped as identities"
             end
             .then("stop") do
               subject.stop
@@ -431,10 +429,43 @@ describe LogStash::Inputs::File do
           subject.run(events)
           # wait for actions to complete
           actions.assert_no_errors
-          e1 = events.first
+          expect(events.size).to eq(2)
+          e1, e2 = events
           e1_message = e1.get("message")
-          expect(e1_message).to eq("line1.1-of-a#{TEST_FILE_DELIMITER}  line1.2-of-a#{TEST_FILE_DELIMITER}  line1.3-of-a")
-          expect(e1.get("path")).to match(/M.txt$/)
+          e2_message = e2.get("message")
+
+          expect(e1.get(file_path_target_field)).to match(/J.txt/)
+          expect(e2.get(file_path_target_field)).to match(/K.txt/)
+          expect(e1_message).to eq("line1.1-of-J#{TEST_FILE_DELIMITER}  line1.2-of-J#{TEST_FILE_DELIMITER}  line1.3-of-J")
+          expect(e2_message).to eq("line1.1-of-K#{TEST_FILE_DELIMITER}  line1.2-of-K#{TEST_FILE_DELIMITER}  line1.3-of-K")
+        end
+
+        context "if auto_flush is enabled on the multiline codec" do
+          let(:mlconf) { { "auto_flush_interval" => 0.5 } }
+          let(:suffix)       { "M" }
+          it "an event is generated via auto_flush" do
+            actions = RSpec::Sequencing
+              .run_after(0.1, "create files") do
+                File.open(tmpfile_path, "wb") do |fd|
+                  fd.puts("line1.1-of-a")
+                  fd.puts("  line1.2-of-a")
+                  fd.puts("  line1.3-of-a")
+                end
+              end
+              .then("wait for auto_flush") do
+                wait(2).for{events.size}.to eq(1), "events size is not 1"
+              end
+              .then("stop") do
+                subject.stop
+              end
+            subject.run(events)
+            # wait for actions to complete
+            actions.assert_no_errors
+            e1 = events.first
+            e1_message = e1.get("message")
+            expect(e1_message).to eq("line1.1-of-a#{TEST_FILE_DELIMITER}  line1.2-of-a#{TEST_FILE_DELIMITER}  line1.3-of-a")
+            expect(e1.get(file_path_target_field)).to match(/M.txt$/)
+          end
         end
       end
     end
