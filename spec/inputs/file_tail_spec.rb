@@ -329,8 +329,10 @@ describe LogStash::Inputs::File do
           .then_after(0.1, "identity is mapped") do
             wait(0.75).for{subject.codec.identity_map[tmpfile_path]}.not_to be_nil, "identity is not mapped"
           end
-          # without this the subject.run doesn't invokes the #exit_flush which is the only @codec.flush_mapped invokation
-          .then("request a stop") { subject.stop }
+          .then("request a stop") do
+            # without this the subject.run doesn't invokes the #exit_flush which is the only @codec.flush_mapped invocation
+            subject.stop
+          end
           .then("wait for auto_flush") do
             wait(0.75).for {
               subject.codec.identity_map[tmpfile_path].codec.trace_for(:auto_flush)
