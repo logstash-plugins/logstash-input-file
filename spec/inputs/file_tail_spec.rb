@@ -339,7 +339,7 @@ describe LogStash::Inputs::File do
             subject.stop
           end
           .then("wait for auto_flush") do
-            wait(0.75).for {
+            wait(2).for {
               subject.codec.identity_map[tmpfile_path].codec.trace_for(:auto_flush)
                 .reduce {|b1, b2| b1 and b2} # there could be multiple instances of same call, e.g. [[:accept, true], [:auto_flush, true], [:close, true], [:auto_flush, true]]
             }.to eq(true), "autoflush didn't"
