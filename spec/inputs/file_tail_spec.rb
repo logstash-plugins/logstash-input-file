@@ -329,6 +329,11 @@ describe LogStash::Inputs::File do
           .then_after(0.1, "identity is mapped") do
             wait(0.75).for{subject.codec.identity_map[tmpfile_path]}.not_to be_nil, "identity is not mapped"
           end
+          .then("wait accept") do
+            wait(0.75).for {
+              subject.codec.identity_map[tmpfile_path].codec.trace_for(:accept)
+            }.to eq([true]), "accept didn't"
+          end
           .then("request a stop") do
             # without this the subject.run doesn't invokes the #exit_flush which is the only @codec.flush_mapped invocation
             subject.stop
@@ -336,11 +341,9 @@ describe LogStash::Inputs::File do
           .then("wait for auto_flush") do
             wait(0.75).for {
               subject.codec.identity_map[tmpfile_path].codec.trace_for(:auto_flush)
-            }.to eq([true]), "autoflush didn't"
+                .reduce {|b1, b2| b1 and b2} # there could be multiple instances of same call, e.g. [[:accept, true], [:auto_flush, true], [:close, true], [:auto_flush, true]]
+            }.to eq(true), "autoflush didn't"
           end
-#           .then("quit") do
-#             subject.stop
-#           end
         subject.run(events)
         actions.assert_no_errors
         expect(subject.codec.identity_map[tmpfile_path].codec.trace_for(:accept)).to eq([true])
