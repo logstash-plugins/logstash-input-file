@@ -1,3 +1,6 @@
+## 4.4.2
+  - Doc: Fix attribute by removing extra character [#310](https://api.github.com/repos/logstash-plugins/logstash-input-file/pulls/310)
+
 ## 4.4.1
   - Fix: update to Gradle 7 [#305](https://github.com/logstash-plugins/logstash-input-file/pull/305)
   - [DOC] Add version attributes to doc source file [#308](https://github.com/logstash-plugins/logstash-input-file/pull/308)
