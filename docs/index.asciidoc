@@ -9,6 +9,11 @@ START - GENERATED VARIABLES, DO NOT EDIT!
 :release_date: %RELEASE_DATE%
 :changelog_url: %CHANGELOG_URL%
 :include_path: ../../../../logstash/docs/include
+
+ifeval::["{versioned_docs}"=="true"]
+:branch: %BRANCH%
+:ecs_version: %ECS_VERSION%
+endif::[]
 ///////////////////////////////////////////
 END - GENERATED VARIABLES, DO NOT EDIT!
 ///////////////////////////////////////////
@@ -82,7 +87,7 @@ was not ideal and a dedicated Read mode is an improvement.
 ==== Compatibility with the Elastic Common Schema (ECS)
 
 This plugin adds metadata about event's source, and can be configured to do so
-in an {ecs-ref}[ECS-compatible] way with <<plugins-{type}s-{plugin}-ecs_compatibility>>.
+in an https://www.elastic.co/guide/en/ecs/{ecs_version}/index.html[ECS-compatible] way with <<plugins-{type}s-{plugin}-ecs_compatibility>>.
 This metadata is added after the event has been decoded by the appropriate codec,
 and will never overwrite existing values.
 
@@ -270,7 +275,7 @@ In practice, this will be the best case because the time taken to read new conte
 ** Otherwise, the default value is `disabled`.
 
 Controls this plugin's compatibility with the
-{ecs-ref}[Elastic Common Schema (ECS)].
+https://www.elastic.co/guide/en/ecs/{ecs_version}/index.html[Elastic Common Schema (ECS)].
 
 [id="plugins-{type}s-{plugin}-exclude"]
 ===== `exclude`
@@ -426,7 +431,7 @@ of `/var/log` will be done for all `*.log` files.
 Paths must be absolute and cannot be relative.
 
 You may also configure multiple paths. See an example
-on the {logstash-ref}/configuration-file-structure.html#array[Logstash configuration page].
+on the https://www.elastic.co/guide/en/logstash/{branch}/configuration-file-structure.html#array[Logstash configuration page].
 
 [id="plugins-{type}s-{plugin}-sincedb_clean_after"]
 ===== `sincedb_clean_after`
@@ -439,7 +444,7 @@ The sincedb record now has a last active timestamp associated with it.
 If no changes are detected in a tracked file in the last N days its sincedb
 tracking record expires and will not be persisted.
 This option helps protect against the inode recycling problem.
-Filebeat has a {filebeat-ref}/inode-reuse-issue.html[FAQ about inode recycling].
+Filebeat has an https://www.elastic.co/guide/en/beats/filebeat/{branch}}/inode-reuse-issue.html[FAQ about inode recycling].
 
 [id="plugins-{type}s-{plugin}-sincedb_path"]
 ===== `sincedb_path`
@@ -532,5 +537,10 @@ Supported values: `ms` `msec` `msecs`, e.g. "500 ms", "750 msec", "50 msecs
 Supported values: `us` `usec` `usecs`, e.g. "600 us", "800 usec", "900 usecs"
 [NOTE]
 `micro` `micros` and `microseconds` are not supported
+
+ifeval::["{versioned_docs}"=="true"]
+:branch: current
+:ecs_version: current
+endif::[]
 
 :default_codec!:
