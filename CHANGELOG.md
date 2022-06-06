@@ -1,3 +1,6 @@
+## 4.4.3
+  - Fixes read mode to restart the read from reference stored in sincedb in case the file wasn't completely consumed. [#307](https://github.com/logstash-plugins/logstash-input-file/pull/307)
+
 ## 4.4.2
   - Doc: Fix attribute by removing extra character [#310](https://github.com/logstash-plugins/logstash-input-file/pull/310)
 

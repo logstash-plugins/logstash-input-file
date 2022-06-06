@@ -31,7 +31,13 @@ module FileInput
 
     def trace_for(symbol)
       params = @tracer.map {|k,v| k == symbol ? v : nil}.compact
-      params.empty? ? false : params
+      if params.empty?
+        false
+      else
+        # merge all params with same key
+        # there could be multiple instances of same call, e.g. [[:accept, true], [:auto_flush, true], [:close, true], [:auto_flush, true]]
+        params.reduce {|b1, b2| b1 and b2}
+      end
     end
 
     def clear

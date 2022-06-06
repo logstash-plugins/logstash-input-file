@@ -80,6 +80,8 @@ module FileWatch
       multiplier = amount / string.length
       string * multiplier
     end
+    def sysseek(offset, whence)
+    end
   end
 
   FIXTURE_DIR = File.join('spec', 'fixtures')

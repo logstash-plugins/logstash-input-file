@@ -2,9 +2,19 @@
 
 module FileWatch module ReadMode module Handlers
   class ReadFile < Base
+
+    # seek file to which ever is furthest: either current bytes read or sincedb position
+    private
+    def seek_to_furthest_position(watched_file)
+      previous_pos = sincedb_collection.find(watched_file).position
+      watched_file.file_seek([watched_file.bytes_read, previous_pos].max)
+    end
+
+    public
     def handle_specifically(watched_file)
       if open_file(watched_file)
         add_or_update_sincedb_collection(watched_file) unless sincedb_collection.member?(watched_file.sincedb_key)
+        seek_to_furthest_position(watched_file)
         loop do
           break if quit?
           loop_control = watched_file.loop_control_adjusted_for_stat_size
