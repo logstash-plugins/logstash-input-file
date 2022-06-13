@@ -29,7 +29,7 @@ module FileWatch module ReadMode module Handlers
           gzip_stream = GZIPInputStream.new(file_stream)
           decoder = InputStreamReader.new(gzip_stream, "UTF-8")
           buffered = BufferedReader.new(decoder)
-          while (line = buffered.readLine(false))
+          while (line = buffered.readLine())
             watched_file.listener.accept(line)
             # can't quit, if we did then we would incorrectly write a 'completed' sincedb entry
             # what do we do about quit when we have just begun reading the zipped file (e.g. pipeline reloading)
