@@ -9,11 +9,6 @@ START - GENERATED VARIABLES, DO NOT EDIT!
 :release_date: %RELEASE_DATE%
 :changelog_url: %CHANGELOG_URL%
 :include_path: ../../../../logstash/docs/include
-
-ifeval::["{versioned_docs}"=="true"]
-:branch: %BRANCH%
-:ecs_version: %ECS_VERSION%
-endif::[]
 ///////////////////////////////////////////
 END - GENERATED VARIABLES, DO NOT EDIT!
 ///////////////////////////////////////////
@@ -537,10 +532,5 @@ Supported values: `ms` `msec` `msecs`, e.g. "500 ms", "750 msec", "50 msecs
 Supported values: `us` `usec` `usecs`, e.g. "600 us", "800 usec", "900 usecs"
 [NOTE]
 `micro` `micros` and `microseconds` are not supported
-
-ifeval::["{versioned_docs}"=="true"]
-:branch: current
-:ecs_version: current
-endif::[]
 
 :default_codec!:
