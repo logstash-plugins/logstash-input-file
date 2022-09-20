@@ -1,3 +1,6 @@
+## 4.4.4
+  - Fixes gzip file handling in read mode when run on JDK12+, including JDK17 that is bundled with Logstash 8.4+ [#312](https://github.com/logstash-plugins/logstash-input-file/pull/312)
+
 ## 4.4.3
   - Fixes read mode to restart the read from reference stored in sincedb in case the file wasn't completely consumed. [#307](https://github.com/logstash-plugins/logstash-input-file/pull/307)
 
