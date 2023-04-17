@@ -32,6 +32,7 @@ repositories {
 }
 
 project.sourceCompatibility = JavaVersion.VERSION_1_8
+project.targetCompatibility = JavaVersion.VERSION_1_8
 
 dependencies {
     compileOnly group: 'org.jruby', name: 'jruby-complete', version: "9.1.13.0"
