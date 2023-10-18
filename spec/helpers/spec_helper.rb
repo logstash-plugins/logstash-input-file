@@ -24,6 +24,12 @@ module FileInput
     f.close()
   end
 
+  def self.truncate_gzip(file_path)
+    f = File.open(file_path, "ab")
+    f.truncate(100)
+    f.close()
+  end
+
   class TracerBase
     def initialize
       @tracer = Concurrent::Array.new

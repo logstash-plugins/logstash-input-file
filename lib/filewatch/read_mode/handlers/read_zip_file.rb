@@ -71,14 +71,14 @@ module FileWatch module ReadMode module Handlers
 
     def corrupted?(watched_file)
       begin
+        start = Time.new
         file_stream = FileInputStream.new(watched_file.path)
         gzip_stream = GZIPInputStream.new(file_stream)
         buffer = Java::byte[8192].new
-        start = Time.new
         until gzip_stream.read(buffer) == -1
         end
         return false
-      rescue ZipException => e
+      rescue ZipException, Java::JavaIo::EOFException => e
         duration = Time.now - start
         logger.warn("Detected corrupted archive #{watched_file.path} file won't be processed", :message => e.message,
                     :duration => duration.round(3))

@@ -1,3 +1,6 @@
+## 4.4.5
+  - Handle EOF when checking archive validity [#321](https://github.com/logstash-plugins/logstash-input-file/pull/321)
+
 ## 4.4.4
   - Fixes gzip file handling in read mode when run on JDK12+, including JDK17 that is bundled with Logstash 8.4+ [#312](https://github.com/logstash-plugins/logstash-input-file/pull/312)
 

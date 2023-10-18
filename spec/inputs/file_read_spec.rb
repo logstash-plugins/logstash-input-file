@@ -245,6 +245,37 @@ describe LogStash::Inputs::File do
           expect(IO.read(log_completed_path)).to be_empty
         end
       end
+
+      it "the truncated file is untouched" do
+        directory = Stud::Temporary.directory
+        file_path = fixture_dir.join('compressed.log.gz')
+        truncated_file_path = ::File.join(directory, 'truncated.gz')
+        FileUtils.cp(file_path, truncated_file_path)
+
+        FileInput.truncate_gzip(truncated_file_path)
+
+        log_completed_path = ::File.join(directory, "C_completed.txt")
+        f = File.new(log_completed_path, "w")
+        f.close()
+
+        conf = <<-CONFIG
+        input {
+          file {
+            type => "blah"
+            path => "#{truncated_file_path}"
+            mode => "read"
+            file_completed_action => "log_and_delete"
+            file_completed_log_path => "#{log_completed_path}"
+            check_archive_validity => true
+          }
+        }
+        CONFIG
+
+        events = input(conf) do |pipeline, queue|
+          wait(1)
+          expect(IO.read(log_completed_path)).to be_empty
+        end
+      end
     end
   end
 
