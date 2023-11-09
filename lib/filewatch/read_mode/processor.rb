@@ -71,7 +71,14 @@ module FileWatch module ReadMode
       logger.trace(__method__.to_s)
       # Handles watched_files in the active state.
       watched_files.each do |watched_file|
-        next unless watched_file.active?
+        unless watched_file.active?
+          if @settings.exit_after_read and watched_file.all_read?
+            # in-active files that have been read completly in a previous run
+            # need to be marked as such or the pipeline will not end
+            common_detach_when_allread(watched_file)
+          end
+          next
+        end
 
         begin
           restat(watched_file)
@@ -99,7 +106,7 @@ module FileWatch module ReadMode
 
     def common_detach_when_allread(watched_file)
       watched_file.unwatch
-      watched_file.listener.reading_completed
+      watched_file.listener.reading_completed unless watched_file.listener.nil?
       add_deletable_path watched_file.path
       logger.trace? && logger.trace("whole file read, removing from collection", :path => watched_file.path)
     end
