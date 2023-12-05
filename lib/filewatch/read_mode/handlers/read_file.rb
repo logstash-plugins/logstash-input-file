@@ -54,6 +54,7 @@ module FileWatch module ReadMode module Handlers
             # sincedb position is independent from the watched_file bytes_read
             delta = line.bytesize + @settings.delimiter_byte_size
             sincedb_collection.increment(watched_file.sincedb_key, delta)
+            break if quit?
           end
         rescue EOFError => e
           log_error("controlled_read: eof error reading file", watched_file, e)
