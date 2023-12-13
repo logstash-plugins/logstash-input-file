@@ -1,3 +1,6 @@
+## 4.4.6
+  - Change read mode to immediately stop consuming buffered lines when shutdown is requested [#322](https://github.com/logstash-plugins/logstash-input-file/pull/322)
+
 ## 4.4.5
   - Handle EOF when checking archive validity [#321](https://github.com/logstash-plugins/logstash-input-file/pull/321)
 

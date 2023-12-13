@@ -181,25 +181,27 @@ describe LogStash::Inputs::File do
     end
 
     context "for a compressed file" do
+      let(:tmp_directory) { Stud::Temporary.directory }
+      let(:all_files_path) { fixture_dir.join("compressed.*.*") }
+      let(:gz_file_path) { fixture_dir.join('compressed.log.gz') }
+      let(:gzip_file_path) { fixture_dir.join('compressed.log.gzip') }
+      let(:sincedb_path) { ::File.join(tmp_directory, "sincedb.db") }
+      let(:log_completed_path) { ::File.join(tmp_directory, "completed.log") }
+
       it "the file is read" do
-        file_path = fixture_dir.join('compressed.log.gz')
-        file_path2 = fixture_dir.join('compressed.log.gzip')
-        FileInput.make_fixture_current(file_path.to_path)
-        FileInput.make_fixture_current(file_path2.to_path)
-        tmpfile_path = fixture_dir.join("compressed.*.*")
-        directory = Stud::Temporary.directory
-        sincedb_path = ::File.join(directory, "readmode_C_sincedb.txt")
-        log_completed_path = ::File.join(directory, "C_completed.txt")
+        FileInput.make_fixture_current(gz_file_path.to_path)
+        FileInput.make_fixture_current(gzip_file_path.to_path)
 
         conf = <<-CONFIG
         input {
           file {
             type => "blah"
-            path => "#{tmpfile_path}"
+            path => "#{all_files_path}"
             sincedb_path => "#{sincedb_path}"
             mode => "read"
             file_completed_action => "log"
             file_completed_log_path => "#{log_completed_path}"
+            exit_after_read => true
           }
         }
         CONFIG
@@ -216,16 +218,10 @@ describe LogStash::Inputs::File do
       end
 
       it "the corrupted file is untouched" do
-        directory = Stud::Temporary.directory
-        file_path = fixture_dir.join('compressed.log.gz')
-        corrupted_file_path = ::File.join(directory, 'corrupted.gz')
-        FileUtils.cp(file_path, corrupted_file_path)
+        corrupted_file_path = ::File.join(tmp_directory, 'corrupted.gz')
+        FileUtils.cp(gz_file_path, corrupted_file_path)
 
         FileInput.corrupt_gzip(corrupted_file_path)
-
-        log_completed_path = ::File.join(directory, "C_completed.txt")
-        f = File.new(log_completed_path, "w")
-        f.close()
 
         conf = <<-CONFIG
         input {
@@ -236,27 +232,22 @@ describe LogStash::Inputs::File do
             file_completed_action => "log_and_delete"
             file_completed_log_path => "#{log_completed_path}"
             check_archive_validity => true
+            exit_after_read => true
           }
         }
         CONFIG
 
-        events = input(conf) do |pipeline, queue|
+        input(conf) do |pipeline, queue|
           wait(1)
           expect(IO.read(log_completed_path)).to be_empty
         end
       end
 
       it "the truncated file is untouched" do
-        directory = Stud::Temporary.directory
-        file_path = fixture_dir.join('compressed.log.gz')
-        truncated_file_path = ::File.join(directory, 'truncated.gz')
-        FileUtils.cp(file_path, truncated_file_path)
+        truncated_file_path = ::File.join(tmp_directory, 'truncated.gz')
+        FileUtils.cp(gz_file_path, truncated_file_path)
 
         FileInput.truncate_gzip(truncated_file_path)
-
-        log_completed_path = ::File.join(directory, "C_completed.txt")
-        f = File.new(log_completed_path, "w")
-        f.close()
 
         conf = <<-CONFIG
         input {
@@ -267,11 +258,12 @@ describe LogStash::Inputs::File do
             file_completed_action => "log_and_delete"
             file_completed_log_path => "#{log_completed_path}"
             check_archive_validity => true
+            exit_after_read => true
           }
         }
         CONFIG
 
-        events = input(conf) do |pipeline, queue|
+        input(conf) do |pipeline, queue|
           wait(1)
           expect(IO.read(log_completed_path)).to be_empty
         end
