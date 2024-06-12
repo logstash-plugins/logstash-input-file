@@ -108,10 +108,22 @@ module FileWatch module TailMode
           if watched_file.size_changed?
             watched_file.watch
             unignore(watched_file)
+          else
+            # if file comes from sincedb
+            if watched_file.file_ignorable?
+              common_detach(watched_file)
+            end
           end
         end
         break if watch.quit?
       end
+    end
+
+    # taken from lib/filewatch/read_mode/processor.rb
+    def common_detach(watched_file)
+      watched_file.unwatch
+      add_deletable_path watched_file.path
+      logger.trace? && logger.trace("removing from collection", :path => watched_file.path)
     end
 
     def process_delayed_delete(watched_files)
@@ -140,7 +152,7 @@ module FileWatch module TailMode
     def process_rotation_in_progress(watched_files)
       logger.trace(__method__.to_s)
       watched_files.each do |watched_file|
-        next unless watched_file.rotation_in_progress?
+        next unless !watched_file.ignored? && watched_file.rotation_in_progress?
         if !watched_file.all_read?
           if watched_file.file_open?
             # rotated file but original opened file is not fully read
