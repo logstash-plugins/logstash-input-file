@@ -3,3 +3,7 @@ Gemfile.lock
 .bundle
 vendor
 lib/jars
+.ci
+.gradle
+.idea
+build

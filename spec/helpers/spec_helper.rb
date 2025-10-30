@@ -51,7 +51,24 @@ module FileInput
     end
   end
 
+  class NullObject
+    def respond_to_missing?(method_name, include_private = false)
+      true
+    end
+    def method_missing(method_name, *args, **kwargs, &block)
+      nil
+    end
+  end
+
+  module MockLoggable
+    def self.included(base)
+      mock_logger = NullObject.new
+      base.define_method(:logger) { mock_logger }
+    end
+  end
+
   class CodecTracer < TracerBase
+    include MockLoggable
     def decode_accept(ctx, data, listener)
       @tracer.push [:decode_accept, [ctx, data]]
       listener.process(ctx, {"message" => data})
