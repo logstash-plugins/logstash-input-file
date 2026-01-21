@@ -36,6 +36,13 @@ module FileWatch
     private
 
     def can_exclude?(watched_file, new_discovery)
+      if watched_file.file_ignorable?
+        if new_discovery
+          logger.trace("skipping file because it is too old", :path => watched_file.path)
+        end
+        watched_file.unwatch
+        return true
+      end
       @exclude.each do |pattern|
         if watched_file.pathname.basename.fnmatch?(pattern)
           if new_discovery
