@@ -190,7 +190,14 @@ module FileWatch
 
     def handle_association(sincedb_value, watched_file)
       watched_file.update_bytes_read(sincedb_value.position)
-      sincedb_value.set_watched_file(watched_file)
+      if watched_file.all_read?
+        # avoid the last_changed_at of sincedb_value which record the watched file has bean read over being changed when reload sincedb
+        sincedb_value.set_watched_file_without_touch(watched_file)
+        logger.trace("handle_association call set_watched_file_without_touch")
+      else
+        sincedb_value.set_watched_file(watched_file)
+        logger.trace("handle_association call set_watched_file")
+      end
       watched_file.initial_completed
       if watched_file.all_read?
         watched_file.ignore
