@@ -7,3 +7,4 @@ lib/jars
 .gradle
 .idea
 build
+lib/logstash-input-file_jars.rb
