@@ -138,6 +138,9 @@ with e.g. `ls -li`.
 
 ==== Reading from remote network volumes
 
+WARNING: The file input does not support reading from network shares. It can work, but
+it is not extensively tested. We recommend using Filebeat with `filestream` input.
+
 The file input is not thoroughly tested on remote filesystems such as NFS,
 Samba, s3fs-fuse, etc, however NFS is occasionally tested. The file size as given by
 the remote FS client is used to govern how much data to read at any given time to
