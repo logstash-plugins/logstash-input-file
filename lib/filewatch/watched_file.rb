@@ -187,7 +187,8 @@ module FileWatch
     end
 
     def set_accessed_at
-      @accessed_at = Time.now.to_f
+      # if files older then specific time should be ignored - take last change time as last access time
+      @accessed_at = if expiry_ignore_enabled? then File.mtime(@path).to_f else Time.now.to_f end
     end
 
     def initial?
