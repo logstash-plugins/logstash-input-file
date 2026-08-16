@@ -47,6 +47,10 @@ module FileWatch
       @watched_file = watched_file
     end
 
+    def set_watched_file_without_touch(watched_file)
+      @watched_file = watched_file
+    end
+
     def touch
       @last_changed_at = Time.now.to_f
     end

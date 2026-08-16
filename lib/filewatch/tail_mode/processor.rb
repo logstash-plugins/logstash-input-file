@@ -187,7 +187,10 @@ module FileWatch module TailMode
             potential_sdb_value.set_watched_file(watched_file)
           end
         end
-        logger.trace("---------- >>>> Rotation In Progress: after handling rotation", :this_watched_file => watched_file.details, :sincedb_value => (potential_sdb_value || sdb_value))
+        # Clean the path_in_sincedb because a file with the same name appears, this file must have been renamed
+        # Fix the duplicating collection after reloading sincedb(logstash restart or change logstash.conf)
+        sdb_value.add_path_in_sincedb(nil) unless sdb_value.nil?
+        logger.trace("---------- >>>> Rotation In Progress: after handling rotation", "this watched_file details" => watched_file.details, "sincedb_value" => (potential_sdb_value || sdb_value))
       end
     end
 
