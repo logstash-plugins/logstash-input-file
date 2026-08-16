@@ -85,6 +85,12 @@ module FileWatch
           logger.trace? && logger.trace("associate: inode and path matched", :filename => watched_file.filename)
           return true
         end
+        if watched_file.path.start_with?(sincedb_value.path_in_sincedb)
+          # If the path starts with sincedb path, it is considered a rotated file.
+          handle_association(sincedb_value, watched_file)
+          logger.trace? && logger.trace("associate: matched but start with same name", :filename => watched_file.filename)
+          return true
+        end
         # the path on disk is different from discovered unassociated path but they have the same key (inode)
         # treat as a new file, a new value will be added when the file is opened
         sincedb_value.clear_watched_file
