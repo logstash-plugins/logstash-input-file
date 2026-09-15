@@ -319,7 +319,12 @@ describe LogStash::Inputs::File do
       end
     end
 
-    after { plugin.stop }
+    after do
+      plugin.stop
+      unless @run_thread.join(30)
+        fail "run thread did not exit within 30 seconds"
+      end
+    end
 
     it 'processes a file' do
       wait_for_file_completion(sample_file)
