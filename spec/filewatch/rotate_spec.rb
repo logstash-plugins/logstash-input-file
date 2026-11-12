@@ -22,7 +22,7 @@ require 'filewatch/observing_tail'
 # exist, then they are renamed to app.log.2, app.log.3 etc. respectively.
 
 module FileWatch
-  describe Watch, :unix => true do
+  describe Watch do
     let(:directory) { Pathname.new(Stud::Temporary.directory) }
     let(:file1_path) { file_path.to_path }
     let(:max)   { 4095 }
@@ -257,6 +257,43 @@ module FileWatch
         expect(listener1.lines.uniq).to eq([line1])
         expect(listener1.calls_history).to eq(expected_calls)
         expect(sincedb_path.readlines.size).to eq(2)
+      end
+    end
+
+    context "create + rename rotation: when content is appended to the open file after its last stat and it is then renamed outside glob" do
+      let(:stat_interval) { 1 }
+      let(:discover_interval) { 1 }
+      let(:watch_dir) { directory.join("*G.log") }
+      let(:file_path) { directory.join("1G.log") }
+      subject { described_class.new(conf) }
+      let(:listener1) { observer.listener_for(file1_path) }
+      let(:actions) do
+        RSpec::Sequencing
+          .run_after(0.25, "create file") do
+            file_path.open("wb") { |file|  file.write("#{line1}\n") }
+          end
+          .then("wait for the first line") do
+            wait(3).for { listener1.lines.size }.to eq(1)
+          end
+          .then("append and rotate between two stats") do
+            file_path.open("ab") { |file|  file.write("#{line2}\n") }
+            file_path.rename(directory.join("1G.log.1"))
+            file_path.open("wb") { |file|  file.write("#{line3}\n") }
+          end
+          .then("wait for expectation") do
+            wait(4).for { listener1.lines.size }.to eq(3)
+          end
+          .then("quit") do
+            tailing.quit
+          end
+      end
+
+      it "the appended content of the renamed file is read before the new file" do
+        actions.activate_quietly
+        tailing.watch_this(watch_dir.to_path)
+        tailing.subscribe(observer)
+        actions.assert_no_errors
+        expect(listener1.lines).to eq([line1, line2, line3])
       end
     end
 

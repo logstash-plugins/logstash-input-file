@@ -252,6 +252,38 @@ module FileWatch
       end
     end
 
+    context "when a processed file with a partial last line shrinks" do
+      let(:discover_interval) { 1 }
+      let(:suffix) { "P" }
+      let(:actions) do
+        RSpec::Sequencing
+        .run_after(0.1, "start watching") do
+          tailing.watch_this(watch_dir)
+        end
+        .then_after(0.1, "create file") do
+          File.open(file_path, "wb") { |file|  file.write("line1\nline2\nline3\npartial") }
+        end
+        .then("wait for initial lines to be read") do
+          wait(0.8).for{listener1.lines.size}.to eq(3), "listener1.lines.size not eq 3"
+        end
+        .then_after(0.25, "truncate file and write new content") do
+          File.truncate(file_path, 0)
+          File.open(file_path, "ab") { |file|  file.write("lineA\nlineB\n") }
+          wait(0.5).for{listener1.lines.size}.to eq(5), "listener1.lines.size not eq 5"
+        end
+        .then("quit") do
+          tailing.quit
+        end
+      end
+
+      it "the partial line is not joined to the first line after the shrink" do
+        actions.activate_quietly
+        tailing.subscribe(observer)
+        actions.assert_no_errors
+        expect(listener1.lines).to eq(["line1", "line2", "line3", "lineA", "lineB"])
+      end
+    end
+
     context "when watching a directory with files and a file is renamed to not match glob", :unix => true do
       let(:suffix) { "G" }
       let(:new_file_path) { file_path + ".old" }
