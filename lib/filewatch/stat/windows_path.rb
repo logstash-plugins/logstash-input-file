@@ -14,10 +14,12 @@ module FileWatch module Stat
     def restat
       stat = @source.stat
       identifier = Winhelper.identifier_from_path(@source.to_path)
-      if identifier != 'unknown' || @inode.nil?
+      if @inode.nil? || (@inode != 'unknown' && identifier != 'unknown')
         @inode = identifier
         # in windows the dev hi and low are in the identifier
         @inode_struct = InodeStruct.new(@inode, 0, 0)
+      elsif @inode != 'unknown'
+        return
       end
       @modified_at = stat.mtime.to_f
       @size = stat.size

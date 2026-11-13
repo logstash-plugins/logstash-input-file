@@ -93,7 +93,7 @@ module FileWatch
       end
     end
 
-    context "create + rename rotation: a multiple file rename cascade" do
+    context "create + rename rotation: a multiple file rename cascade", :unix => true do
       let(:watch_dir) { directory.join("*B.log") }
       let(:file_path) { directory.join("1B.log") }
       subject { described_class.new(conf) }
@@ -135,7 +135,7 @@ module FileWatch
       end
     end
 
-    context "create + rename rotation: a two file rename cascade in slow motion" do
+    context "create + rename rotation: a two file rename cascade in slow motion", :unix => true do
       let(:watch_dir) { directory.join("*C.log") }
       let(:file_path) { directory.join("1C.log") }
       let(:stat_interval) { 0.01 }
@@ -179,7 +179,7 @@ module FileWatch
       end
     end
 
-    context "create + rename rotation: a two file rename cascade in normal speed" do
+    context "create + rename rotation: a two file rename cascade in normal speed", :unix => true do
       let(:watch_dir) { directory.join("*D.log") }
       let(:file_path) { directory.join("1D.log") }
       subject { described_class.new(conf) }
@@ -370,7 +370,7 @@ module FileWatch
       end
     end
 
-    context "? rotation: when an active file is renamed inside the glob and the reading does not lag" do
+    context "? rotation: when an active file is renamed inside the glob and the reading does not lag", :unix => true do
       let(:watch_dir) { directory.join("*H.log") }
       let(:file_path) { directory.join("1H.log") }
       let(:file2) { directory.join("2H.log") }
