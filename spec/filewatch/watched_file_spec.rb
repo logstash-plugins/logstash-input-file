@@ -64,6 +64,17 @@ module FileWatch
         expect( file.modified_at ).to eql mtime # until updated
         expect( file.modified_at(true) ).to be > mtime
       end
+
+      it 'detects rotation when the path is renamed and a new file created in its place' do
+        File.write(file_path, "line1\nline2\nline3\n")
+        file = WatchedFile.new(pathname, PathStatClass.new(pathname), Settings.new)
+        original_key = file.sincedb_key
+        File.rename(file_path, "#{file_path}.1")
+        File.write(file_path, "lineA\n")
+        expect( file.restat! ).to be_truthy
+        expect( file.rotation_in_progress? ).to be true
+        expect( file.stat_sincedb_key ).not_to eq(original_key)
+      end
     end
   end
 end
