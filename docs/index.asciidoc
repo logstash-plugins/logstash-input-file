@@ -401,7 +401,7 @@ A default of 4095 is set in internally.
 What mode do you want the file input to operate in. Tail a few files or
 read many content-complete files. Read mode now supports gzip file processing.
 
-If `read` is specified, these settings can be used:
+If `tail` is specified, these settings can be used:
 
 * `ignore_older` (older files are not processed)
 * `file_completed_action` (what action should be taken when the file is processed)
