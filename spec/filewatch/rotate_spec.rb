@@ -22,7 +22,7 @@ require 'filewatch/observing_tail'
 # exist, then they are renamed to app.log.2, app.log.3 etc. respectively.
 
 module FileWatch
-  describe Watch, :unix => true do
+  describe Watch do
     let(:directory) { Pathname.new(Stud::Temporary.directory) }
     let(:file1_path) { file_path.to_path }
     let(:max)   { 4095 }
@@ -93,7 +93,7 @@ module FileWatch
       end
     end
 
-    context "create + rename rotation: a multiple file rename cascade" do
+    context "create + rename rotation: a multiple file rename cascade", :unix => true do
       let(:watch_dir) { directory.join("*B.log") }
       let(:file_path) { directory.join("1B.log") }
       subject { described_class.new(conf) }
@@ -135,7 +135,7 @@ module FileWatch
       end
     end
 
-    context "create + rename rotation: a two file rename cascade in slow motion" do
+    context "create + rename rotation: a two file rename cascade in slow motion", :unix => true do
       let(:watch_dir) { directory.join("*C.log") }
       let(:file_path) { directory.join("1C.log") }
       let(:stat_interval) { 0.01 }
@@ -179,7 +179,7 @@ module FileWatch
       end
     end
 
-    context "create + rename rotation: a two file rename cascade in normal speed" do
+    context "create + rename rotation: a two file rename cascade in normal speed", :unix => true do
       let(:watch_dir) { directory.join("*D.log") }
       let(:file_path) { directory.join("1D.log") }
       subject { described_class.new(conf) }
@@ -260,6 +260,43 @@ module FileWatch
       end
     end
 
+    context "create + rename rotation: when content is appended to the open file after its last stat and it is then renamed outside glob" do
+      let(:stat_interval) { 1 }
+      let(:discover_interval) { 1 }
+      let(:watch_dir) { directory.join("*G.log") }
+      let(:file_path) { directory.join("1G.log") }
+      subject { described_class.new(conf) }
+      let(:listener1) { observer.listener_for(file1_path) }
+      let(:actions) do
+        RSpec::Sequencing
+          .run_after(0.25, "create file") do
+            file_path.open("wb") { |file|  file.write("#{line1}\n") }
+          end
+          .then("wait for the first line") do
+            wait(3).for { listener1.lines.size }.to eq(1)
+          end
+          .then("append and rotate between two stats") do
+            file_path.open("ab") { |file|  file.write("#{line2}\n") }
+            file_path.rename(directory.join("1G.log.1"))
+            file_path.open("wb") { |file|  file.write("#{line3}\n") }
+          end
+          .then("wait for expectation") do
+            wait(4).for { listener1.lines.size }.to eq(3)
+          end
+          .then("quit") do
+            tailing.quit
+          end
+      end
+
+      it "the appended content of the renamed file is read before the new file" do
+        actions.activate_quietly
+        tailing.watch_this(watch_dir.to_path)
+        tailing.subscribe(observer)
+        actions.assert_no_errors
+        expect(listener1.lines).to eq([line1, line2, line3])
+      end
+    end
+
     context "copy + truncate rotation: when a logfile is copied to a new path and truncated and the open file is fully read" do
       let(:watch_dir) { directory.join("*F.log") }
       let(:file_path) { directory.join("1F.log") }
@@ -333,7 +370,7 @@ module FileWatch
       end
     end
 
-    context "? rotation: when an active file is renamed inside the glob and the reading does not lag" do
+    context "? rotation: when an active file is renamed inside the glob and the reading does not lag", :unix => true do
       let(:watch_dir) { directory.join("*H.log") }
       let(:file_path) { directory.join("1H.log") }
       let(:file2) { directory.join("2H.log") }

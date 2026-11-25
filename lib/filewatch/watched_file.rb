@@ -233,8 +233,14 @@ module FileWatch
       !@file.nil? && !@file.closed?
     end
 
+    def refresh_size_from_open_file
+      return unless file_open?
+      @size = @file.sysseek(0, IO::SEEK_END)
+      update_bytes_unread
+    end
+
     def reset_buffer
-      @buffer.flush
+      @buffer.flush unless @buffer.nil?
     end
 
     def read_extract_lines(amount)

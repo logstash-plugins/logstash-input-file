@@ -4,6 +4,10 @@ module FileWatch module TailMode module Handlers
   class Shrink < Base
     def handle_specifically(watched_file)
       add_or_update_sincedb_collection(watched_file)
+      discarded = watched_file.reset_buffer
+      unless discarded.nil? || discarded.empty?
+        logger.debug("shrink: discarding partial line buffered before the file shrank", :path => watched_file.path, :bytes => discarded.bytesize)
+      end
       watched_file.file_seek(watched_file.bytes_read)
       loop do
         break if quit?

@@ -141,6 +141,7 @@ module FileWatch module TailMode
       logger.trace(__method__.to_s)
       watched_files.each do |watched_file|
         next unless watched_file.rotation_in_progress?
+        watched_file.refresh_size_from_open_file
         if !watched_file.all_read?
           if watched_file.file_open?
             # rotated file but original opened file is not fully read
