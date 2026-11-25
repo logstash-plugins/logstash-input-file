@@ -1,3 +1,8 @@
+## 4.4.8
+  - Fix create + rename rotation not being detected on Windows, which caused new content to be lost and old content to be re-read [#340](https://github.com/logstash-plugins/logstash-input-file/pull/340)
+  - Read content appended to a file before it was rotated instead of dropping it [#340](https://github.com/logstash-plugins/logstash-input-file/pull/340)
+  - Stop joining a partial line to the next line after a file is truncated [#340](https://github.com/logstash-plugins/logstash-input-file/pull/340)
+
 ## 4.4.7
   - Re-packaging the plugin [#331](https://github.com/logstash-plugins/logstash-input-file/pull/331)
 
